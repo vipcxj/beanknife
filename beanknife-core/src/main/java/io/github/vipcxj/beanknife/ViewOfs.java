@@ -7,6 +7,6 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.SOURCE)
-public @interface BeanKnife {
-    Class<?> value() default Self.class;
+public @interface ViewOfs {
+    ViewOf[] value();
 }

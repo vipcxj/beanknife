@@ -1,8 +1,8 @@
 package io.github.vipcxj.beanknife.examples.package1;
 
-import io.github.vipcxj.beanknife.BeanKnife;
+import io.github.vipcxj.beanknife.ViewMeta;
 
-@BeanKnife
+@ViewMeta
 public class PublicBeanInPackage1 {
 
     public int publicIntField;
