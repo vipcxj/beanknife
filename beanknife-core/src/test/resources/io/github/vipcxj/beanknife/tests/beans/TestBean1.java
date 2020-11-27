@@ -27,4 +27,13 @@ public class TestBean1 {
     protected long getD2() {
         return a + b;
     }
+
+    @ViewMeta
+    public static class NestTestBean1 {
+        private int a;
+
+        public int getA() {
+            return a;
+        }
+    }
 }

@@ -116,11 +116,19 @@ public class Utils {
         );
     }
 
-    public static boolean canCee(Property property, boolean samePackage) {
+    public static boolean canSeeFromOtherClass(Property property, boolean samePackage) {
         if (samePackage) {
             return property.getModifier() != Modifier.PRIVATE;
         } else {
             return property.getModifier() == Modifier.PUBLIC;
+        }
+    }
+
+    public static boolean canSeeFromOtherClass(Element element, boolean samePackage) {
+        if (samePackage) {
+            return !element.getModifiers().contains(Modifier.PRIVATE);
+        } else {
+            return element.getModifiers().contains(Modifier.PUBLIC);
         }
     }
 
@@ -137,7 +145,7 @@ public class Utils {
             Property p = iterator.next();
             if (elementUtils.hides(property.getElement(), p.getElement())) {
                 iterator.remove();
-                if (canCee(property, samePackage) && isNotObjectProperty(property)) {
+                if (canSeeFromOtherClass(property, samePackage) && isNotObjectProperty(property)) {
                     iterator.add(new Property(property, p.getComment()));
                 }
                 done = true;
@@ -148,7 +156,7 @@ public class Utils {
             } else if (p.getMethodName().equals(property.getMethodName())) {
                 if (override || (!p.isMethod() && property.isMethod())) {
                     iterator.remove();
-                    if (canCee(property, samePackage) && isNotObjectProperty(property)) {
+                    if (canSeeFromOtherClass(property, samePackage) && isNotObjectProperty(property)) {
                         iterator.add(new Property(property, p.getComment()));
                     }
                 } else if (p.isMethod() == property.isMethod()) {
@@ -170,7 +178,7 @@ public class Utils {
                 break;
             }
         }
-        if (!done && canCee(property, samePackage) && isNotObjectProperty(property)) {
+        if (!done && canSeeFromOtherClass(property, samePackage) && isNotObjectProperty(property)) {
             properties.add(property);
         }
     }

@@ -13,7 +13,7 @@ import java.io.PrintWriter;
 import java.util.*;
 
 @SupportedAnnotationTypes({"io.github.vipcxj.beanknife.ViewMeta", "io.github.vipcxj.beanknife.ViewMetas"})
-@SupportedSourceVersion(SourceVersion.RELEASE_11)
+@SupportedSourceVersion(SourceVersion.RELEASE_8)
 @AutoService(Processor.class)
 public class ViewMetaProcessor extends AbstractProcessor {
 
@@ -31,25 +31,45 @@ public class ViewMetaProcessor extends AbstractProcessor {
                             "io.github.vipcxj.beanknife.ViewMeta",
                             "io.github.vipcxj.beanknife.ViewMetas"
                     );
+                    TypeElement typeElement = (TypeElement) element;
+                    List<Property> samePackageProperties = null;
+                    List<Property> diffPackageProperties = null;
                     Set<String> targetClassNames = new HashSet<>();
                     for (AnnotationMirror annotationMirror : annotationMirrors) {
-                        TypeElement typeElement = (TypeElement) element;
-                        String qualifiedName = typeElement.getQualifiedName().toString();
-                        ClassName targetClassName = extractClassName(annotationMirror, qualifiedName);
-                        if (!targetClassNames.contains(targetClassName.getClassName())) {
-                            targetClassNames.add(targetClassName.getClassName());
-                            ClassName baseClassName = ClassName.parse(qualifiedName);
-                            boolean samePackage = baseClassName.getPackageName().equals(targetClassName.getPackageName());
-                            List<Property> properties = collectProperties(typeElement, samePackage);
+                        ClassName baseClassName = ClassName.extract(processingEnv, typeElement);
+                        ClassName targetClassName = extractClassName(annotationMirror, baseClassName);
+                        boolean samePackage = baseClassName.getPackageName().equals(targetClassName.getPackageName());
+                        if (!targetClassNames.contains(targetClassName.getQualifiedClassName())) {
+                            targetClassNames.add(targetClassName.getQualifiedClassName());
+                            if (!Utils.canSeeFromOtherClass(typeElement, samePackage)) {
+                                processingEnv.getMessager().printMessage(
+                                        Diagnostic.Kind.ERROR,
+                                        "The target class "
+                                                + baseClassName.getQualifiedClassName()
+                                                + " can not be seen by the generated class "
+                                                + targetClassName.getQualifiedClassName()
+                                                + "."
+                                );
+                                continue;
+                            }
+
+                            if (samePackage && samePackageProperties == null) {
+                                samePackageProperties = collectProperties(typeElement, true);
+                            } else if (!samePackage && diffPackageProperties == null) {
+                                diffPackageProperties = collectProperties(typeElement, false);
+                            }
+                            List<Property> properties = samePackage ? samePackageProperties : diffPackageProperties;
                             try {
                                 writeBuilderFile(targetClassName, properties);
                             } catch (IOException e) {
                                 processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, e.getMessage());
                             }
                         } else {
-                            processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING, "Repeated ViewMeta annotation with class name: " + targetClassName.getClassName() + ".");
+                            processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING, "Repeated ViewMeta annotation with class name: " + targetClassName.getQualifiedClassName() + ".");
                         }
                     }
+                } else {
+                    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "");
                 }
             }
         }
@@ -74,33 +94,29 @@ public class ViewMetaProcessor extends AbstractProcessor {
         return properties;
     }
 
-    private ClassName extractClassName(AnnotationMirror annotation, String baseClassName) {
+    private ClassName extractClassName(AnnotationMirror annotation, ClassName baseClassName) {
         Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues = processingEnv.getElementUtils().getElementValuesWithDefaults(annotation);
         String simpleClassName = Utils.getStringAnnotationValue(annotation, annotationValues, "value");
         String packageName = Utils.getStringAnnotationValue(annotation, annotationValues, "packageName");
-        String className;
         if (simpleClassName.isEmpty()) {
             if (packageName.isEmpty()) {
-                className = baseClassName + "Meta";
-                return ClassName.parse(className);
+                return new ClassName(baseClassName.getPackageName(), baseClassName.getSimpleName() + "Meta");
             } else {
-                ClassName csName = ClassName.parse(baseClassName);
-                simpleClassName = csName.getSimpleClassName() + "Meta";
+                simpleClassName = baseClassName.getSimpleName() + "Meta";
                 return new ClassName(packageName, simpleClassName);
             }
         } else {
-            ClassName csName = ClassName.parse(baseClassName);
             if (packageName.isEmpty()) {
-                packageName = csName.getPackageName();
+                packageName = baseClassName.getPackageName();
             }
             return new ClassName(packageName, simpleClassName);
         }
     }
 
     private void writeBuilderFile(ClassName csName, List<Property> properties) throws IOException {
-        String metaClassName = csName.getClassName();
+        String metaClassName = csName.getFlatQualifiedClassName();
         String metaPackageName = csName.getPackageName();
-        String metaSimpleClassName = csName.getSimpleClassName();
+        String metaDeclaredSimpleClassName = csName.getFlatSimpleName();
         JavaFileObject sourceFile = processingEnv.getFiler().createSourceFile(metaClassName);
         Set<String> names = new HashSet<>();
         try (PrintWriter writer = new PrintWriter(sourceFile.openWriter())) {
@@ -111,13 +127,13 @@ public class ViewMetaProcessor extends AbstractProcessor {
                 writer.println();
             }
             writer.print("public class ");
-            writer.print(metaSimpleClassName);
+            writer.print(metaDeclaredSimpleClassName);
             writer.println(" {");
             for (Property property : properties) {
                 String variableName = Utils.createValidFieldName(property.getName(), names);
                 names.add(variableName);
                 writer.print(INDENT);
-                writer.print("public final String ");
+                writer.print("public static final String ");
                 writer.print(variableName);
                 writer.print(" = \"");
                 writer.print(property.getName());

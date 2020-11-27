@@ -4,13 +4,8 @@ import com.google.testing.compile.Compilation;
 import com.google.testing.compile.CompilationSubject;
 import com.google.testing.compile.Compiler;
 import com.google.testing.compile.JavaFileObjects;
-import io.github.vipcxj.beanknife.ClassName;
 import io.github.vipcxj.beanknife.ViewMetaProcessor;
 import org.junit.Test;
-
-import javax.tools.Diagnostic;
-import javax.tools.JavaFileObject;
-import java.util.Arrays;
 
 public class ViewMetaProcessorTest {
 
@@ -22,7 +17,8 @@ public class ViewMetaProcessorTest {
                         null,
                         "io.github.vipcxj.beanknife.tests.beans.ViewOfTestBean1",
                         "io.github.vipcxj.beanknife.tests.otherbeans.TestBean1Meta",
-                        "io.github.vipcxj.beanknife.tests.otherbeans.ViewOfTestBean1"
+                        "io.github.vipcxj.beanknife.tests.otherbeans.ViewOfTestBean1",
+                        "io.github.vipcxj.beanknife.tests.beans.TestBean1$NestTestBean1Meta"
                 }
         );
         testViewMetaCase("io.github.vipcxj.beanknife.tests.beans.TestBean1Child", null);
