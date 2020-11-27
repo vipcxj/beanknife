@@ -13,7 +13,7 @@ public class TestBean2View {
     }
 
     public TestBean2View(TestBean2 source) {
-        this(source.getA(), source.getC(), source.getD2());
+        this(source.getA(), source.isC(), source.getD2());
     }
 
     public static TestBean2View from(TestBean2 source) {
