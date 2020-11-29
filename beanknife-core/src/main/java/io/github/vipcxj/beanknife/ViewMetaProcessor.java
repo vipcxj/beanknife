@@ -1,16 +1,20 @@
 package io.github.vipcxj.beanknife;
 
 import com.google.auto.service.AutoService;
+import io.github.vipcxj.beanknife.models.Property;
+import io.github.vipcxj.beanknife.models.Type;
+import io.github.vipcxj.beanknife.utils.Utils;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
-import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 @SupportedAnnotationTypes({"io.github.vipcxj.beanknife.ViewMeta", "io.github.vipcxj.beanknife.ViewMetas"})
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
@@ -36,27 +40,35 @@ public class ViewMetaProcessor extends AbstractProcessor {
                     List<Property> diffPackageProperties = null;
                     Set<String> targetClassNames = new HashSet<>();
                     for (AnnotationMirror annotationMirror : annotationMirrors) {
-                        ClassName baseClassName = ClassName.extract(processingEnv, typeElement);
-                        ClassName targetClassName = extractClassName(annotationMirror, baseClassName);
+                        Type baseClassName = Type.extract(element.asType());
+                        Type targetClassName = Utils.extractClassName(
+                                processingEnv,
+                                annotationMirror,
+                                baseClassName,
+                                "value",
+                                "packageName",
+                                "Meta"
+                        );
                         boolean samePackage = baseClassName.getPackageName().equals(targetClassName.getPackageName());
-                        if (!targetClassNames.contains(targetClassName.getQualifiedClassName())) {
-                            targetClassNames.add(targetClassName.getQualifiedClassName());
+                        String targetQualifiedName = targetClassName.getQualifiedName(false, false);
+                        if (!targetClassNames.contains(targetQualifiedName)) {
+                            targetClassNames.add(targetQualifiedName);
                             if (!Utils.canSeeFromOtherClass(typeElement, samePackage)) {
-                                processingEnv.getMessager().printMessage(
-                                        Diagnostic.Kind.ERROR,
+                                Utils.logError(
+                                        processingEnv,
                                         "The target class "
-                                                + baseClassName.getQualifiedClassName()
-                                                + " can not be seen by the generated class "
-                                                + targetClassName.getQualifiedClassName()
-                                                + "."
+                                        + baseClassName.getQualifiedName(false, false)
+                                        + " can not be seen by the generated class "
+                                        + targetQualifiedName
+                                        + "."
                                 );
                                 continue;
                             }
 
                             if (samePackage && samePackageProperties == null) {
-                                samePackageProperties = collectProperties(typeElement, true);
+                                samePackageProperties = Utils.collectProperties(processingEnv, typeElement, true);
                             } else if (!samePackage && diffPackageProperties == null) {
-                                diffPackageProperties = collectProperties(typeElement, false);
+                                diffPackageProperties = Utils.collectProperties(processingEnv, typeElement, false);
                             }
                             List<Property> properties = samePackage ? samePackageProperties : diffPackageProperties;
                             try {
@@ -65,7 +77,7 @@ public class ViewMetaProcessor extends AbstractProcessor {
                                 processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, e.getMessage());
                             }
                         } else {
-                            processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING, "Repeated ViewMeta annotation with class name: " + targetClassName.getQualifiedClassName() + ".");
+                            processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING, "Repeated ViewMeta annotation with class name: " + targetQualifiedName + ".");
                         }
                     }
                 } else {
@@ -76,47 +88,10 @@ public class ViewMetaProcessor extends AbstractProcessor {
         return true;
     }
 
-    private List<Property> collectProperties( TypeElement element, boolean samePackage) {
-        List<Property> properties = new LinkedList<>();
-        Elements elementUtils = processingEnv.getElementUtils();
-        List<? extends Element> members = elementUtils.getAllMembers(element);
-        for (Element member : members) {
-            Property property = null;
-            if (member.getKind() == ElementKind.FIELD) {
-                property = Utils.createProperty(processingEnv, (VariableElement) member);
-            } else if (member.getKind() == ElementKind.METHOD) {
-                property = Utils.createProperty(processingEnv, (ExecutableElement) member);
-            }
-            if (property != null) {
-                Utils.addProperty(processingEnv, properties, property, samePackage, false);
-            }
-        }
-        return properties;
-    }
-
-    private ClassName extractClassName(AnnotationMirror annotation, ClassName baseClassName) {
-        Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues = processingEnv.getElementUtils().getElementValuesWithDefaults(annotation);
-        String simpleClassName = Utils.getStringAnnotationValue(annotation, annotationValues, "value");
-        String packageName = Utils.getStringAnnotationValue(annotation, annotationValues, "packageName");
-        if (simpleClassName.isEmpty()) {
-            if (packageName.isEmpty()) {
-                return new ClassName(baseClassName.getPackageName(), baseClassName.getSimpleName() + "Meta");
-            } else {
-                simpleClassName = baseClassName.getSimpleName() + "Meta";
-                return new ClassName(packageName, simpleClassName);
-            }
-        } else {
-            if (packageName.isEmpty()) {
-                packageName = baseClassName.getPackageName();
-            }
-            return new ClassName(packageName, simpleClassName);
-        }
-    }
-
-    private void writeBuilderFile(ClassName csName, List<Property> properties) throws IOException {
-        String metaClassName = csName.getFlatQualifiedClassName();
+    private void writeBuilderFile(Type csName, List<Property> properties) throws IOException {
+        String metaClassName = csName.getFlatQualifiedName(false);
         String metaPackageName = csName.getPackageName();
-        String metaDeclaredSimpleClassName = csName.getFlatSimpleName();
+        String metaDeclaredSimpleClassName = csName.getEnclosedFlatSimpleName(false);
         JavaFileObject sourceFile = processingEnv.getFiler().createSourceFile(metaClassName);
         Set<String> names = new HashSet<>();
         try (PrintWriter writer = new PrintWriter(sourceFile.openWriter())) {

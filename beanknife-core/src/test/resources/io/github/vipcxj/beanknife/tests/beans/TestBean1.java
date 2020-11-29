@@ -2,12 +2,18 @@ package io.github.vipcxj.beanknife.tests.beans;
 
 import io.github.vipcxj.beanknife.ViewMeta;
 
+import java.util.Set;
+
 @ViewMeta
 @ViewMeta(packageName = "io.github.vipcxj.beanknife.tests.otherbeans")
 @ViewMeta("ViewOfTestBean1")
 @ViewMeta(value = "ViewOfTestBean1", packageName = "io.github.vipcxj.beanknife.tests.otherbeans")
 public class TestBean1 {
 
+    private Set<? extends Set<String>> n1;
+    private Set<Set<String>> n2;
+    private Set<String> n3;
+    private Set n4;
     private int a;
     private long b;
     private boolean c;

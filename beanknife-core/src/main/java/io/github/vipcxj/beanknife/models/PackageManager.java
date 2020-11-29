@@ -1,4 +1,4 @@
-package io.github.vipcxj.beanknife;
+package io.github.vipcxj.beanknife.models;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -18,12 +18,14 @@ public class PackageManager {
         this.symbols = new HashSet<>();
     }
 
-    public boolean importVariable(ClassName name) {
-        if (symbols.contains(name.getImportSimpleName())) {
-            return imports.contains(name.getImportName());
+    public boolean importVariable(Type name) {
+        String symbol = name.getTopmostEnclosingType().getSimpleName(false);
+        String importName = name.getTopmostEnclosingType().getQualifiedName(false, false);
+        if (symbols.contains(symbol)) {
+            return imports.contains(importName);
         }
-        imports.add(name.getImportName());
-        symbols.add(name.getImportSimpleName());
+        imports.add(importName);
+        symbols.add(symbol);
         return true;
     }
 

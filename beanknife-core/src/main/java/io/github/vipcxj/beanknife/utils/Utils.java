@@ -1,10 +1,14 @@
-package io.github.vipcxj.beanknife;
+package io.github.vipcxj.beanknife.utils;
+
+import io.github.vipcxj.beanknife.models.Property;
+import io.github.vipcxj.beanknife.models.Type;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
@@ -217,13 +221,81 @@ public class Utils {
         return result;
     }
 
-    public static String getStringAnnotationValue(AnnotationMirror annotation, @Nonnull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues, @Nonnull String name) {
+    public static AnnotationValue getAnnotationValue(AnnotationMirror annotation, @Nonnull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues, @Nonnull String name) {
         for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : annotationValues.entrySet()) {
             if (name.equals(entry.getKey().getSimpleName().toString())) {
-                return (String) entry.getValue().getValue();
+                return entry.getValue();
             }
         }
         throw new IllegalArgumentException("There is no attribute named \"" + name + "\" in annotation " + getAnnotationName(annotation));
+    }
+
+    public enum AnnotationValueKind {
+        BOXED, STRING, TYPE, ENUM, ANNOTATION, ARRAY
+    }
+    private static AnnotationValueKind getAnnotationValueType(AnnotationValue value) {
+        Object v = value.getValue();
+        if (v instanceof Boolean
+                || v instanceof Integer
+                || v instanceof Long
+                || v instanceof Float
+                || v instanceof Short
+                || v instanceof Character
+                || v instanceof Double
+                || v instanceof Byte
+        ) {
+            return AnnotationValueKind.BOXED;
+        } else if (v instanceof String) {
+            return AnnotationValueKind.STRING;
+        } else if (v instanceof TypeMirror) {
+            return AnnotationValueKind.TYPE;
+        } else if (v instanceof VariableElement) {
+            return AnnotationValueKind.ENUM;
+        } else if (v instanceof AnnotationMirror) {
+            return AnnotationValueKind.ANNOTATION;
+        } else if (v instanceof List) {
+            return AnnotationValueKind.ARRAY;
+        }
+        throw new IllegalArgumentException("This is impossible.");
+    }
+
+    private static void throwCastAnnotationValueTypeError(
+            @Nonnull AnnotationMirror annotation,
+            @Nonnull String attributeName,
+            @Nonnull AnnotationValueKind fromKind,
+            @Nonnull AnnotationValueKind toKind
+    ) {
+        throw new IllegalArgumentException(
+                "Unable to cast attribute named \""
+                        + attributeName
+                        + "\" in annotation "
+                        + getAnnotationName(annotation)
+                        + " from "
+                        + fromKind
+                        + " to "
+                        + toKind
+                        + "."
+        );
+    }
+
+    public static String getStringAnnotationValue(@Nonnull AnnotationMirror annotation, @Nonnull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues, @Nonnull String name) {
+        AnnotationValue annotationValue = getAnnotationValue(annotation, annotationValues, name);
+        AnnotationValueKind kind = getAnnotationValueType(annotationValue);
+        if (kind == AnnotationValueKind.STRING) {
+            return (String) annotationValue.getValue();
+        }
+        throwCastAnnotationValueTypeError(annotation, name, kind, AnnotationValueKind.STRING);
+        throw new IllegalArgumentException("This is impossible.");
+    }
+
+    public static DeclaredType getTypeAnnotationValue(@Nonnull AnnotationMirror annotation, @Nonnull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues, @Nonnull String name) {
+        AnnotationValue annotationValue = getAnnotationValue(annotation, annotationValues, name);
+        AnnotationValueKind kind = getAnnotationValueType(annotationValue);
+        if (kind == AnnotationValueKind.TYPE) {
+            return (DeclaredType) annotationValue.getValue();
+        }
+        throwCastAnnotationValueTypeError(annotation, name, kind, AnnotationValueKind.TYPE);
+        throw new IllegalArgumentException("This is impossible.");
     }
 
     public static List<AnnotationMirror> getAnnotationElement(AnnotationMirror annotation, @Nonnull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues) {
@@ -239,5 +311,46 @@ public class Utils {
             }
         }
         throw new IllegalArgumentException("There is no attribute named value in annotation " + getAnnotationName(annotation));
+    }
+
+    public static Type extractClassName(ProcessingEnvironment environment, AnnotationMirror annotation, Type baseClassName, String simpleClassNameVar, String packageNameVar, String postfix) {
+        Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues = environment.getElementUtils().getElementValuesWithDefaults(annotation);
+        String simpleClassName = Utils.getStringAnnotationValue(annotation, annotationValues, simpleClassNameVar);
+        String packageName = Utils.getStringAnnotationValue(annotation, annotationValues, packageNameVar);
+        if (simpleClassName.isEmpty()) {
+            if (packageName.isEmpty()) {
+                return baseClassName.appendName(postfix);
+            } else {
+                return baseClassName.changePackage(packageName).appendName(postfix);
+            }
+        } else {
+            if (packageName.isEmpty()) {
+                return baseClassName.changeSimpleName(simpleClassName);
+            } else {
+                return baseClassName.changePackage(packageName).changeSimpleName(simpleClassName);
+            }
+        }
+    }
+
+    public static List<Property> collectProperties(ProcessingEnvironment environment, TypeElement element, boolean samePackage) {
+        List<Property> properties = new LinkedList<>();
+        Elements elementUtils = environment.getElementUtils();
+        List<? extends Element> members = elementUtils.getAllMembers(element);
+        for (Element member : members) {
+            Property property = null;
+            if (member.getKind() == ElementKind.FIELD) {
+                property = Utils.createProperty(environment, (VariableElement) member);
+            } else if (member.getKind() == ElementKind.METHOD) {
+                property = Utils.createProperty(environment, (ExecutableElement) member);
+            }
+            if (property != null) {
+                Utils.addProperty(environment, properties, property, samePackage, false);
+            }
+        }
+        return properties;
+    }
+
+    public static void logError(ProcessingEnvironment env, String message) {
+        env.getMessager().printMessage(Diagnostic.Kind.ERROR, message);
     }
 }

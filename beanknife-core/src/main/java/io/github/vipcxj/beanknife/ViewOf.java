@@ -1,5 +1,7 @@
 package io.github.vipcxj.beanknife;
 
+import io.github.vipcxj.beanknife.utils.Self;
+
 import java.lang.annotation.*;
 
 @Target(ElementType.TYPE)

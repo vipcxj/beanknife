@@ -1,27 +1,33 @@
 package io.github.vipcxj.beanknife.tests.beans;
 
+import io.github.vipcxj.beanknife.ViewMeta;
 import io.github.vipcxj.beanknife.ViewOf;
 
-@ViewOf(includePattern = "*", excludes = {"d1"})
-public class TestBean2 {
+import java.util.List;
 
-    private int a;
-    private long b;
-    private boolean c;
+@ViewMeta
+@ViewMeta(packageName = "io.github.vipcxj.beanknife.tests.otherbeans")
+@ViewMeta("ViewOfTestBean2")
+@ViewMeta(value = "ViewOfTestBean2", packageName = "io.github.vipcxj.beanknife.tests.otherbeans")
+public class TestBean2<T1 extends CharSequence & Number, T2 extends List<String>> {
 
-    public int getA() {
+    private T1 a;
+    private T2 b;
+
+    public T1 getA() {
         return a;
     }
 
-    public boolean isC() {
-        return c;
+    public T2 getB() {
+        return b;
     }
 
-    long getD1() {
-        return a + b;
-    }
+    @ViewMeta
+    static class TestBeanChild1<T3> {
+        private T3 c;
 
-    protected long getD2() {
-        return a + b;
+        public T3 getC() {
+            return c;
+        }
     }
 }

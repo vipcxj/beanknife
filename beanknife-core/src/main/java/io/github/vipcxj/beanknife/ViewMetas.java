@@ -8,5 +8,5 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.SOURCE)
 public @interface ViewMetas {
-    ViewMeta[] value();
+    ViewMeta[] value() default {};
 }
