@@ -33,20 +33,14 @@ public class ViewMetaProcessorTest {
                 "Meta"
         );
         testViewCase(
-                new ViewMetaProcessor(),
-                "io.github.vipcxj.beanknife.tests.beans.TestBean2",
-                new String[] {
-                        null,
-                        "io.github.vipcxj.beanknife.tests.beans.ViewOfTestBean2",
-                        "io.github.vipcxj.beanknife.tests.otherbeans.TestBean2Meta",
-                        "io.github.vipcxj.beanknife.tests.otherbeans.ViewOfTestBean2",
-                        "io.github.vipcxj.beanknife.tests.beans.TestBean1$NestTestBean2Meta"
-                },
-                "Meta"
+                new ViewOfProcessor(),
+                "io.github.vipcxj.beanknife.tests.beans.GenericTestBean1",
+                null,
+                "View"
         );
         testViewCase(
                 new ViewOfProcessor(),
-                "io.github.vipcxj.beanknife.tests.beans.GenericTestBean1",
+                "io.github.vipcxj.beanknife.tests.beans.GenericTestBean2",
                 null,
                 "View"
         );

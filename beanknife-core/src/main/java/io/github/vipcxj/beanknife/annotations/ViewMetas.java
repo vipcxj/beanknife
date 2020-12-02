@@ -1,4 +1,4 @@
-package io.github.vipcxj.beanknife;
+package io.github.vipcxj.beanknife.annotations;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -7,6 +7,6 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.SOURCE)
-public @interface ViewOfs {
-    ViewOf[] value() default {};
+public @interface ViewMetas {
+    ViewMeta[] value() default {};
 }

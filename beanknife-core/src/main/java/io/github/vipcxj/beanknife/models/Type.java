@@ -1,12 +1,16 @@
 package io.github.vipcxj.beanknife.models;
 
+import io.github.vipcxj.beanknife.utils.Utils;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.lang.model.element.*;
 import javax.lang.model.type.*;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class Type {
     private final String packageName;
@@ -18,7 +22,6 @@ public class Type {
     private final Type container;
     private final TypeMirror upperBound;
     private final TypeMirror lowerBound;
-    private PackageManager packageManager;
 
     /**
      * 构造函数
@@ -51,27 +54,6 @@ public class Type {
         this.upperBound = upperBound;
         this.lowerBound = lowerBound;
     }
-
-    public Type withPackageManager(PackageManager manager) {
-        this.packageManager = manager;
-        return this;
-    }
-
-/*    @Nonnull
-    public static Type extract(ProcessingEnvironment environment, TypeElement element) {
-        String packageName = environment.getElementUtils().getPackageOf(element).getQualifiedName().toString();
-        String qualifiedName = element.getQualifiedName().toString();
-        DeclaredType type = (DeclaredType) element.asType();
-        List<Type> parameters = new ArrayList<>();
-        for (TypeMirror typeArgument : type.getTypeArguments()) {
-            if (typeArgument.getKind() == TypeKind.DECLARED) {
-                parameters.add(extract(environment, (TypeElement) ((DeclaredType) typeArgument).asElement()));
-            } else if (typeArgument.getKind() == TypeKind.ARRAY) {
-            }
-        }
-
-        return new Type(packageName, packageName.isEmpty() ? qualifiedName : qualifiedName.substring(packageName.length() + 1));
-    }*/
 
     public Type toArrayType() {
         if (array) return this;
@@ -134,6 +116,25 @@ public class Type {
                 upperBound,
                 lowerBound
         );
+    }
+
+    public String relativeName(Type type, boolean imported) {
+        String packageName = type.getPackageName();
+        String parentName = type.getPackageWithParent();
+        String parentNameOfMe = getPackageWithParent();
+        String packageNameOfMe = getPackageName();
+        if (packageName.equals(packageNameOfMe)) {
+            if (parentName.equals(parentNameOfMe)) {
+                return type.getSimpleName();
+            }
+            if (parentName.startsWith(parentNameOfMe) && parentName.charAt(parentNameOfMe.length()) == '.') {
+                return type.getSimpleName();
+            }
+            if (parentNameOfMe.startsWith(parentName) && parentNameOfMe.charAt(parentName.length()) == '.') {
+                return type.getSimpleName();
+            }
+        }
+        return (imported || type.isLangType()) ? type.getEnclosedSimpleName() : type.getQualifiedName();
     }
 
     @Nonnull
@@ -226,48 +227,18 @@ public class Type {
      * @return 类名
      */
     @Nonnull
-    public String getSimpleName(boolean withParameter) {
-        if (!withParameter) {
-            return simpleName;
-        }
-        return simpleName + getParametersPostfix();
+    public String getSimpleName() {
+        return simpleName;
     }
 
-    public String getParametersPostfix() {
-        if (parameters.isEmpty()) {
-            return "";
-        }
-        StringBuilder sb = new StringBuilder();
-        sb.append("<");
-        boolean start = true;
-        for (Type parameter : parameters) {
-            if (!start) {
-                sb.append(", ");
-            }
-            boolean imported = false;
-            if (packageManager != null) {
-                parameter = parameter.withPackageManager(packageManager);
-                imported = packageManager.importVariable(parameter);
-            }
-            if (imported) {
-                sb.append(parameter.getEnclosedSimpleName(true, true));
-            } else {
-                sb.append(parameter.getQualifiedName(true, true));
-            }
-            start = false;
-        }
-        sb.append(">");
-        return sb.toString();
-    }
-
-    public String getEnclosedSimpleName(boolean withParameters, boolean withParentParameters) {
+    public String getEnclosedSimpleName() {
         if (container == null) {
-            return getSimpleName(withParameters);
+            return getSimpleName();
         }
         return combine(
                 ".",
-                container.getEnclosedSimpleName(withParentParameters, withParentParameters),
-                getSimpleName(withParameters)
+                container.getEnclosedSimpleName(),
+                getSimpleName()
         );
     }
 
@@ -275,15 +246,22 @@ public class Type {
      * 获取单独类名，若不是嵌套类，则为不包括包名和泛型参数的类名。对于嵌套类，列如 a.b.c.D.E, 返回 D$E
      * @return 单独类名
      */
-    public String getEnclosedFlatSimpleName(boolean withParameters) {
+    public String getEnclosedFlatSimpleName() {
         if (container == null) {
-            return getSimpleName(false);
+            return getSimpleName();
         }
         return combine(
                 "$",
-                container.getEnclosedFlatSimpleName(false),
-                getSimpleName(withParameters)
+                container.getEnclosedFlatSimpleName(),
+                getSimpleName()
         );
+    }
+
+    public String getPackageWithParent() {
+        if (container == null) {
+            return packageName;
+        }
+        return container.getQualifiedName();
     }
 
     /**
@@ -316,11 +294,11 @@ public class Type {
      * @return 全限定类名
      */
     @Nonnull
-    public String getQualifiedName(boolean withParameters, boolean withParentParameters) {
+    public String getQualifiedName() {
         return combine(
                 ".",
-                container != null ? container.getQualifiedName(withParentParameters, withParentParameters) : packageName,
-                getSimpleName(withParameters)
+                container != null ? container.getQualifiedName() : packageName,
+                getSimpleName()
         );
     }
 
@@ -329,12 +307,179 @@ public class Type {
      * @return 全限定单独类名
      */
     @Nonnull
-    public String getFlatQualifiedName(boolean withParameters) {
+    public String getFlatQualifiedName() {
         return combine(
                 ".",
                 packageName,
-                getEnclosedFlatSimpleName(withParameters)
+                getEnclosedFlatSimpleName()
         );
     }
 
+    public boolean isArray() {
+        return array;
+    }
+
+    public boolean isTypeVar() {
+        return typeVar;
+    }
+
+    public boolean isWildcard() {
+        return wildcard;
+    }
+
+    public TypeMirror getLowerBound() {
+        return lowerBound;
+    }
+
+    public TypeMirror getUpperBound() {
+        return upperBound;
+    }
+
+    public List<Type> getParameters() {
+        return parameters;
+    }
+
+    public boolean isNotObjectType() {
+        return !"java.lang".equals(packageName) || !"Object".equals(simpleName);
+    }
+
+    public boolean isLangType() {
+        return "java.lang".equals(packageName);
+    }
+
+    public void openClass(@Nonnull PrintWriter writer, @Nonnull Modifier modifier, @Nonnull Context context, String indent, int indentNum) {
+        Utils.printIndent(writer, indent, indentNum);
+        writer.print(modifier);
+        writer.print(" ");
+        writer.print("class ");
+        writer.print(getSimpleName());
+        printGenericParameters(writer, context, true);
+        writer.println(" {");
+    }
+
+    public void closeClass(@Nonnull PrintWriter writer, String indent, int indentNum) {
+        Utils.printIndent(writer, indent, indentNum);
+        writer.println("}");
+    }
+
+    private void openConstructor(@Nonnull PrintWriter writer, @Nonnull Modifier modifier, String indent, int indentNum) {
+        Utils.printIndent(writer, indent, indentNum);
+        Utils.printModifier(writer, modifier);
+        writer.print(getSimpleName());
+        writer.print("(");
+    }
+
+    public void emptyConstructor(@Nonnull PrintWriter writer, @Nonnull Modifier modifier, String indent, int indentNum) {
+        openConstructor(writer, modifier, indent, indentNum);
+        writer.println(") { }");
+    }
+
+    public void fieldsConstructor(@Nonnull PrintWriter writer, @Nonnull Context context, @Nonnull Modifier modifier, @Nonnull List<Property> properties, String indent, int indentNum) {
+        if (properties.isEmpty()) {
+            return;
+        }
+        openConstructor(writer, modifier, indent, indentNum);
+        writer.println();
+        int size = properties.size();
+        int i = 0;
+        for (Property property : properties) {
+            Utils.printIndent(writer, indent, indentNum + 1);
+            property.printType(writer, context, true, false);
+            writer.print(" ");
+            writer.print(context.getMappedFieldName(property));
+            if (i != size - 1) {
+                writer.println(",");
+            } else {
+                writer.println();
+            }
+            ++i;
+        }
+        Utils.printIndent(writer, indent, indentNum);
+        writer.println(") {");
+        for (Property property : properties) {
+            Utils.printIndent(writer, indent, indentNum + 1);
+            writer.print("this.");
+            writer.print(context.getMappedFieldName(property));
+            writer.print(" = ");
+            writer.print(context.getMappedFieldName(property));
+            writer.println(";");
+        }
+        Utils.printIndent(writer, indent, indentNum);
+        writer.println("}");
+    }
+
+    public void copyConstructor(@Nonnull PrintWriter writer, @Nonnull Context context, @Nonnull Modifier modifier, @Nonnull List<Property> properties, String indent, int indentNum) {
+        openConstructor(writer, modifier, indent, indentNum);
+        writer.print(getSimpleName());
+        printGenericParameters(writer, context, false);
+        writer.print(" ");
+        writer.println("source) {");
+        for (Property property : properties) {
+            Utils.printIndent(writer, indent, indentNum + 1);
+            writer.print("this.");
+            writer.print(context.getMappedFieldName(property));
+            writer.print(" = source.");
+            writer.print(context.getMappedFieldName(property));
+            writer.println(";");
+        }
+        Utils.printIndent(writer, indent, indentNum);
+        writer.println("}");
+    }
+
+    public void printType(@Nonnull PrintWriter writer, @Nonnull Context context, boolean generic, boolean withBound) {
+        writer.print(context.relativeName(this));
+        if (generic) {
+            printGenericParameters(writer, context, withBound);
+        }
+        if (isArray()) {
+            writer.print("[]");
+        }
+    }
+
+    public void printGenericParameters(@Nonnull PrintWriter writer, @Nonnull Context context, boolean withBound) {
+        if (parameters.isEmpty()) {
+            return;
+        }
+        writer.print("<");
+        boolean start = true;
+        for (Type parameter : parameters) {
+            if (!start) {
+                writer.print(", ");
+            }
+            parameter.printType(writer, context, true, withBound);
+            if (withBound) {
+                TypeMirror upperBound = parameter.upperBound;
+                TypeMirror lowerBound = parameter.lowerBound;
+                if (upperBound != null && upperBound.getKind() != TypeKind.NONE && upperBound.getKind() != TypeKind.NULL) {
+                    if (upperBound.getKind() == TypeKind.INTERSECTION) {
+                        IntersectionType intersectionType = (IntersectionType) upperBound;
+                        writer.print(" extends ");
+                        List<Type> partTypes = intersectionType.getBounds().stream()
+                                .map(Type::extract)
+                                .filter(Type::isNotObjectType)
+                                .collect(Collectors.toList());
+                        for (int i = 0; i < partTypes.size(); ++i) {
+                            partTypes.get(i).printType(writer, context, true, true);
+                            if (i != partTypes.size() - 1) {
+                                writer.print(" & ");
+                            }
+                        }
+                    } else {
+                        Type bound = Type.extract(upperBound);
+                        if (bound.isNotObjectType()) {
+                            writer.print(" extends ");
+                            bound.printType(writer, context, true, true);
+                        }
+                    }
+                }
+                if (lowerBound != null && lowerBound.getKind() != TypeKind.NONE && lowerBound.getKind() != TypeKind.NULL) {
+                    Type bound = Type.extract(lowerBound);
+                    writer.print(" super ");
+                    bound.printType(writer, context, true, true);
+                }
+            }
+            start = false;
+        }
+        writer.print(">");
+    }
 }

@@ -1,6 +1,6 @@
 package io.github.vipcxj.beanknife.converters;
 
-import io.github.vipcxj.beanknife.UsePropertyConverter;
+import io.github.vipcxj.beanknife.annotations.UsePropertyConverter;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

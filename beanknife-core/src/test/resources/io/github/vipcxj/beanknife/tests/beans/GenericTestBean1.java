@@ -1,10 +1,10 @@
 package io.github.vipcxj.beanknife.tests.beans;
 
-import io.github.vipcxj.beanknife.ViewOf;
+import io.github.vipcxj.beanknife.annotations.ViewOf;
 
 import java.util.List;
 
-@ViewOf
+@ViewOf(includePattern = ".*")
 public class GenericTestBean1<T1, T2 extends Number> {
 
     private T1 a;

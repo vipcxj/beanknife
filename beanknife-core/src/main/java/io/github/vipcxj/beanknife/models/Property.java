@@ -1,27 +1,42 @@
 package io.github.vipcxj.beanknife.models;
 
+import io.github.vipcxj.beanknife.utils.Utils;
+
+import javax.annotation.Nonnull;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
-import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
+import java.io.PrintWriter;
 
 public class Property {
 
     private final String name;
     private final Modifier modifier;
-    private final TypeMirror type;
+    private final Type type;
     private final boolean method;
-    private final String methodName;
+    private final String getterName;
+    private final String setterName;
+    private final boolean writeable;
     private final Element element;
     private final String comment;
 
-    public Property(String name, Modifier modifier, TypeMirror type, boolean method, String methodName, Element element, String comment) {
+    public Property(
+            String name,
+            Modifier modifier,
+            Type type,
+            boolean method,
+            String getterName,
+            String setterName,
+            boolean writeable,
+            Element element,
+            String comment
+    ) {
         this.name = name;
         this.modifier = modifier;
         this.type = type;
         this.method = method;
-        this.methodName = methodName;
+        this.getterName = getterName;
+        this.setterName = setterName;
+        this.writeable = writeable;
         this.element = element;
         this.comment = comment;
     }
@@ -31,7 +46,9 @@ public class Property {
         this.modifier = other.modifier;
         this.type = other.type;
         this.method = other.method;
-        this.methodName = other.methodName;
+        this.getterName = other.getterName;
+        this.setterName = other.setterName;
+        this.writeable = other.writeable;
         this.element = other.element;
         this.comment = other.comment != null ? other.comment : commentIfNone;
     }
@@ -44,7 +61,7 @@ public class Property {
         return modifier;
     }
 
-    public TypeMirror getType() {
+    public Type getType() {
         return type;
     }
 
@@ -52,8 +69,8 @@ public class Property {
         return method;
     }
 
-    public String getMethodName() {
-        return methodName;
+    public String getGetterName() {
+        return getterName;
     }
 
     public Element getElement() {
@@ -64,6 +81,35 @@ public class Property {
         return comment;
     }
 
+    public void printType(@Nonnull PrintWriter writer, @Nonnull Context context, boolean generic, boolean withBound) {
+        type.printType(writer, context, generic, withBound);
+    }
+
+    public void printField(@Nonnull PrintWriter writer, @Nonnull Context context, String indent, int indentNum) {
+        Utils.printIndent(writer, indent, indentNum);
+        writer.print("private ");
+        printType(writer, context, true, false);
+        writer.print(" ");
+        writer.print(context.getMappedFieldName(this));
+        writer.println(";");
+    }
+
+    public void printGetter(@Nonnull PrintWriter writer, @Nonnull Context context, String indent, int indentNum) {
+        Utils.printIndent(writer, indent, indentNum);
+        Utils.printModifier(writer, modifier);
+        printType(writer, context, true, false);
+        writer.print(" ");
+        writer.print(getGetterName());
+        writer.println("() {");
+        Utils.printIndent(writer, indent, indentNum);
+        writer.print(indent);
+        writer.print("return this.");
+        writer.print(context.getMappedFieldName(this));
+        writer.println(";");
+        Utils.printIndent(writer, indent, indentNum);
+        writer.println("}");
+    }
+
     @Override
     public String toString() {
         return "Property{" +
@@ -71,7 +117,7 @@ public class Property {
                 ", modifier=" + modifier +
                 ", type=" + type +
                 ", method=" + method +
-                ", methodName='" + methodName + '\'' +
+                ", getterName='" + getterName + '\'' +
                 ", element=" + element +
                 ", comment='" + comment + '\'' +
                 '}';

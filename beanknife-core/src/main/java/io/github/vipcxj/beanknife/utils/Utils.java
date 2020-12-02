@@ -13,6 +13,7 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
+import java.io.PrintWriter;
 import java.util.*;
 
 public class Utils {
@@ -31,6 +32,23 @@ public class Utils {
         } else {
             String part = fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1);
             return isBoolean ? "is" + part : "get" + part;
+        }
+    }
+
+    public static String createSetterName(String fieldName, boolean isBoolean) {
+        if (fieldName.isEmpty()) {
+            throw new IllegalArgumentException("Empty field name is illegal.");
+        }
+        if (isBoolean && fieldName.length() >= 3 && fieldName.startsWith("is") && Character.isUpperCase(fieldName.charAt(2))) {
+            return fieldName.replace("is", "set");
+        }
+        if (fieldName.length() == 1) {
+            return "set" + fieldName.toUpperCase();
+        } else if (Character.isUpperCase(fieldName.charAt(1))) {
+            return "set" + fieldName;
+        } else {
+            String part = fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1);
+            return "set" + part;
         }
     }
 
@@ -65,7 +83,7 @@ public class Utils {
 
     public static Modifier getPropertyModifier(Element e) {
         Set<Modifier> modifiers = e.getModifiers();
-        Modifier modifier = null;
+        Modifier modifier = Modifier.DEFAULT;
         if (modifiers.contains(Modifier.PUBLIC)) {
             modifier = Modifier.PUBLIC;
         } else if (modifiers.contains(Modifier.PROTECTED)){
@@ -76,24 +94,57 @@ public class Utils {
         return modifier;
     }
 
-    public static Property createProperty(ProcessingEnvironment environment, VariableElement e) {
+    private static boolean isWriteable(String setterName, TypeMirror type, List<? extends Element> members, boolean samePackage) {
+        boolean writeable = false;
+        for (Element member : members) {
+            if (member.getKind() == ElementKind.METHOD
+                    && !member.getModifiers().contains(Modifier.STATIC)
+                    && !member.getModifiers().contains(Modifier.ABSTRACT)
+                    && canSeeFromOtherClass(member, samePackage)
+                    && setterName.equals(member.getSimpleName().toString())
+            ) {
+                ExecutableElement getter = (ExecutableElement) member;
+                List<? extends VariableElement> parameters = getter.getParameters();
+                if (parameters.size() != 1) {
+                    continue;
+                }
+                VariableElement variableElement = parameters.get(0);
+                if (!variableElement.asType().equals(type)) {
+                    continue;
+                }
+                writeable = getter.getReturnType().getKind() == TypeKind.VOID;
+                break;
+            }
+        }
+        return writeable;
+    }
+
+    public static Property createProperty(ProcessingEnvironment environment, VariableElement e, List<? extends Element> members, boolean samePackage) {
         if (e.getKind() != ElementKind.FIELD) {
+            return null;
+        }
+        Modifier modifier = getPropertyModifier(e);
+        if (!canSeeFromOtherClass(modifier, samePackage)) {
             return null;
         }
         String name = e.getSimpleName().toString();
         TypeMirror type = e.asType();
+        String setterName = createSetterName(name, type.getKind() == TypeKind.BOOLEAN);
+        boolean writeable = isWriteable(setterName, type, members, samePackage);
         return new Property(
                 name,
-                getPropertyModifier(e),
-                type,
+                modifier,
+                Type.extract(type),
                 false,
                 createGetterName(name, type.getKind() == TypeKind.BOOLEAN),
+                setterName,
+                writeable,
                 e,
                 environment.getElementUtils().getDocComment(e)
         );
     }
 
-    public static Property createProperty(ProcessingEnvironment environment, ExecutableElement e) {
+    public static Property createProperty(ProcessingEnvironment environment, ExecutableElement e, List<? extends Element> members, boolean samePackage) {
         if (e.getKind() != ElementKind.METHOD) {
             return null;
         }
@@ -109,23 +160,31 @@ public class Utils {
         if (name == null) {
             return null;
         }
+        String setterName = createSetterName(name, type.getKind() == TypeKind.BOOLEAN);
+        boolean writeable = isWriteable(setterName, type, members, samePackage);
         return new Property(
                 name,
                 getPropertyModifier(e),
-                type,
+                Type.extract(type),
                 true,
                 methodName,
+                setterName,
+                writeable,
                 e,
                 environment.getElementUtils().getDocComment(e)
         );
     }
 
-    public static boolean canSeeFromOtherClass(Property property, boolean samePackage) {
+    public static boolean canSeeFromOtherClass(Modifier modifier, boolean samePackage) {
         if (samePackage) {
-            return property.getModifier() != Modifier.PRIVATE;
+            return modifier != Modifier.PRIVATE;
         } else {
-            return property.getModifier() == Modifier.PUBLIC;
+            return modifier == Modifier.PUBLIC;
         }
+    }
+
+    public static boolean canSeeFromOtherClass(Property property, boolean samePackage) {
+        return canSeeFromOtherClass(property.getModifier(), samePackage);
     }
 
     public static boolean canSeeFromOtherClass(Element element, boolean samePackage) {
@@ -157,7 +216,7 @@ public class Utils {
             } else if (elementUtils.hides(p.getElement(), property.getElement())) {
                 done = true;
                 break;
-            } else if (p.getMethodName().equals(property.getMethodName())) {
+            } else if (p.getGetterName().equals(property.getGetterName())) {
                 if (override || (!p.isMethod() && property.isMethod())) {
                     iterator.remove();
                     if (canSeeFromOtherClass(property, samePackage) && isNotObjectProperty(property)) {
@@ -278,6 +337,8 @@ public class Utils {
         );
     }
 
+
+
     public static String getStringAnnotationValue(@Nonnull AnnotationMirror annotation, @Nonnull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues, @Nonnull String name) {
         AnnotationValue annotationValue = getAnnotationValue(annotation, annotationValues, name);
         AnnotationValueKind kind = getAnnotationValueType(annotationValue);
@@ -298,6 +359,39 @@ public class Utils {
         throw new IllegalArgumentException("This is impossible.");
     }
 
+    public static String getEnumAnnotationValue(@Nonnull AnnotationMirror annotation, @Nonnull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues, @Nonnull String name) {
+        AnnotationValue annotationValue = getAnnotationValue(annotation, annotationValues, name);
+        AnnotationValueKind kind = getAnnotationValueType(annotationValue);
+        if (kind == AnnotationValueKind.ENUM) {
+            VariableElement variableElement = (VariableElement) annotationValue.getValue();
+            TypeElement enumClass = (TypeElement) variableElement.getEnclosingElement();
+            return enumClass.getQualifiedName() + "." + variableElement.getSimpleName();
+        }
+        throwCastAnnotationValueTypeError(annotation, name, kind, AnnotationValueKind.ENUM);
+        throw new IllegalArgumentException("This is impossible.");
+    }
+
+    public static List<? extends AnnotationValue> getArrayAnnotationValue(@Nonnull AnnotationMirror annotation, @Nonnull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues, @Nonnull String name) {
+        AnnotationValue annotationValue = getAnnotationValue(annotation, annotationValues, name);
+        AnnotationValueKind kind = getAnnotationValueType(annotationValue);
+        if (kind == AnnotationValueKind.ARRAY) {
+            //noinspection unchecked
+            return (List<? extends AnnotationValue>) annotationValue.getValue();
+        }
+        throwCastAnnotationValueTypeError(annotation, name, kind, AnnotationValueKind.ARRAY);
+        throw new IllegalArgumentException("This is impossible.");
+    }
+
+    public static String[] getStringArrayAnnotationValue(@Nonnull AnnotationMirror annotation, @Nonnull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues, @Nonnull String name) {
+        List<? extends AnnotationValue> annValues = getArrayAnnotationValue(annotation, annotationValues, name);
+        String[] values = new String[annValues.size()];
+        int i = 0;
+        for (AnnotationValue annValue : annValues) {
+            values[i++] = (String) annValue.getValue();
+        }
+        return values;
+    }
+
     public static List<AnnotationMirror> getAnnotationElement(AnnotationMirror annotation, @Nonnull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues) {
         for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : annotationValues.entrySet()) {
             if ("value".equals(entry.getKey().getSimpleName().toString())) {
@@ -313,21 +407,18 @@ public class Utils {
         throw new IllegalArgumentException("There is no attribute named value in annotation " + getAnnotationName(annotation));
     }
 
-    public static Type extractClassName(ProcessingEnvironment environment, AnnotationMirror annotation, Type baseClassName, String simpleClassNameVar, String packageNameVar, String postfix) {
-        Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues = environment.getElementUtils().getElementValuesWithDefaults(annotation);
-        String simpleClassName = Utils.getStringAnnotationValue(annotation, annotationValues, simpleClassNameVar);
-        String packageName = Utils.getStringAnnotationValue(annotation, annotationValues, packageNameVar);
-        if (simpleClassName.isEmpty()) {
-            if (packageName.isEmpty()) {
+    public static Type extractClassName(Type baseClassName, String genName, String genPackage, String postfix) {
+        if (genName.isEmpty()) {
+            if (genPackage.isEmpty()) {
                 return baseClassName.appendName(postfix);
             } else {
-                return baseClassName.changePackage(packageName).appendName(postfix);
+                return baseClassName.changePackage(genPackage).appendName(postfix);
             }
         } else {
-            if (packageName.isEmpty()) {
-                return baseClassName.changeSimpleName(simpleClassName);
+            if (genPackage.isEmpty()) {
+                return baseClassName.changeSimpleName(genName);
             } else {
-                return baseClassName.changePackage(packageName).changeSimpleName(simpleClassName);
+                return baseClassName.changePackage(genPackage).changeSimpleName(genName);
             }
         }
     }
@@ -339,9 +430,9 @@ public class Utils {
         for (Element member : members) {
             Property property = null;
             if (member.getKind() == ElementKind.FIELD) {
-                property = Utils.createProperty(environment, (VariableElement) member);
+                property = Utils.createProperty(environment, (VariableElement) member, members, samePackage);
             } else if (member.getKind() == ElementKind.METHOD) {
-                property = Utils.createProperty(environment, (ExecutableElement) member);
+                property = Utils.createProperty(environment, (ExecutableElement) member, members, samePackage);
             }
             if (property != null) {
                 Utils.addProperty(environment, properties, property, samePackage, false);
@@ -352,5 +443,18 @@ public class Utils {
 
     public static void logError(ProcessingEnvironment env, String message) {
         env.getMessager().printMessage(Diagnostic.Kind.ERROR, message);
+    }
+
+    public static void printIndent(@Nonnull PrintWriter writer, String indent, int num) {
+        for (int i = 0; i < num; ++i) {
+            writer.print(indent);
+        }
+    }
+
+    public static void printModifier(@Nonnull PrintWriter writer, @Nonnull Modifier modifier) {
+        if (modifier != Modifier.DEFAULT) {
+            writer.print(modifier);
+            writer.print(" ");
+        }
     }
 }

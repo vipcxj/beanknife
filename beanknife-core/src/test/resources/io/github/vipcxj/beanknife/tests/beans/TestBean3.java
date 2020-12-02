@@ -1,6 +1,6 @@
 package io.github.vipcxj.beanknife.tests.beans;
 
-import io.github.vipcxj.beanknife.ViewOf;
+import io.github.vipcxj.beanknife.annotations.ViewOf;
 
 @ViewOf(includePattern = "*", excludes = {"d1"})
 public class TestBean3 {
