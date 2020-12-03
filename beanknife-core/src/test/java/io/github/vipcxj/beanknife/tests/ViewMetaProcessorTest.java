@@ -44,6 +44,12 @@ public class ViewMetaProcessorTest {
                 null,
                 "View"
         );
+        testViewCase(
+                new ViewOfProcessor(),
+                "io.github.vipcxj.beanknife.tests.beans.TestBean3ViewConfig",
+                new String[] { "io.github.vipcxj.beanknife.tests.beans.TestBean3View" },
+                "View"
+        );
     }
 
     private String toSourcePath(String qualifiedClassName) {

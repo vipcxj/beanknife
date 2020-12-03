@@ -66,9 +66,9 @@ public class ViewMetaProcessor extends AbstractProcessor {
                             }
 
                             if (samePackage && samePackageProperties == null) {
-                                samePackageProperties = Utils.collectProperties(processingEnv, typeElement, true);
+                                samePackageProperties = Utils.collectPropertiesFromBase(processingEnv, null, typeElement, true);
                             } else if (!samePackage && diffPackageProperties == null) {
-                                diffPackageProperties = Utils.collectProperties(processingEnv, typeElement, false);
+                                diffPackageProperties = Utils.collectPropertiesFromBase(processingEnv, null, typeElement, false);
                             }
                             List<Property> properties = samePackage ? samePackageProperties : diffPackageProperties;
                             try {

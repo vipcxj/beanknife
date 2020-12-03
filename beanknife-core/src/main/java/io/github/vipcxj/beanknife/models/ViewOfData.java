@@ -1,5 +1,6 @@
 package io.github.vipcxj.beanknife.models;
 
+import io.github.vipcxj.beanknife.annotations.Access;
 import io.github.vipcxj.beanknife.utils.Utils;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -23,8 +24,8 @@ public class ViewOfData {
     private Modifier fieldsConstructor;
     private Modifier copyConstructor;
     private Modifier readMethod;
-    private Modifier getters;
-    private Modifier setters;
+    private Access getters;
+    private Access setters;
 
     public static ViewOfData read(ProcessingEnvironment environment, AnnotationMirror viewOf) {
         Map<? extends ExecutableElement, ? extends AnnotationValue> annValues = environment.getElementUtils().getElementValuesWithDefaults(viewOf);
@@ -41,8 +42,8 @@ public class ViewOfData {
         data.fieldsConstructor = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "fieldsConstructor"));
         data.copyConstructor = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "copyConstructor"));
         data.readMethod = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "readMethod"));
-        data.getters = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "getters"));
-        data.setters = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "setters"));
+        data.getters = getAccess(Utils.getEnumAnnotationValue(viewOf, annValues, "getters"));
+        data.setters = getAccess(Utils.getEnumAnnotationValue(viewOf, annValues, "setters"));
         return data;
     }
 
@@ -57,6 +58,24 @@ public class ViewOfData {
             return Modifier.DEFAULT;
         } else if ("io.github.vipcxj.beanknife.annotations.Access.NONE".equals(modifier)) {
             return null;
+        } else {
+            throw new IllegalArgumentException("This is impossible!");
+        }
+    }
+
+    public static Access getAccess(String qName) {
+        if ("io.github.vipcxj.beanknife.annotations.Access.PUBLIC".equals(qName)) {
+            return Access.PUBLIC;
+        } else if ("io.github.vipcxj.beanknife.annotations.Access.PRIVATE".equals(qName)) {
+            return Access.PRIVATE;
+        } else if ("io.github.vipcxj.beanknife.annotations.Access.PROTECTED".equals(qName)) {
+            return Access.PROTECTED;
+        } else if ("io.github.vipcxj.beanknife.annotations.Access.DEFAULT".equals(qName)) {
+            return Access.DEFAULT;
+        } else if ("io.github.vipcxj.beanknife.annotations.Access.NONE".equals(qName)) {
+            return Access.NONE;
+        } else if ("io.github.vipcxj.beanknife.annotations.Access.UNKNOWN".equals(qName)) {
+            return Access.UNKNOWN;
         } else {
             throw new IllegalArgumentException("This is impossible!");
         }
@@ -110,11 +129,11 @@ public class ViewOfData {
         return readMethod;
     }
 
-    public Modifier getGetters() {
+    public Access getGetters() {
         return getters;
     }
 
-    public Modifier getSetters() {
+    public Access getSetters() {
         return setters;
     }
 }

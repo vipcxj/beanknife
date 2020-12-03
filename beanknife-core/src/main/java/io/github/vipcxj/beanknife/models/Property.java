@@ -1,5 +1,6 @@
 package io.github.vipcxj.beanknife.models;
 
+import io.github.vipcxj.beanknife.annotations.Access;
 import io.github.vipcxj.beanknife.utils.Utils;
 
 import javax.annotation.Nonnull;
@@ -11,6 +12,8 @@ public class Property {
 
     private final String name;
     private final Modifier modifier;
+    private final Access getter;
+    private final Access setter;
     private final Type type;
     private final boolean method;
     private final String getterName;
@@ -22,6 +25,8 @@ public class Property {
     public Property(
             String name,
             Modifier modifier,
+            Access getter,
+            Access setter,
             Type type,
             boolean method,
             String getterName,
@@ -32,6 +37,8 @@ public class Property {
     ) {
         this.name = name;
         this.modifier = modifier;
+        this.getter = getter;
+        this.setter = setter;
         this.type = type;
         this.method = method;
         this.getterName = getterName;
@@ -44,6 +51,8 @@ public class Property {
     public Property(Property other, String commentIfNone) {
         this.name = other.name;
         this.modifier = other.modifier;
+        this.getter = other.getter;
+        this.setter = other.setter;
         this.type = other.type;
         this.method = other.method;
         this.getterName = other.getterName;
@@ -61,6 +70,22 @@ public class Property {
         return modifier;
     }
 
+    public Access getGetter() {
+        return getter;
+    }
+
+    public boolean hasGetter() {
+        return getter != Access.NONE;
+    }
+
+    public Access getSetter() {
+        return setter;
+    }
+
+    public boolean hasSetter() {
+        return setter != Access.NONE;
+    }
+
     public Type getType() {
         return type;
     }
@@ -71,6 +96,10 @@ public class Property {
 
     public String getGetterName() {
         return getterName;
+    }
+
+    public String getSetterName() {
+        return setterName;
     }
 
     public Element getElement() {
@@ -95,8 +124,9 @@ public class Property {
     }
 
     public void printGetter(@Nonnull PrintWriter writer, @Nonnull Context context, String indent, int indentNum) {
+        if (!hasGetter()) return;
         Utils.printIndent(writer, indent, indentNum);
-        Utils.printModifier(writer, modifier);
+        Utils.printAccess(writer, getter);
         printType(writer, context, true, false);
         writer.print(" ");
         writer.print(getGetterName());
@@ -105,6 +135,28 @@ public class Property {
         writer.print(indent);
         writer.print("return this.");
         writer.print(context.getMappedFieldName(this));
+        writer.println(";");
+        Utils.printIndent(writer, indent, indentNum);
+        writer.println("}");
+    }
+
+    public void printSetter(@Nonnull PrintWriter writer, @Nonnull Context context, String indent, int indentNum) {
+        if (!hasSetter()) return;
+        Utils.printIndent(writer, indent, indentNum);
+        Utils.printAccess(writer, setter);
+        writer.print("void ");
+        writer.print(getSetterName());
+        writer.print("(");
+        printType(writer, context, true, false);
+        writer.print(" ");
+        String mappedFieldName = context.getMappedFieldName(this);
+        writer.print(mappedFieldName);
+        writer.println(") {");
+        Utils.printIndent(writer, indent, indentNum + 1);
+        writer.print("this.");
+        writer.print(mappedFieldName);
+        writer.print(" = ");
+        writer.print(mappedFieldName);
         writer.println(";");
         Utils.printIndent(writer, indent, indentNum);
         writer.println("}");

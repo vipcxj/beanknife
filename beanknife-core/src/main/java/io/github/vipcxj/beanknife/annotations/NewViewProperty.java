@@ -7,8 +7,8 @@ import java.lang.annotation.Target;
 
 @Target({ElementType.FIELD, ElementType.METHOD})
 @Retention(RetentionPolicy.SOURCE)
-public @interface CreateViewProperty {
-    String value() default "";
-    InheritableAccess getter() default InheritableAccess.INHERITED;
-    InheritableAccess setter() default InheritableAccess.INHERITED;
+public @interface NewViewProperty {
+    String value();
+    Access getter() default Access.UNKNOWN;
+    Access setter() default Access.UNKNOWN;
 }

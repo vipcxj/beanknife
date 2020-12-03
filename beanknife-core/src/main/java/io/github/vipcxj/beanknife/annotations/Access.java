@@ -1,5 +1,10 @@
 package io.github.vipcxj.beanknife.annotations;
 
 public enum Access {
-    PUBLIC, PRIVATE, PROTECT, DEFAULT, NONE
+    PUBLIC, PRIVATE, PROTECTED, DEFAULT, NONE, UNKNOWN;
+
+    @Override
+    public String toString() {
+        return name().toLowerCase();
+    }
 }

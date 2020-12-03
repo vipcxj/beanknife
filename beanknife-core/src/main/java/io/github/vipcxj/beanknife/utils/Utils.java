@@ -1,7 +1,11 @@
 package io.github.vipcxj.beanknife.utils;
 
+import io.github.vipcxj.beanknife.annotations.Access;
+import io.github.vipcxj.beanknife.annotations.RemoveViewProperty;
+import io.github.vipcxj.beanknife.annotations.ViewProperty;
 import io.github.vipcxj.beanknife.models.Property;
 import io.github.vipcxj.beanknife.models.Type;
+import io.github.vipcxj.beanknife.models.ViewOfData;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -119,7 +123,29 @@ public class Utils {
         return writeable;
     }
 
-    public static Property createProperty(ProcessingEnvironment environment, VariableElement e, List<? extends Element> members, boolean samePackage) {
+    private static Access resolveGetterAccess(@Nullable ViewOfData viewOf, @Nullable ViewProperty viewProperty) {
+        Access getter = viewOf != null ? viewOf.getGetters() : Access.UNKNOWN;
+        if (viewProperty != null && viewProperty.getter() != Access.UNKNOWN) {
+            getter = viewProperty.getter();
+        }
+        return getter == Access.UNKNOWN ? Access.PUBLIC : getter;
+    }
+
+    private static Access resolveSetterAccess(@Nullable ViewOfData viewOf, @Nullable ViewProperty viewProperty) {
+        Access setter = viewOf != null ? viewOf.getSetters() : Access.UNKNOWN;
+        if (viewProperty != null && viewProperty.setter() != Access.UNKNOWN) {
+            setter = viewProperty.setter();
+        }
+        return setter == Access.UNKNOWN ? Access.NONE : setter;
+    }
+
+    public static Property createPropertyFromBase(
+            @Nonnull ProcessingEnvironment environment,
+            @Nullable ViewOfData viewOf,
+            @Nonnull VariableElement e,
+            @Nonnull List<? extends Element> members,
+            boolean samePackage
+    ) {
         if (e.getKind() != ElementKind.FIELD) {
             return null;
         }
@@ -128,12 +154,15 @@ public class Utils {
             return null;
         }
         String name = e.getSimpleName().toString();
+        ViewProperty viewProperty = e.getAnnotation(ViewProperty.class);
         TypeMirror type = e.asType();
         String setterName = createSetterName(name, type.getKind() == TypeKind.BOOLEAN);
         boolean writeable = isWriteable(setterName, type, members, samePackage);
         return new Property(
                 name,
                 modifier,
+                resolveGetterAccess(viewOf, viewProperty),
+                resolveSetterAccess(viewOf, viewProperty),
                 Type.extract(type),
                 false,
                 createGetterName(name, type.getKind() == TypeKind.BOOLEAN),
@@ -144,7 +173,13 @@ public class Utils {
         );
     }
 
-    public static Property createProperty(ProcessingEnvironment environment, ExecutableElement e, List<? extends Element> members, boolean samePackage) {
+    public static Property createPropertyFromBase(
+            @Nonnull ProcessingEnvironment environment,
+            @Nullable ViewOfData viewOf,
+            @Nonnull ExecutableElement e,
+            @Nonnull List<? extends Element> members,
+            boolean samePackage
+    ) {
         if (e.getKind() != ElementKind.METHOD) {
             return null;
         }
@@ -160,11 +195,14 @@ public class Utils {
         if (name == null) {
             return null;
         }
+        ViewProperty viewProperty = e.getAnnotation(ViewProperty.class);
         String setterName = createSetterName(name, type.getKind() == TypeKind.BOOLEAN);
         boolean writeable = isWriteable(setterName, type, members, samePackage);
         return new Property(
                 name,
                 getPropertyModifier(e),
+                resolveGetterAccess(viewOf, viewProperty),
+                resolveSetterAccess(viewOf, viewProperty),
                 Type.extract(type),
                 true,
                 methodName,
@@ -423,16 +461,46 @@ public class Utils {
         }
     }
 
-    public static List<Property> collectProperties(ProcessingEnvironment environment, TypeElement element, boolean samePackage) {
+    public static List<Property> collectPropertiesFromBase(
+            @Nonnull ProcessingEnvironment environment,
+            @Nullable ViewOfData viewOf,
+            @Nonnull TypeElement element,
+            boolean samePackage
+    ) {
         List<Property> properties = new LinkedList<>();
         Elements elementUtils = environment.getElementUtils();
         List<? extends Element> members = elementUtils.getAllMembers(element);
         for (Element member : members) {
             Property property = null;
             if (member.getKind() == ElementKind.FIELD) {
-                property = Utils.createProperty(environment, (VariableElement) member, members, samePackage);
+                property = Utils.createPropertyFromBase(environment, viewOf, (VariableElement) member, members, samePackage);
             } else if (member.getKind() == ElementKind.METHOD) {
-                property = Utils.createProperty(environment, (ExecutableElement) member, members, samePackage);
+                property = Utils.createPropertyFromBase(environment, viewOf, (ExecutableElement) member, members, samePackage);
+            }
+            if (property != null) {
+                Utils.addProperty(environment, properties, property, samePackage, false);
+            }
+        }
+        return properties;
+    }
+
+    public static List<Property> collectPropertiesFromConfig(
+            @Nonnull ProcessingEnvironment environment,
+            @Nullable ViewOfData viewOf,
+            @Nonnull TypeElement configElement,
+            @Nonnull TypeElement baseElement,
+            boolean samePackage
+    ) {
+        List<Property> properties = new LinkedList<>();
+        Elements elementUtils = environment.getElementUtils();
+        RemoveViewProperty[] removes = element.getAnnotationsByType(RemoveViewProperty.class);
+        List<? extends Element> members = elementUtils.getAllMembers(element);
+        for (Element member : members) {
+            Property property = null;
+            if (member.getKind() == ElementKind.FIELD) {
+                property = Utils.createPropertyFromBase(environment, viewOf, (VariableElement) member, members, samePackage);
+            } else if (member.getKind() == ElementKind.METHOD) {
+                property = Utils.createPropertyFromBase(environment, viewOf, (ExecutableElement) member, members, samePackage);
             }
             if (property != null) {
                 Utils.addProperty(environment, properties, property, samePackage, false);
@@ -454,6 +522,16 @@ public class Utils {
     public static void printModifier(@Nonnull PrintWriter writer, @Nonnull Modifier modifier) {
         if (modifier != Modifier.DEFAULT) {
             writer.print(modifier);
+            writer.print(" ");
+        }
+    }
+
+    public static void printAccess(@Nonnull PrintWriter writer, @Nonnull Access access) {
+        if (access == Access.UNKNOWN) {
+            throw new IllegalArgumentException("Unknown access is not supported.");
+        }
+        if (access != Access.NONE && access != Access.DEFAULT) {
+            writer.print(access);
             writer.print(" ");
         }
     }

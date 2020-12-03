@@ -69,7 +69,7 @@ public class ViewOfProcessor extends AbstractProcessor {
                                 continue;
                             }
 
-                            List<Property> properties = Utils.collectProperties(processingEnv, targetElement, samePackage);
+                            List<Property> properties = Utils.collectPropertiesFromBase(processingEnv, viewOf, targetElement, samePackage);
                             properties = filterProperties(viewOf, properties);
                             try {
                                 writeBuilderFile(viewOf, targetClassName, genClassName, properties);
