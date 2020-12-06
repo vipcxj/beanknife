@@ -88,23 +88,6 @@ public class ViewOfProcessor extends AbstractProcessor {
         return true;
     }
 
-    private static List<Property> filterProperties(ViewOfData viewOf, List<Property> properties) {
-        List<Property> filteredProperties = new ArrayList<>();
-        List<Pattern> includePatterns = Arrays.stream(viewOf.getIncludePattern().split(",\\s")).map(Pattern::compile).collect(Collectors.toList());
-        List<Pattern> excludePatterns = Arrays.stream(viewOf.getExcludePattern().split(",\\s")).map(Pattern::compile).collect(Collectors.toList());
-        for (Property property : properties) {
-            if (
-                    (includePatterns.stream().anyMatch(pattern -> pattern.matcher(property.getName()).matches())
-                            || Arrays.stream(viewOf.getIncludes()).anyMatch(include -> include.equals(property.getName())))
-                    && excludePatterns.stream().noneMatch(pattern -> pattern.matcher(property.getName()).matches())
-                    && Arrays.stream(viewOf.getExcludes()).noneMatch(include -> include.equals(property.getName()))
-            ) {
-                filteredProperties.add(property);
-            }
-        }
-        return filteredProperties;
-    }
-
     private void printReader(
             @Nonnull PrintWriter writer,
             Context context,

@@ -1,26 +1,37 @@
 package io.github.vipcxj.beanknife.models;
 
+import io.github.vipcxj.beanknife.utils.Utils;
+
 import javax.annotation.Nonnull;
+import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.SourceVersion;
+import javax.lang.model.element.Element;
 import javax.lang.model.type.IntersectionType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
+import javax.tools.Diagnostic;
 import java.io.PrintWriter;
 import java.util.*;
+import java.util.function.Function;
 
 public class Context {
     private final Stack<Type> containers;
     private final List<String> imports;
     private final Set<String> symbols;
     private final Stack<Map<String, String>> fieldsStack;
+    private final ProcessingEnvironment processingEnv;
     private final String packageName;
+    private final List<Property> properties;
 
-    public Context(@Nonnull String packageName) {
+    public Context(@Nonnull ProcessingEnvironment processingEnv, @Nonnull String packageName) {
         this.containers = new Stack<>();
         this.imports = new ArrayList<>();
         this.symbols = new HashSet<>();
         this.fieldsStack = new Stack<>();
+        this.processingEnv = processingEnv;
         this.packageName = packageName;
+        this.properties = new LinkedList<>();
     }
 
     public void enter(Type type) {
@@ -96,6 +107,52 @@ public class Context {
         return imported;
     }
 
+    public void addProperty(Property property, boolean samePackage, boolean override) {
+        Elements elementUtils = processingEnv.getElementUtils();
+        boolean done = false;
+        ListIterator<Property> iterator = properties.listIterator();
+        while (iterator.hasNext()) {
+            Property p = iterator.next();
+            if (elementUtils.hides(property.getElement(), p.getElement())) {
+                iterator.remove();
+                if (Utils.canSeeFromOtherClass(property, samePackage) && Utils.isNotObjectProperty(property)) {
+                    iterator.add(new Property(property, p.getComment()));
+                }
+                done = true;
+                break;
+            } else if (elementUtils.hides(p.getElement(), property.getElement())) {
+                done = true;
+                break;
+            } else if (p.getGetterName().equals(property.getGetterName())) {
+                if (override || (!p.isMethod() && property.isMethod())) {
+                    iterator.remove();
+                    if (Utils.canSeeFromOtherClass(property, samePackage) && Utils.isNotObjectProperty(property)) {
+                        iterator.add(new Property(property, p.getComment()));
+                    }
+                } else if (p.isMethod() == property.isMethod()) {
+                    Element ownerP = p.getElement().getEnclosingElement();
+                    Element ownerProperty = property.getElement().getEnclosingElement();
+                    processingEnv.getMessager().printMessage(
+                            Diagnostic.Kind.ERROR,
+                            "Property conflict: "
+                                    + (ownerP != null
+                                    ? p.getElement().getSimpleName() + " in " + ownerP.getSimpleName()
+                                    : p.getElement().getSimpleName())
+                                    + " / "
+                                    + (ownerProperty != null
+                                    ? property.getElement().getSimpleName() + " in " + ownerProperty.getSimpleName()
+                                    : property.getElement().getSimpleName())
+                    );
+                }
+                done = true;
+                break;
+            }
+        }
+        if (!done && Utils.canSeeFromOtherClass(property, samePackage) && Utils.isNotObjectProperty(property)) {
+            properties.add(property);
+        }
+    }
+
     public String relativeName(Type name) {
         return getContainer().relativeName(name, importVariable(name));
     }
@@ -129,5 +186,17 @@ public class Context {
             }
         }
         return printed;
+    }
+
+    public String getPackageName() {
+        return packageName;
+    }
+
+    public List<Property> getProperties() {
+        return properties;
+    }
+
+    public ProcessingEnvironment getProcessingEnv() {
+        return processingEnv;
     }
 }

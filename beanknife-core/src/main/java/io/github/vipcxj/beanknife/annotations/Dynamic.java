@@ -5,10 +5,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-@Target(ElementType.METHOD)
+@Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.SOURCE)
-public @interface NewViewProperty {
-    String value();
-    Access getter() default Access.UNKNOWN;
-    Access setter() default Access.UNKNOWN;
+public @interface Dynamic {
 }

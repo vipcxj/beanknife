@@ -339,6 +339,10 @@ public class Type {
         return parameters;
     }
 
+    public boolean isSamePackage(Type other) {
+        return getPackageName().equals(other.getPackageName());
+    }
+
     public boolean isNotObjectType() {
         return !"java.lang".equals(packageName) || !"Object".equals(simpleName);
     }
