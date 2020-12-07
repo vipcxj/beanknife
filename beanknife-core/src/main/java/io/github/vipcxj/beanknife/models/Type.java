@@ -7,9 +7,11 @@ import javax.annotation.Nullable;
 import javax.lang.model.element.*;
 import javax.lang.model.type.*;
 import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class Type {
@@ -351,6 +353,10 @@ public class Type {
         return "java.lang".equals(packageName);
     }
 
+    public boolean isBoolean() {
+        return packageName.isEmpty() && "boolean".equals(simpleName);
+    }
+
     public void openClass(@Nonnull PrintWriter writer, @Nonnull Modifier modifier, @Nonnull Context context, String indent, int indentNum) {
         Utils.printIndent(writer, indent, indentNum);
         writer.print(modifier);
@@ -430,8 +436,8 @@ public class Type {
         writer.println("}");
     }
 
-    public void printType(@Nonnull PrintWriter writer, @Nonnull Context context, boolean generic, boolean withBound) {
-        writer.print(context.relativeName(this));
+    public void printType(@Nonnull PrintWriter writer, @Nullable Context context, boolean generic, boolean withBound) {
+        writer.print(context != null ? context.relativeName(this) : getQualifiedName());
         if (generic) {
             printGenericParameters(writer, context, withBound);
         }
@@ -440,7 +446,7 @@ public class Type {
         }
     }
 
-    public void printGenericParameters(@Nonnull PrintWriter writer, @Nonnull Context context, boolean withBound) {
+    public void printGenericParameters(@Nonnull PrintWriter writer, @Nullable Context context, boolean withBound) {
         if (parameters.isEmpty()) {
             return;
         }
@@ -485,5 +491,34 @@ public class Type {
             start = false;
         }
         writer.print(">");
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Type type = (Type) o;
+        return array == type.array &&
+                typeVar == type.typeVar &&
+                wildcard == type.wildcard &&
+                Objects.equals(packageName, type.packageName) &&
+                Objects.equals(simpleName, type.simpleName) &&
+                Objects.equals(parameters, type.parameters) &&
+                Objects.equals(container, type.container) &&
+                Objects.equals(upperBound, type.upperBound) &&
+                Objects.equals(lowerBound, type.lowerBound);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(packageName, simpleName, array, typeVar, wildcard, parameters, container, upperBound, lowerBound);
+    }
+
+    @Override
+    public String toString() {
+        StringWriter stringWriter = new StringWriter();
+        PrintWriter writer = new PrintWriter(stringWriter);
+        printType(writer, null, true, true);
+        return stringWriter.toString();
     }
 }

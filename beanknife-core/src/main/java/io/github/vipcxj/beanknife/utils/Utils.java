@@ -125,7 +125,7 @@ public class Utils {
         return writeable;
     }
 
-    private static Access resolveGetterAccess(@Nullable ViewOfData viewOf, @Nonnull Access access) {
+    public static Access resolveGetterAccess(@Nullable ViewOfData viewOf, @Nonnull Access access) {
         Access getter = viewOf != null ? viewOf.getGetters() : Access.UNKNOWN;
         if (access != Access.UNKNOWN) {
             getter = access;
@@ -133,7 +133,7 @@ public class Utils {
         return getter == Access.UNKNOWN ? Access.PUBLIC : getter;
     }
 
-    private static Access resolveSetterAccess(@Nullable ViewOfData viewOf, @Nonnull Access access) {
+    public static Access resolveSetterAccess(@Nullable ViewOfData viewOf, @Nonnull Access access) {
         Access setter = viewOf != null ? viewOf.getSetters() : Access.UNKNOWN;
         if (access != Access.UNKNOWN) {
             setter = access;
@@ -342,6 +342,16 @@ public class Utils {
             return (String) annotationValue.getValue();
         }
         throwCastAnnotationValueTypeError(annotation, name, kind, AnnotationValueKind.STRING);
+        throw new IllegalArgumentException("This is impossible.");
+    }
+
+    public static boolean getBooleanAnnotationValue(@Nonnull AnnotationMirror annotation, @Nonnull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues, @Nonnull String name) {
+        AnnotationValue annotationValue = getAnnotationValue(annotation, annotationValues, name);
+        AnnotationValueKind kind = getAnnotationValueType(annotationValue);
+        if (kind == AnnotationValueKind.BOXED) {
+            return (Boolean) annotationValue.getValue();
+        }
+        throwCastAnnotationValueTypeError(annotation, name, kind, AnnotationValueKind.BOXED);
         throw new IllegalArgumentException("This is impossible.");
     }
 

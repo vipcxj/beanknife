@@ -10,7 +10,7 @@ import java.util.Date;
 public class TestBean3ViewConfig {
 
     @NewViewProperty("e")
-    static long e(@InjectSource TestBean3 source) {
+    static long e(TestBean3 source) {
         return source.getA() + source.b;
     }
 }

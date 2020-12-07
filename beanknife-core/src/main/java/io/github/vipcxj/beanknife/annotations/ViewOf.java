@@ -22,5 +22,5 @@ public @interface ViewOf {
     Access readMethod() default Access.PUBLIC;
     Access getters() default Access.PUBLIC;
     Access setters() default Access.PUBLIC;
-
+    boolean errorMethods() default true;
 }

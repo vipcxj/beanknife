@@ -1,13 +1,11 @@
 package io.github.vipcxj.beanknife;
 
 import com.google.auto.service.AutoService;
-import io.github.vipcxj.beanknife.models.Context;
-import io.github.vipcxj.beanknife.models.Property;
 import io.github.vipcxj.beanknife.models.Type;
+import io.github.vipcxj.beanknife.models.ViewContext;
 import io.github.vipcxj.beanknife.models.ViewOfData;
 import io.github.vipcxj.beanknife.utils.Utils;
 
-import javax.annotation.Nonnull;
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
@@ -15,16 +13,14 @@ import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.*;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 @SupportedAnnotationTypes("io.github.vipcxj.beanknife.annotations.ViewOf")
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 @AutoService(Processor.class)
 public class ViewOfProcessor extends AbstractProcessor {
-
-    private final static String INDENT = "    ";
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
@@ -68,11 +64,8 @@ public class ViewOfProcessor extends AbstractProcessor {
                                 );
                                 continue;
                             }
-
-                            List<Property> properties = Utils.collectPropertiesFromBase(processingEnv, viewOf, targetElement, samePackage);
-                            properties = filterProperties(viewOf, properties);
                             try {
-                                writeBuilderFile(viewOf, targetClassName, genClassName, properties);
+                                writeBuilderFile(viewOf, targetElement, typeElement, genClassName);
                             } catch (IOException e) {
                                 processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, e.getMessage());
                             }
@@ -88,141 +81,17 @@ public class ViewOfProcessor extends AbstractProcessor {
         return true;
     }
 
-    private void printReader(
-            @Nonnull PrintWriter writer,
-            Context context,
-            ViewOfData viewOf,
-            Type baseType,
-            Type genType,
-            List<Property> properties,
-            boolean hasEmptyConstructor,
-            boolean hasFieldsConstructor
-    ) {
-        Modifier modifier = viewOf.getReadMethod();
-        if (modifier == null) {
-            return;
-        }
-        writer.println();
-        Utils.printIndent(writer, INDENT, 1);
-        Utils.printModifier(writer, modifier);
-        writer.print("static ");
-        if (!genType.getParameters().isEmpty()) {
-            genType.printGenericParameters(writer, context, true);
-            writer.print(" ");
-        }
-        genType.printType(writer, context, true, false);
-        writer.print(" read(");
-        baseType.printType(writer, context, true, false);
-        writer.println(" source) {");
-        if (hasEmptyConstructor) {
-            Utils.printIndent(writer, INDENT, 2);
-            genType.printType(writer, context, true, false);
-            writer.print(" out = new ");
-            writer.print(genType.getSimpleName());
-            if (!genType.getParameters().isEmpty()) {
-                writer.print("<>");
-            }
-            writer.println("();");
-            for (Property property : properties) {
-                Utils.printIndent(writer, INDENT, 2);
-                writer.print("out.");
-                writer.print(context.getMappedFieldName(property));
-                writer.print(" = ");
-                if (property.isMethod()) {
-                    writer.print("source.");
-                    writer.print(property.getGetterName());
-                    writer.println("();");
-                } else {
-                    writer.print("source.");
-                    writer.print(property.getName());
-                    writer.println(";");
-                }
-            }
-            Utils.printIndent(writer, INDENT, 2);
-            writer.println("return out;");
-        } else if (hasFieldsConstructor) {
-            Utils.printIndent(writer, INDENT, 2);
-            writer.print("return new ");
-            writer.print(genType.getSimpleName());
-            if (!genType.getParameters().isEmpty()) {
-                writer.print("<>");
-            }
-            writer.println("(");
-            int i = 0;
-            for (Property property : properties) {
-                Utils.printIndent(writer, INDENT, 3);
-                if (property.isMethod()) {
-                    writer.print("source.");
-                    writer.print(property.getGetterName());
-                    writer.print("()");
-                } else {
-                    writer.print("source.");
-                    writer.print(property.getName());
-                    writer.print("");
-                }
-                if (i != properties.size() - 1) {
-                    writer.println(",");
-                } else {
-                    writer.println();
-                }
-                ++i;
-            }
-            Utils.printIndent(writer, INDENT, 2);
-            writer.println(")");
-        }
-        Utils.printIndent(writer, INDENT, 1);
-        writer.println("}");
-    }
-
-    private void writeBuilderFile(ViewOfData viewOf, Type baseType, Type genClassName, List<Property> properties) throws IOException {
+    private void writeBuilderFile(ViewOfData viewOf, TypeElement baseElement, TypeElement configElement, Type genType) throws IOException {
         Modifier modifier = viewOf.getAccess();
         if (modifier == null) {
             return;
         }
-        JavaFileObject sourceFile = processingEnv.getFiler().createSourceFile(genClassName.getFlatQualifiedName());
+        JavaFileObject sourceFile = processingEnv.getFiler().createSourceFile(genType.getFlatQualifiedName());
         try (PrintWriter writer = new PrintWriter(sourceFile.openWriter())) {
-            Context context = new Context(genClassName.getPackageName());
-            context.importVariable(baseType);
-            for (Property property : properties) {
-                context.importVariable(property.getType());
-            }
-            if (context.print(writer)) {
-                writer.println();
-            }
-            context.enter(genClassName);
-            genClassName.openClass(writer, modifier, context, INDENT, 0);
-            if (!properties.isEmpty()) {
-                writer.println();
-                for (Property property : properties) {
-                    property.printField(writer, context, INDENT, 1);
-                }
-            }
-            boolean hasEmptyConstructor = false;
-            boolean hasFieldsConstructor = false;
-            modifier = viewOf.getEmptyConstructor();
-            if (modifier != null) {
-                hasEmptyConstructor = true;
-                writer.println();
-                genClassName.emptyConstructor(writer, modifier, INDENT, 1);
-            }
-            modifier = viewOf.getFieldsConstructor();
-            if (modifier != null && !properties.isEmpty()) {
-                hasFieldsConstructor = true;
-                writer.println();
-                genClassName.fieldsConstructor(writer, context, modifier, properties, INDENT, 1);
-            }
-            modifier = viewOf.getCopyConstructor();
-            if (modifier != null) {
-                writer.println();
-                genClassName.copyConstructor(writer, context, modifier, properties, INDENT, 1);
-            }
-            printReader(writer, context, viewOf, baseType, genClassName, properties, hasEmptyConstructor, hasFieldsConstructor);
-            for (Property property : properties) {
-                writer.println();
-                property.printGetter(writer, context, INDENT, 1);
-            }
-            context.exit();
-            genClassName.closeClass(writer, INDENT, 0);
+            Type baseType = Type.extract(baseElement.asType());
+            ViewContext context = new ViewContext(processingEnv, baseType, genType, viewOf);
+            context.collectProperties(baseElement, configElement);
+            context.print(writer);
         }
     }
 }

@@ -1,19 +1,19 @@
 package io.github.vipcxj.beanknife.models;
 
+import io.github.vipcxj.beanknife.annotations.Access;
+import io.github.vipcxj.beanknife.annotations.Dynamic;
 import io.github.vipcxj.beanknife.annotations.NewViewProperty;
 import io.github.vipcxj.beanknife.annotations.OverrideViewProperty;
-import io.github.vipcxj.beanknife.annotations.RemoveViewProperty;
 import io.github.vipcxj.beanknife.utils.Utils;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.*;
 import javax.lang.model.util.Elements;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -34,8 +34,8 @@ public class ViewContext extends Context {
         this.errors = new ArrayList<>();
     }
 
-    public ViewOfData getViewOf() {
-        return viewOf;
+    public Type getBaseType() {
+        return baseType;
     }
 
     private int checkAnnConflict(NewViewProperty newViewProperty, OverrideViewProperty overrideViewProperty) {
@@ -43,16 +43,17 @@ public class ViewContext extends Context {
                 + (overrideViewProperty != null ? 1 : 0);
     }
 
-    private void error(String message) {
+    public void error(String message) {
         errors.add(message);
         Utils.logWarn(getProcessingEnv(), message);
     }
 
-    public List<Property> collectProperties(
+    public void collectProperties(
             @Nonnull TypeElement baseType,
-            @Nullable TypeElement configType,
+            @Nonnull TypeElement configType
 
     ) {
+        getProperties().clear();
         Elements elementUtils = getProcessingEnv().getElementUtils();
         List<? extends Element> members = elementUtils.getAllMembers(baseType);
         for (Element member : members) {
@@ -72,7 +73,8 @@ public class ViewContext extends Context {
                 && Arrays.stream(viewOf.getIncludes()).noneMatch(include -> include.equals(property.getName())))
                 || excludePatterns.stream().anyMatch(pattern -> pattern.matcher(property.getName()).matches())
                 || Arrays.stream(viewOf.getExcludes()).anyMatch(exclude -> exclude.equals(property.getName())));
-        if (configType != null) {
+        List<Property> baseProperties = new ArrayList<>(getProperties());
+        if (configType != baseType) {
             members = elementUtils.getAllMembers(configType);
             for (Element member : members) {
                 NewViewProperty newViewProperty = member.getAnnotation(NewViewProperty.class);
@@ -86,24 +88,261 @@ public class ViewContext extends Context {
                     continue;
                 }
                 if (newViewProperty != null) {
-                    if (getProperties().stream().anyMatch(p -> p.getName().equals(newViewProperty.value()))) {
+                    if (baseProperties.stream().anyMatch(p -> p.getName().equals(newViewProperty.value()))) {
                         error("The property " + newViewProperty.value() + " already exists, so the @NewViewProperty annotation is invalid and has been ignored.");
                         continue;
                     }
                 }
                 if (overrideViewProperty != null) {
-                    if (getProperties().stream().noneMatch(p -> p.getName().equals(overrideViewProperty.value()))) {
+                    if (baseProperties.stream().noneMatch(p -> p.getName().equals(overrideViewProperty.value()))) {
                         error("The property " + overrideViewProperty.value() + " does not exists, so the @OverrideViewProperty annotation is invalid and has been ignored.");
                         continue;
                     }
                 }
                 if (member.getKind() == ElementKind.FIELD) {
-
+                    if (overrideViewProperty != null) {
+                        String name = overrideViewProperty.value();
+                        getProperties().replaceAll(p -> {
+                            if (p.getName().equals(name)) {
+                                return p
+                                        .withGetterAccess(Utils.resolveGetterAccess(viewOf, overrideViewProperty.getter()))
+                                        .withSetterAccess(Utils.resolveSetterAccess(viewOf, overrideViewProperty.setter()));
+                            } else {
+                                return p;
+                            }
+                        });
+                    } else {
+                        throw new IllegalStateException("This is impossible!");
+                    }
                 } else if (member.getKind() == ElementKind.METHOD) {
-
+                    Extractor extractor;
+                    Type containerType = Type.extract(configType.asType());
+                    Dynamic dynamic = member.getAnnotation(Dynamic.class);
+                    if (dynamic != null) {
+                        extractor = new DynamicMethodExtractor(containerType, (ExecutableElement) member);
+                    } else {
+                        extractor = new StaticMethodExtractor(containerType, (ExecutableElement) member);
+                    }
+                    if (overrideViewProperty != null) {
+                        String name = overrideViewProperty.value();
+                        getProperties().replaceAll(p -> {
+                            if (p.getName().equals(name)) {
+                                return p
+                                        .withGetterAccess(Utils.resolveGetterAccess(viewOf, overrideViewProperty.getter()))
+                                        .withSetterAccess(Utils.resolveSetterAccess(viewOf, overrideViewProperty.setter()))
+                                        .withExtractor(extractor);
+                            } else {
+                                return p;
+                            }
+                        });
+                    } else if (newViewProperty != null) {
+                        String name = newViewProperty.value();
+                        Type type = extractor.getReturnType();
+                        Access getterAccess = Utils.resolveGetterAccess(viewOf, newViewProperty.getter());
+                        Access setterAccess = Utils.resolveSetterAccess(viewOf, newViewProperty.setter());
+                        Modifier modifier = getterAccess.toModifier();
+                        Property property = new Property(
+                                newViewProperty.value(),
+                                modifier,
+                                getterAccess,
+                                setterAccess,
+                                type,
+                                true,
+                                Utils.createGetterName(name, type.isBoolean()),
+                                Utils.createSetterName(name, type.isBoolean()),
+                                false,
+                                member,
+                                getProcessingEnv().getElementUtils().getDocComment(member)
+                        ).withExtractor(extractor);
+                        addProperty(property, samePackage, true);
+                    }
                 }
             }
-
         }
+    }
+
+    @Override
+    public boolean print(@Nonnull PrintWriter writer) {
+        Modifier modifier = viewOf.getAccess();
+        if (modifier == null) {
+            return false;
+        }
+        importVariable(baseType);
+        List<Property> properties = getProperties();
+        for (Property property : properties) {
+            importVariable(property.getType());
+        }
+        if (super.print(writer)) {
+            writer.println();
+        }
+        boolean empty = true;
+        enter(genType);
+        genType.openClass(writer, modifier, this, INDENT, 0);
+        for (Property property : properties) {
+            if (!property.isDynamic()) {
+                if (empty) {
+                    empty = false;
+                    writer.println();
+                }
+                property.printField(writer, this, INDENT, 1);
+                writer.println();
+            }
+        }
+        boolean hasEmptyConstructor = false;
+        boolean hasFieldsConstructor = false;
+        modifier = viewOf.getEmptyConstructor();
+        if (modifier != null) {
+            hasEmptyConstructor = true;
+            if (empty) {
+                empty = false;
+                writer.println();
+            }
+            genType.emptyConstructor(writer, modifier, INDENT, 1);
+            writer.println();
+        }
+        modifier = viewOf.getFieldsConstructor();
+        if (modifier != null && !properties.isEmpty()) {
+            hasFieldsConstructor = true;
+            if (empty) {
+                empty = false;
+                writer.println();
+            }
+            genType.fieldsConstructor(writer, this, modifier, properties, INDENT, 1);
+            writer.println();
+        }
+        modifier = viewOf.getCopyConstructor();
+        if (modifier != null) {
+            if (empty) {
+                empty = false;
+                writer.println();
+            }
+            genType.copyConstructor(writer, this, modifier, properties, INDENT, 1);
+            writer.println();
+        }
+        empty = printReader(writer, empty, hasEmptyConstructor, hasFieldsConstructor);
+        for (Property property : properties) {
+            if (empty) {
+                empty = false;
+                writer.println();
+            }
+            property.printGetter(writer, this, INDENT, 1);
+            writer.println();
+        }
+        printErrors(writer, empty);
+        exit();
+        genType.closeClass(writer, INDENT, 0);
+        return true;
+    }
+
+    private void printErrors(@Nonnull PrintWriter writer, boolean empty) {
+        if (!viewOf.isErrorMethods()) {
+            return;
+        }
+        if (empty) {
+            writer.println();
+        }
+        int i = 0;
+        for (String error : errors) {
+            Utils.printIndent(writer, INDENT, 1);
+            writer.print("public static void ");
+            writer.print("error");
+            writer.print(i++);
+            writer.println("() {");
+            Utils.printIndent(writer, INDENT, 2);
+            writer.print("return ");
+            writer.print("\"");
+            writer.print(error);
+            writer.print("\";");
+            Utils.printIndent(writer, INDENT, 1);
+            writer.println("}");
+            writer.println();
+        }
+    }
+
+    private boolean printReader(
+            @Nonnull PrintWriter writer,
+            boolean empty,
+            boolean hasEmptyConstructor,
+            boolean hasFieldsConstructor
+    ) {
+        Modifier modifier = viewOf.getReadMethod();
+        if (modifier == null) {
+            return empty;
+        }
+        if (empty) {
+            writer.println();
+        }
+        List<Property> properties = getProperties();
+        Utils.printIndent(writer, INDENT, 1);
+        Utils.printModifier(writer, modifier);
+        writer.print("static ");
+        if (!genType.getParameters().isEmpty()) {
+            genType.printGenericParameters(writer, this, true);
+            writer.print(" ");
+        }
+        genType.printType(writer, this, true, false);
+        writer.print(" read(");
+        baseType.printType(writer, this, true, false);
+        writer.println(" source) {");
+        if (hasEmptyConstructor) {
+            Utils.printIndent(writer, INDENT, 2);
+            genType.printType(writer, this, true, false);
+            writer.print(" out = new ");
+            writer.print(genType.getSimpleName());
+            if (!genType.getParameters().isEmpty()) {
+                writer.print("<>");
+            }
+            writer.println("();");
+            for (Property property : properties) {
+                Utils.printIndent(writer, INDENT, 2);
+                writer.print("out.");
+                writer.print(this.getMappedFieldName(property));
+                writer.print(" = ");
+                if (property.isMethod()) {
+                    writer.print("source.");
+                    writer.print(property.getGetterName());
+                    writer.println("();");
+                } else {
+                    writer.print("source.");
+                    writer.print(property.getName());
+                    writer.println(";");
+                }
+            }
+            Utils.printIndent(writer, INDENT, 2);
+            writer.println("return out;");
+        } else if (hasFieldsConstructor) {
+            Utils.printIndent(writer, INDENT, 2);
+            writer.print("return new ");
+            writer.print(genType.getSimpleName());
+            if (!genType.getParameters().isEmpty()) {
+                writer.print("<>");
+            }
+            writer.println("(");
+            int i = 0;
+            for (Property property : properties) {
+                Utils.printIndent(writer, INDENT, 3);
+                if (property.isMethod()) {
+                    writer.print("source.");
+                    writer.print(property.getGetterName());
+                    writer.print("()");
+                } else {
+                    writer.print("source.");
+                    writer.print(property.getName());
+                    writer.print("");
+                }
+                if (i != properties.size() - 1) {
+                    writer.println(",");
+                } else {
+                    writer.println();
+                }
+                ++i;
+            }
+            Utils.printIndent(writer, INDENT, 2);
+            writer.println(")");
+        }
+        Utils.printIndent(writer, INDENT, 1);
+        writer.println("}");
+        writer.println();
+        return false;
     }
 }

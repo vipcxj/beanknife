@@ -26,6 +26,7 @@ public class ViewOfData {
     private Modifier readMethod;
     private Access getters;
     private Access setters;
+    private boolean errorMethods;
 
     public static ViewOfData read(ProcessingEnvironment environment, AnnotationMirror viewOf) {
         Map<? extends ExecutableElement, ? extends AnnotationValue> annValues = environment.getElementUtils().getElementValuesWithDefaults(viewOf);
@@ -44,6 +45,7 @@ public class ViewOfData {
         data.readMethod = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "readMethod"));
         data.getters = getAccess(Utils.getEnumAnnotationValue(viewOf, annValues, "getters"));
         data.setters = getAccess(Utils.getEnumAnnotationValue(viewOf, annValues, "setters"));
+        data.errorMethods = Utils.getBooleanAnnotationValue(viewOf, annValues, "errorMethods");
         return data;
     }
 
@@ -135,5 +137,9 @@ public class ViewOfData {
 
     public Access getSetters() {
         return setters;
+    }
+
+    public boolean isErrorMethods() {
+        return errorMethods;
     }
 }

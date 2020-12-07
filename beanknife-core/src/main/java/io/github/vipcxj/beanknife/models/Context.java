@@ -13,9 +13,11 @@ import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import java.io.PrintWriter;
 import java.util.*;
-import java.util.function.Function;
 
 public class Context {
+
+    final static String INDENT = "    ";
+
     private final Stack<Type> containers;
     private final List<String> imports;
     private final Set<String> symbols;
@@ -55,19 +57,23 @@ public class Context {
         return fieldsStack.peek();
     }
 
-    public String getMappedFieldName(@Nonnull Property property) {
-        return getMappedFieldName(property, property.getName());
+    public String getMappedFieldName(@Nonnull String property) {
+        return getMappedFieldName(property, property);
     }
 
-    private String getMappedFieldName(@Nonnull Property property, @Nonnull String name) {
-        String mappedName = getFields().get(property.getName());
+    public String getMappedFieldName(@Nonnull Property property) {
+        return getMappedFieldName(property.getName(), property.getName());
+    }
+
+    private String getMappedFieldName(@Nonnull String property, @Nonnull String name) {
+        String mappedName = getFields().get(property);
         if (mappedName != null) {
             return mappedName;
         }
         if (SourceVersion.isKeyword(name) || getFields().containsKey(name)) {
             return getMappedFieldName(property, name + "_");
         } else {
-            getFields().put(property.getName(), name);
+            getFields().put(property, name);
             return name;
         }
     }

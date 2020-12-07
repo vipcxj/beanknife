@@ -5,22 +5,27 @@ import io.github.vipcxj.beanknife.utils.Utils;
 
 import javax.annotation.Nonnull;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.type.TypeMirror;
 import java.io.PrintWriter;
 
 public class Property {
 
     private final String name;
     private final Modifier modifier;
-    private final Access getter;
-    private final Access setter;
+    private Access getter;
+    private Access setter;
     private final Type type;
+    private final TypeMirror typeMirror;
     private final boolean method;
     private final String getterName;
     private final String setterName;
     private final boolean writeable;
     private final Element element;
     private final String comment;
+    private Extractor extractor;
 
     public Property(
             String name,
@@ -46,6 +51,13 @@ public class Property {
         this.writeable = writeable;
         this.element = element;
         this.comment = comment;
+        if (element.getKind() == ElementKind.FIELD) {
+            this.typeMirror = element.asType();
+        } else if (element.getKind() == ElementKind.METHOD) {
+            this.typeMirror = ((ExecutableElement) element).getReturnType();
+        } else {
+            throw new IllegalStateException("This is impossible!");
+        }
     }
 
     public Property(Property other, String commentIfNone) {
@@ -59,7 +71,30 @@ public class Property {
         this.setterName = other.setterName;
         this.writeable = other.writeable;
         this.element = other.element;
+        this.typeMirror = other.typeMirror;
         this.comment = other.comment != null ? other.comment : commentIfNone;
+    }
+
+    public Property withGetterAccess(Access access) {
+        Property property = new Property(this, null);
+        property.getter = access;
+        return property;
+    }
+
+    public Property withSetterAccess(Access access) {
+        Property property = new Property(this, null);
+        property.setter = access;
+        return property;
+    }
+
+    public Property withExtractor(Extractor extractor) {
+        Property property = new Property(this, null);
+        property.extractor = extractor;
+        return property;
+    }
+
+    public TypeMirror getTypeMirror() {
+        return typeMirror;
     }
 
     public String getName() {
@@ -108,6 +143,10 @@ public class Property {
 
     public String getComment() {
         return comment;
+    }
+
+    public boolean isDynamic() {
+        return extractor != null && extractor.isDynamic();
     }
 
     public void printType(@Nonnull PrintWriter writer, @Nonnull Context context, boolean generic, boolean withBound) {
