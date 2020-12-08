@@ -75,7 +75,7 @@ public class Type {
         );
     }
 
-    public Type changeSimpleName(String simpleName) {
+    public Type changeSimpleName(String simpleName, boolean removeParents) {
         if (wildcard) {
             throw new UnsupportedOperationException();
         }
@@ -86,7 +86,7 @@ public class Type {
                 typeVar,
                 false,
                 parameters,
-                container,
+                !removeParents ? container : null,
                 upperBound,
                 lowerBound
         );
@@ -115,6 +115,23 @@ public class Type {
                 wildcard,
                 parameters,
                 container,
+                upperBound,
+                lowerBound
+        );
+    }
+
+    public Type flatten() {
+        if (container == null) {
+            return this;
+        }
+        return new Type(
+                packageName,
+                getEnclosedFlatSimpleName(),
+                array,
+                typeVar,
+                wildcard,
+                parameters,
+                null,
                 upperBound,
                 lowerBound
         );
@@ -393,14 +410,16 @@ public class Type {
         int size = properties.size();
         int i = 0;
         for (Property property : properties) {
-            Utils.printIndent(writer, indent, indentNum + 1);
-            property.printType(writer, context, true, false);
-            writer.print(" ");
-            writer.print(context.getMappedFieldName(property));
-            if (i != size - 1) {
-                writer.println(",");
-            } else {
-                writer.println();
+            if (!property.isDynamic()) {
+                Utils.printIndent(writer, indent, indentNum + 1);
+                property.printType(writer, context, true, false);
+                writer.print(" ");
+                writer.print(context.getMappedFieldName(property));
+                if (i != size - 1) {
+                    writer.println(",");
+                } else {
+                    writer.println();
+                }
             }
             ++i;
         }
@@ -425,12 +444,14 @@ public class Type {
         writer.print(" ");
         writer.println("source) {");
         for (Property property : properties) {
-            Utils.printIndent(writer, indent, indentNum + 1);
-            writer.print("this.");
-            writer.print(context.getMappedFieldName(property));
-            writer.print(" = source.");
-            writer.print(context.getMappedFieldName(property));
-            writer.println(";");
+            if (!property.isDynamic()) {
+                Utils.printIndent(writer, indent, indentNum + 1);
+                writer.print("this.");
+                writer.print(context.getMappedFieldName(property));
+                writer.print(" = source.");
+                writer.print(context.getMappedFieldName(property));
+                writer.println(";");
+            }
         }
         Utils.printIndent(writer, indent, indentNum);
         writer.println("}");

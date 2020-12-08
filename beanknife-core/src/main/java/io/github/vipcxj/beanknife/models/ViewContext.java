@@ -5,6 +5,7 @@ import io.github.vipcxj.beanknife.annotations.Dynamic;
 import io.github.vipcxj.beanknife.annotations.NewViewProperty;
 import io.github.vipcxj.beanknife.annotations.OverrideViewProperty;
 import io.github.vipcxj.beanknife.utils.Utils;
+import org.apache.commons.text.StringEscapeUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -48,12 +49,13 @@ public class ViewContext extends Context {
         Utils.logWarn(getProcessingEnv(), message);
     }
 
-    public void collectProperties(
+    public void collectData(
             @Nonnull TypeElement baseType,
             @Nonnull TypeElement configType
 
     ) {
         getProperties().clear();
+        importVariable(this.baseType);
         Elements elementUtils = getProcessingEnv().getElementUtils();
         List<? extends Element> members = elementUtils.getAllMembers(baseType);
         for (Element member : members) {
@@ -64,16 +66,18 @@ public class ViewContext extends Context {
                 property = Utils.createPropertyFromBase(this, viewOf, (ExecutableElement) member, members, samePackage);
             }
             if (property != null) {
-                addProperty(property, true, false);
+                addProperty(property, false);
             }
         }
         List<Pattern> includePatterns = Arrays.stream(viewOf.getIncludePattern().split(",\\s")).map(Pattern::compile).collect(Collectors.toList());
         List<Pattern> excludePatterns = Arrays.stream(viewOf.getExcludePattern().split(",\\s")).map(Pattern::compile).collect(Collectors.toList());
-        getProperties().removeIf(property -> (includePatterns.stream().noneMatch(pattern -> pattern.matcher(property.getName()).matches())
+        getProperties().removeIf(property -> !Utils.canSeeFromOtherClass (property, samePackage)
+                || (includePatterns.stream().noneMatch(pattern -> pattern.matcher(property.getName()).matches())
                 && Arrays.stream(viewOf.getIncludes()).noneMatch(include -> include.equals(property.getName())))
                 || excludePatterns.stream().anyMatch(pattern -> pattern.matcher(property.getName()).matches())
                 || Arrays.stream(viewOf.getExcludes()).anyMatch(exclude -> exclude.equals(property.getName())));
         List<Property> baseProperties = new ArrayList<>(getProperties());
+        boolean useConfig = false;
         if (configType != baseType) {
             members = elementUtils.getAllMembers(configType);
             for (Element member : members) {
@@ -115,6 +119,7 @@ public class ViewContext extends Context {
                         throw new IllegalStateException("This is impossible!");
                     }
                 } else if (member.getKind() == ElementKind.METHOD) {
+                    useConfig = true;
                     Extractor extractor;
                     Type containerType = Type.extract(configType.asType());
                     Dynamic dynamic = member.getAnnotation(Dynamic.class);
@@ -127,6 +132,7 @@ public class ViewContext extends Context {
                         String name = overrideViewProperty.value();
                         getProperties().replaceAll(p -> {
                             if (p.getName().equals(name)) {
+                                extractor.check(this, p);
                                 return p
                                         .withGetterAccess(Utils.resolveGetterAccess(viewOf, overrideViewProperty.getter()))
                                         .withSetterAccess(Utils.resolveSetterAccess(viewOf, overrideViewProperty.setter()))
@@ -136,6 +142,7 @@ public class ViewContext extends Context {
                             }
                         });
                     } else if (newViewProperty != null) {
+                        extractor.check(this, null);
                         String name = newViewProperty.value();
                         Type type = extractor.getReturnType();
                         Access getterAccess = Utils.resolveGetterAccess(viewOf, newViewProperty.getter());
@@ -154,10 +161,16 @@ public class ViewContext extends Context {
                                 member,
                                 getProcessingEnv().getElementUtils().getDocComment(member)
                         ).withExtractor(extractor);
-                        addProperty(property, samePackage, true);
+                        addProperty(property, true);
                     }
                 }
             }
+        }
+        if (useConfig) {
+            importVariable(Type.extract(configType.asType()));
+        }
+        for (Property property : getProperties()) {
+            importVariable(property.getType());
         }
     }
 
@@ -167,14 +180,10 @@ public class ViewContext extends Context {
         if (modifier == null) {
             return false;
         }
-        importVariable(baseType);
-        List<Property> properties = getProperties();
-        for (Property property : properties) {
-            importVariable(property.getType());
-        }
         if (super.print(writer)) {
             writer.println();
         }
+        List<Property> properties = getProperties();
         boolean empty = true;
         enter(genType);
         genType.openClass(writer, modifier, this, INDENT, 0);
@@ -221,12 +230,24 @@ public class ViewContext extends Context {
         }
         empty = printReader(writer, empty, hasEmptyConstructor, hasFieldsConstructor);
         for (Property property : properties) {
-            if (empty) {
-                empty = false;
+            if (property.hasGetter()) {
+                if (empty) {
+                    empty = false;
+                    writer.println();
+                }
+                property.printGetter(writer, this, INDENT, 1);
                 writer.println();
             }
-            property.printGetter(writer, this, INDENT, 1);
-            writer.println();
+        }
+        for (Property property : properties) {
+            if (!property.isDynamic() && property.hasSetter()) {
+                if (empty) {
+                    empty = false;
+                    writer.println();
+                }
+                property.printSetter(writer, this, INDENT, 1);
+                writer.println();
+            }
         }
         printErrors(writer, empty);
         exit();
@@ -251,7 +272,7 @@ public class ViewContext extends Context {
             Utils.printIndent(writer, INDENT, 2);
             writer.print("return ");
             writer.print("\"");
-            writer.print(error);
+            writer.print(StringEscapeUtils.escapeJava(error));
             writer.print("\";");
             Utils.printIndent(writer, INDENT, 1);
             writer.println("}");
@@ -294,18 +315,25 @@ public class ViewContext extends Context {
             }
             writer.println("();");
             for (Property property : properties) {
-                Utils.printIndent(writer, INDENT, 2);
-                writer.print("out.");
-                writer.print(this.getMappedFieldName(property));
-                writer.print(" = ");
-                if (property.isMethod()) {
-                    writer.print("source.");
-                    writer.print(property.getGetterName());
-                    writer.println("();");
-                } else {
-                    writer.print("source.");
-                    writer.print(property.getName());
-                    writer.println(";");
+                if (!property.isDynamic()) {
+                    Utils.printIndent(writer, INDENT, 2);
+                    writer.print("out.");
+                    writer.print(this.getMappedFieldName(property));
+                    writer.print(" = ");
+                    if (property.isCustomMethod()) {
+                        property.getExtractor().print(writer, this);
+                        writer.println(";");
+                    } else {
+                        if (property.isMethod()) {
+                            writer.print("source.");
+                            writer.print(property.getGetterName());
+                            writer.println("();");
+                        } else {
+                            writer.print("source.");
+                            writer.print(property.getName());
+                            writer.println(";");
+                        }
+                    }
                 }
             }
             Utils.printIndent(writer, INDENT, 2);
@@ -319,16 +347,21 @@ public class ViewContext extends Context {
             }
             writer.println("(");
             int i = 0;
+            properties = properties.stream().filter(p -> !p.isDynamic()).collect(Collectors.toList());
             for (Property property : properties) {
                 Utils.printIndent(writer, INDENT, 3);
-                if (property.isMethod()) {
-                    writer.print("source.");
-                    writer.print(property.getGetterName());
-                    writer.print("()");
+                if (property.isCustomMethod()) {
+                    property.getExtractor().print(writer, this);
                 } else {
-                    writer.print("source.");
-                    writer.print(property.getName());
-                    writer.print("");
+                    if (property.isMethod()) {
+                        writer.print("source.");
+                        writer.print(property.getGetterName());
+                        writer.print("()");
+                    } else {
+                        writer.print("source.");
+                        writer.print(property.getName());
+                        writer.print("");
+                    }
                 }
                 if (i != properties.size() - 1) {
                     writer.println(",");
@@ -338,7 +371,7 @@ public class ViewContext extends Context {
                 ++i;
             }
             Utils.printIndent(writer, INDENT, 2);
-            writer.println(")");
+            writer.println(");");
         }
         Utils.printIndent(writer, INDENT, 1);
         writer.println("}");

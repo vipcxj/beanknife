@@ -1,11 +1,11 @@
 package io.github.vipcxj.beanknife.utils;
 
-import io.github.vipcxj.beanknife.annotations.*;
+import io.github.vipcxj.beanknife.annotations.Access;
+import io.github.vipcxj.beanknife.annotations.ViewProperty;
 import io.github.vipcxj.beanknife.models.Context;
 import io.github.vipcxj.beanknife.models.Property;
 import io.github.vipcxj.beanknife.models.Type;
 import io.github.vipcxj.beanknife.models.ViewOfData;
-import org.checkerframework.checker.units.qual.A;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -15,12 +15,9 @@ import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import java.io.PrintWriter;
 import java.util.*;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 public class Utils {
 
@@ -152,9 +149,6 @@ public class Utils {
             return null;
         }
         Modifier modifier = getPropertyModifier(e);
-        if (!canSeeFromOtherClass(modifier, samePackage)) {
-            return null;
-        }
         String name = e.getSimpleName().toString();
         ViewProperty viewProperty = e.getAnnotation(ViewProperty.class);
         Access getter = viewProperty != null ? viewProperty.getter() : Access.UNKNOWN;
@@ -205,8 +199,8 @@ public class Utils {
         return new Property(
                 name,
                 getPropertyModifier(e),
-                resolveGetterAccess(viewOf, viewProperty),
-                resolveSetterAccess(viewOf, viewProperty),
+                resolveGetterAccess(viewOf, viewProperty != null ? viewProperty.getter() : Access.UNKNOWN),
+                resolveSetterAccess(viewOf, viewProperty != null ? viewProperty.setter() : Access.UNKNOWN),
                 Type.extract(type),
                 true,
                 methodName,
@@ -413,105 +407,20 @@ public class Utils {
         throw new IllegalArgumentException("There is no attribute named value in annotation " + getAnnotationName(annotation));
     }
 
-    public static Type extractClassName(Type baseClassName, String genName, String genPackage, String postfix) {
+    public static Type extractGenType(Type baseClassName, String genName, String genPackage, String postfix) {
         if (genName.isEmpty()) {
             if (genPackage.isEmpty()) {
-                return baseClassName.appendName(postfix);
+                return baseClassName.appendName(postfix).flatten();
             } else {
-                return baseClassName.changePackage(genPackage).appendName(postfix);
+                return baseClassName.changePackage(genPackage).appendName(postfix).flatten();
             }
         } else {
             if (genPackage.isEmpty()) {
-                return baseClassName.changeSimpleName(genName);
+                return baseClassName.changeSimpleName(genName, true);
             } else {
-                return baseClassName.changePackage(genPackage).changeSimpleName(genName);
+                return baseClassName.changePackage(genPackage).changeSimpleName(genName, true);
             }
         }
-    }
-
-    public static List<Property> collectPropertiesFromConfig(
-            @Nonnull Context context,
-            @Nonnull ViewOfData viewOf,
-            @Nonnull TypeElement configElement,
-            @Nonnull TypeElement baseElement
-    ) {
-        List<String> warns = new ArrayList<>();
-        List<Property> properties = collectPropertiesFromBase(context, viewOf, baseElement);
-        properties = filterProperties(viewOf, properties);
-        ProcessingEnvironment env = context.getProcessingEnv();
-        Elements elementUtils = env.getElementUtils();
-        Set<String> removes = new HashSet<>();
-        removes.addAll(Arrays.stream(baseElement.getAnnotationsByType(RemoveViewProperty.class)).map(RemoveViewProperty::value).collect(Collectors.toList()));
-        removes.addAll(Arrays.stream(configElement.getAnnotationsByType(RemoveViewProperty.class)).map(RemoveViewProperty::value).collect(Collectors.toList()));
-        List<? extends Element> members = elementUtils.getAllMembers(configElement);
-        for (Element member : members) {
-            NewViewProperty newViewProperty = member.getAnnotation(NewViewProperty.class);
-            OverrideViewProperty overrideViewProperty = member.getAnnotation(OverrideViewProperty.class);
-            RemoveViewProperty removeViewProperty = member.getAnnotation(RemoveViewProperty.class);
-            if (removeViewProperty != null) {
-                removes.add(removeViewProperty.value());
-            }
-            boolean dynamic = false;
-            NewViewProperty _newViewProperty = newViewProperty;
-            if (_newViewProperty != null && properties.stream().anyMatch(p -> p.getName().equals(_newViewProperty.value()))) {
-                String warn = "The property " + newViewProperty.value() + " already exists, so the @NewViewProperty annotation is invalid and has been ignored.";
-                warns.add(warn);
-                logWarn(env, warn);
-                newViewProperty = null;
-            }
-            OverrideViewProperty _overrideViewProperty = overrideViewProperty;
-            if (_overrideViewProperty != null && properties.stream().noneMatch(p -> p.getName().equals(_overrideViewProperty.value()))) {
-                String warn = "The property " + overrideViewProperty.value() + " does not exists, so the @OverrideViewProperty annotation is invalid and has been ignored.";
-                warns.add(warn);
-                logWarn(env, warn);
-                overrideViewProperty = null;
-            }
-            if (newViewProperty != null && overrideViewProperty != null) {
-
-            }
-
-            if (newViewProperty != null) {
-                if (member.getKind() == ElementKind.FIELD) {
-                    newName = newViewProperty.value();
-
-                } else if (member.getKind() == ElementKind.METHOD) {
-                    dynamic = member.getAnnotation(Dynamic.class) != null;
-                    if (!dynamic && !member.getModifiers().contains(Modifier.STATIC)) {
-                        String error = ""
-                    }
-                }
-            }
-
-
-
-            Property property = null;
-            if (member.getKind() == ElementKind.FIELD) {
-                property = Utils.createPropertyFromBase(environment, viewOf, (VariableElement) member, members, samePackage);
-            } else if (member.getKind() == ElementKind.METHOD) {
-                property = Utils.createPropertyFromBase(environment, viewOf, (ExecutableElement) member, members, samePackage);
-            }
-            if (property != null) {
-                Utils.addProperty(environment, properties, property, samePackage, false);
-            }
-        }
-        return properties;
-    }
-
-    public static List<Property> filterProperties(ViewOfData viewOf, List<Property> properties) {
-        List<Property> filteredProperties = new ArrayList<>();
-        List<Pattern> includePatterns = Arrays.stream(viewOf.getIncludePattern().split(",\\s")).map(Pattern::compile).collect(Collectors.toList());
-        List<Pattern> excludePatterns = Arrays.stream(viewOf.getExcludePattern().split(",\\s")).map(Pattern::compile).collect(Collectors.toList());
-        for (Property property : properties) {
-            if (
-                    (includePatterns.stream().anyMatch(pattern -> pattern.matcher(property.getName()).matches())
-                            || Arrays.stream(viewOf.getIncludes()).anyMatch(include -> include.equals(property.getName())))
-                            && excludePatterns.stream().noneMatch(pattern -> pattern.matcher(property.getName()).matches())
-                            && Arrays.stream(viewOf.getExcludes()).noneMatch(include -> include.equals(property.getName()))
-            ) {
-                filteredProperties.add(property);
-            }
-        }
-        return filteredProperties;
     }
 
     public static void logWarn(ProcessingEnvironment env, String message) {

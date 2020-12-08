@@ -21,6 +21,6 @@ public @interface ViewOf {
     Access copyConstructor() default Access.PUBLIC;
     Access readMethod() default Access.PUBLIC;
     Access getters() default Access.PUBLIC;
-    Access setters() default Access.PUBLIC;
+    Access setters() default Access.NONE;
     boolean errorMethods() default true;
 }

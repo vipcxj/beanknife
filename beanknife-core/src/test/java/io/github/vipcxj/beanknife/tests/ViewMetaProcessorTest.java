@@ -1,14 +1,10 @@
 package io.github.vipcxj.beanknife.tests;
 
-import com.google.testing.compile.Compilation;
-import com.google.testing.compile.CompilationSubject;
-import com.google.testing.compile.Compiler;
-import com.google.testing.compile.JavaFileObjects;
 import io.github.vipcxj.beanknife.ViewMetaProcessor;
 import io.github.vipcxj.beanknife.ViewOfProcessor;
 import org.junit.Test;
 
-import javax.annotation.processing.Processor;
+import static io.github.vipcxj.beanknife.tests.Utils.testViewCase;
 
 public class ViewMetaProcessorTest {
 
@@ -51,31 +47,4 @@ public class ViewMetaProcessorTest {
                 "View"
         );
     }
-
-    private String toSourcePath(String qualifiedClassName) {
-        return qualifiedClassName.replaceAll("\\.", "/") + ".java";
-    }
-
-    private void testViewCase(Processor processor, String qualifiedClassName, String[] targetQualifiedClassNames, String postfix) {
-        String sourcePath = toSourcePath(qualifiedClassName);
-        Compilation compilation = Compiler.javac()
-                .withProcessors(processor)
-                .compile(JavaFileObjects.forResource(sourcePath));
-        if (targetQualifiedClassNames == null) {
-            String genClassName = qualifiedClassName + postfix;
-            String genClassPath = toSourcePath(genClassName);
-            CompilationSubject.assertThat(compilation)
-                    .generatedSourceFile(genClassName)
-                    .hasSourceEquivalentTo(JavaFileObjects.forResource(genClassPath));
-        } else {
-            for (String targetQualifiedClassName : targetQualifiedClassNames) {
-                String genClassName = targetQualifiedClassName == null ? qualifiedClassName + postfix : targetQualifiedClassName;
-                String genClassPath = toSourcePath(genClassName);
-                CompilationSubject.assertThat(compilation)
-                        .generatedSourceFile(genClassName)
-                        .hasSourceEquivalentTo(JavaFileObjects.forResource(genClassPath));
-            }
-        }
-    }
-
 }

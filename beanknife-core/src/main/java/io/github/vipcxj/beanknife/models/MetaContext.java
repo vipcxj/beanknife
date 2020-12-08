@@ -6,20 +6,21 @@ import javax.annotation.Nonnull;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.*;
 import javax.lang.model.util.Elements;
+import java.io.PrintWriter;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class MetaContext extends Context {
 
-    private final Type baseType;
+    private final Type genType;
 
-    public MetaContext(@Nonnull ProcessingEnvironment processingEnv, @Nonnull Type baseType, @Nonnull Type genType) {
+    public MetaContext(@Nonnull ProcessingEnvironment processingEnv, @Nonnull Type genType) {
         super(processingEnv, genType.getPackageName());
-        this.baseType = baseType;
+        this.genType = genType;
     }
 
-    public List<Property> collectProperties(
-            @Nonnull TypeElement element
-    ) {
+    public void collectData(@Nonnull TypeElement element) {
         Elements elementUtils = getProcessingEnv().getElementUtils();
         List<? extends Element> members = elementUtils.getAllMembers(element);
         for (Element member : members) {
@@ -30,9 +31,31 @@ public class MetaContext extends Context {
                 property = Utils.createPropertyFromBase(this, null, (ExecutableElement) member, members, true);
             }
             if (property != null) {
-                addProperty(property, true, false);
+                addProperty(property, false);
             }
         }
-        return getProperties();
+        getProperties().removeIf(property -> !Utils.canSeeFromOtherClass(property, true));
+    }
+
+    @Override
+    public boolean print(@Nonnull PrintWriter writer) {
+        if (super.print(writer)) {
+            writer.println();
+        }
+        genType.openClass(writer, Modifier.PUBLIC, this, INDENT, 0);
+        Set<String> names = new HashSet<>();
+        for (Property property : getProperties()) {
+            String variableName = Utils.createValidFieldName(property.getName(), names);
+            names.add(variableName);
+            Utils.printIndent(writer, INDENT, 1);
+            writer.print("public static final String ");
+            writer.print(variableName);
+            writer.print(" = \"");
+            writer.print(property.getName());
+            writer.print("\";");
+            writer.println();
+        }
+        genType.closeClass(writer, INDENT, 0);
+        return true;
     }
 }

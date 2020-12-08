@@ -1,7 +1,7 @@
 package io.github.vipcxj.beanknife;
 
 import com.google.auto.service.AutoService;
-import io.github.vipcxj.beanknife.models.Property;
+import io.github.vipcxj.beanknife.models.MetaContext;
 import io.github.vipcxj.beanknife.models.Type;
 import io.github.vipcxj.beanknife.models.ViewMetaData;
 import io.github.vipcxj.beanknife.utils.Utils;
@@ -22,8 +22,6 @@ import java.util.Set;
 @AutoService(Processor.class)
 public class ViewMetaProcessor extends AbstractProcessor {
 
-    private final static String INDENT = "    ";
-
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         for (TypeElement annotation : annotations) {
@@ -36,48 +34,27 @@ public class ViewMetaProcessor extends AbstractProcessor {
                             "io.github.vipcxj.beanknife.annotations.ViewMeta",
                             "io.github.vipcxj.beanknife.annotations.ViewMetas"
                     );
-                    TypeElement typeElement = (TypeElement) element;
-                    List<Property> samePackageProperties = null;
-                    List<Property> diffPackageProperties = null;
+                    TypeElement configElement = (TypeElement) element;
                     Set<String> targetClassNames = new HashSet<>();
                     for (AnnotationMirror annotationMirror : annotationMirrors) {
-                        ViewMetaData viewMeta = ViewMetaData.read(processingEnv, annotationMirror);
-                        Type baseClassName = Type.extract(element.asType());
-                        Type targetClassName = Utils.extractClassName(
-                                baseClassName,
+                        ViewMetaData viewMeta = ViewMetaData.read(processingEnv, annotationMirror, configElement);
+                        TypeElement sourceElement = viewMeta.getOf();
+                        Type genType = Utils.extractGenType(
+                                Type.extract(sourceElement.asType()),
                                 viewMeta.getValue(),
                                 viewMeta.getPackageName(),
                                 "Meta"
                         );
-                        boolean samePackage = baseClassName.getPackageName().equals(targetClassName.getPackageName());
-                        String targetQualifiedName = targetClassName.getQualifiedName();
-                        if (!targetClassNames.contains(targetQualifiedName)) {
-                            targetClassNames.add(targetQualifiedName);
-                            if (!Utils.canSeeFromOtherClass(typeElement, samePackage)) {
-                                Utils.logError(
-                                        processingEnv,
-                                        "The target class "
-                                        + baseClassName.getQualifiedName()
-                                        + " can not be seen by the generated class "
-                                        + targetQualifiedName
-                                        + "."
-                                );
-                                continue;
-                            }
-
-                            if (samePackage && samePackageProperties == null) {
-                                samePackageProperties = Utils.collectPropertiesFromBase(processingEnv, null, typeElement, true);
-                            } else if (!samePackage && diffPackageProperties == null) {
-                                diffPackageProperties = Utils.collectPropertiesFromBase(processingEnv, null, typeElement, false);
-                            }
-                            List<Property> properties = samePackage ? samePackageProperties : diffPackageProperties;
+                        String genQualifiedName = genType.getQualifiedName();
+                        if (!targetClassNames.contains(genQualifiedName)) {
+                            targetClassNames.add(genQualifiedName);
                             try {
-                                writeBuilderFile(targetClassName, properties);
+                                writeBuilderFile(genType, sourceElement);
                             } catch (IOException e) {
                                 processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, e.getMessage());
                             }
                         } else {
-                            processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING, "Repeated ViewMeta annotation with class name: " + targetQualifiedName + ".");
+                            processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING, "Repeated ViewMeta annotation with class name: " + genQualifiedName + ".");
                         }
                     }
                 } else {
@@ -88,34 +65,13 @@ public class ViewMetaProcessor extends AbstractProcessor {
         return true;
     }
 
-    private void writeBuilderFile(Type csName, List<Property> properties) throws IOException {
-        String metaClassName = csName.getFlatQualifiedName();
-        String metaPackageName = csName.getPackageName();
-        String metaDeclaredSimpleClassName = csName.getEnclosedFlatSimpleName();
+    private void writeBuilderFile(Type genType, TypeElement element) throws IOException {
+        String metaClassName = genType.getQualifiedName();
         JavaFileObject sourceFile = processingEnv.getFiler().createSourceFile(metaClassName);
-        Set<String> names = new HashSet<>();
         try (PrintWriter writer = new PrintWriter(sourceFile.openWriter())) {
-            if (!metaPackageName.isEmpty()) {
-                writer.print("package ");
-                writer.print(metaPackageName);
-                writer.println(";");
-                writer.println();
-            }
-            writer.print("public class ");
-            writer.print(metaDeclaredSimpleClassName);
-            writer.println(" {");
-            for (Property property : properties) {
-                String variableName = Utils.createValidFieldName(property.getName(), names);
-                names.add(variableName);
-                writer.print(INDENT);
-                writer.print("public static final String ");
-                writer.print(variableName);
-                writer.print(" = \"");
-                writer.print(property.getName());
-                writer.print("\";");
-                writer.println();
-            }
-            writer.println("}");
+            MetaContext context = new MetaContext(processingEnv, genType);
+            context.collectData(element);
+            context.print(writer);
         }
     }
 }

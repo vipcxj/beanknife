@@ -1,4 +1,4 @@
-package io.github.vipcxj.beanknife.examples.package1;
+package io.github.vipcxj.beanknife.cases.package1;
 
 import io.github.vipcxj.beanknife.annotations.ViewMeta;
 

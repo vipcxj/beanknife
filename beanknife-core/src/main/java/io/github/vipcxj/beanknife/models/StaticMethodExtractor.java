@@ -35,7 +35,7 @@ public class StaticMethodExtractor implements Extractor {
             context.error("The static property method \"" + name + "\" should return a valid type.");
             return false;
         }
-        if (property == null || !returnType.equals(property.getType())) {
+        if (property != null && !returnType.equals(property.getType())) {
             context.error("The static property method \"" + name + "\" should return a \"" + returnType + "\" type.");
             return false;
         }

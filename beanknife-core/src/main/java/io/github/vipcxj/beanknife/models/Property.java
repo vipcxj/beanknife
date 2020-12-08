@@ -145,8 +145,16 @@ public class Property {
         return comment;
     }
 
+    public Extractor getExtractor() {
+        return extractor;
+    }
+
     public boolean isDynamic() {
         return extractor != null && extractor.isDynamic();
+    }
+
+    public boolean isCustomMethod() {
+        return extractor instanceof StaticMethodExtractor;
     }
 
     public void printType(@Nonnull PrintWriter writer, @Nonnull Context context, boolean generic, boolean withBound) {
@@ -172,8 +180,13 @@ public class Property {
         writer.println("() {");
         Utils.printIndent(writer, indent, indentNum);
         writer.print(indent);
-        writer.print("return this.");
-        writer.print(context.getMappedFieldName(this));
+        writer.print("return ");
+        if (isDynamic()) {
+            extractor.print(writer, context);
+        } else {
+            writer.print("this.");
+            writer.print(context.getMappedFieldName(this));
+        }
         writer.println(";");
         Utils.printIndent(writer, indent, indentNum);
         writer.println("}");

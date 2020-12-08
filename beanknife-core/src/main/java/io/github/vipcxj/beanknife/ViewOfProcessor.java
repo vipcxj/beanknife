@@ -43,7 +43,7 @@ public class ViewOfProcessor extends AbstractProcessor {
                             targetElement = typeElement;
                         }
                         Type targetClassName = Type.extract(targetElement.asType());
-                        Type genClassName = Utils.extractClassName(
+                        Type genClassName = Utils.extractGenType(
                                 targetClassName,
                                 viewOf.getGenName(),
                                 viewOf.getGenPackage(),
@@ -90,7 +90,7 @@ public class ViewOfProcessor extends AbstractProcessor {
         try (PrintWriter writer = new PrintWriter(sourceFile.openWriter())) {
             Type baseType = Type.extract(baseElement.asType());
             ViewContext context = new ViewContext(processingEnv, baseType, genType, viewOf);
-            context.collectProperties(baseElement, configElement);
+            context.collectData(baseElement, configElement);
             context.print(writer);
         }
     }

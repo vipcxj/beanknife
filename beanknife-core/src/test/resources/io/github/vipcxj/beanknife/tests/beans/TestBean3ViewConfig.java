@@ -4,7 +4,7 @@ import io.github.vipcxj.beanknife.annotations.*;
 
 import java.util.Date;
 
-@ViewOf(value = TestBean3.class, includePattern = ".*", excludes = {"d1"})
+@ViewOf(value = TestBean3.class, emptyConstructor = Access.NONE, includePattern = ".*", excludes = {"d1"})
 @RemoveViewProperty("beans1")
 @RemoveViewProperty("beans2")
 public class TestBean3ViewConfig {

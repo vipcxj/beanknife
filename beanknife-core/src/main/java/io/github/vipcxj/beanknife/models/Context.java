@@ -113,7 +113,7 @@ public class Context {
         return imported;
     }
 
-    public void addProperty(Property property, boolean samePackage, boolean override) {
+    public void addProperty(Property property, boolean override) {
         Elements elementUtils = processingEnv.getElementUtils();
         boolean done = false;
         ListIterator<Property> iterator = properties.listIterator();
@@ -121,7 +121,7 @@ public class Context {
             Property p = iterator.next();
             if (elementUtils.hides(property.getElement(), p.getElement())) {
                 iterator.remove();
-                if (Utils.canSeeFromOtherClass(property, samePackage) && Utils.isNotObjectProperty(property)) {
+                if (Utils.isNotObjectProperty(property)) {
                     iterator.add(new Property(property, p.getComment()));
                 }
                 done = true;
@@ -132,7 +132,7 @@ public class Context {
             } else if (p.getGetterName().equals(property.getGetterName())) {
                 if (override || (!p.isMethod() && property.isMethod())) {
                     iterator.remove();
-                    if (Utils.canSeeFromOtherClass(property, samePackage) && Utils.isNotObjectProperty(property)) {
+                    if (Utils.isNotObjectProperty(property)) {
                         iterator.add(new Property(property, p.getComment()));
                     }
                 } else if (p.isMethod() == property.isMethod()) {
@@ -154,7 +154,7 @@ public class Context {
                 break;
             }
         }
-        if (!done && Utils.canSeeFromOtherClass(property, samePackage) && Utils.isNotObjectProperty(property)) {
+        if (!done && Utils.isNotObjectProperty(property)) {
             properties.add(property);
         }
     }

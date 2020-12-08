@@ -11,6 +11,7 @@
     <modules>
         <module>beanknife-core</module>
         <module>beanknife-examples</module>
+        <module>beanknife-runtime</module>
     </modules>
 
     <properties>
