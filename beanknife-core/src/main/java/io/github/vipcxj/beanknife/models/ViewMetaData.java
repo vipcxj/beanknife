@@ -14,6 +14,7 @@ public class ViewMetaData {
     private String value;
     private String packageName;
     private TypeElement of;
+    private TypeElement config;
 
     public static ViewMetaData read(ProcessingEnvironment environment, AnnotationMirror viewMeta, TypeElement configElement) {
         Map<? extends ExecutableElement, ? extends AnnotationValue> annValues = environment.getElementUtils().getElementValuesWithDefaults(viewMeta);
@@ -25,6 +26,7 @@ public class ViewMetaData {
             of = configElement;
         }
         data.of = of;
+        data.config = configElement;
         return data;
     }
 
@@ -38,5 +40,9 @@ public class ViewMetaData {
 
     public TypeElement getOf() {
         return of;
+    }
+
+    public TypeElement getConfig() {
+        return config;
     }
 }

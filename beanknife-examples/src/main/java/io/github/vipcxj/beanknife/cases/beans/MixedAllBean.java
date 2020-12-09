@@ -22,6 +22,8 @@ public class MixedAllBean {
     String ABC;
     private long iI;
     Date aBC;
+    private boolean _boolean;
+    short _Short;
 
     public short getD() {
         return d;
@@ -33,6 +35,14 @@ public class MixedAllBean {
 
     protected boolean isMe() {
         return true;
+    }
+
+    public String getIf() {
+        return _if;
+    }
+
+    public Date getWhile() {
+        return _while;
     }
 
     public boolean isIsProperty() {
@@ -53,5 +63,9 @@ public class MixedAllBean {
 
     public long getiI() {
         return iI;
+    }
+
+    public boolean is_boolean() {
+        return _boolean;
     }
 }

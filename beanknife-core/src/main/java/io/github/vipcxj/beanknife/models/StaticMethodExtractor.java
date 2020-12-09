@@ -40,7 +40,7 @@ public class StaticMethodExtractor implements Extractor {
             return false;
         }
         List<? extends VariableElement> parameters = executableElement.getParameters();
-        String sign = "\"" + returnType + " " + name + "()\" or \"" + returnType + " " + name + "(" + context.getBaseType() + " source)\"";
+        String sign = "\"" + returnType + " " + name + "()\" or \"" + returnType + " " + name + "(" + context.getTargetType() + " source)\"";
         if (parameters.size() > 1) {
             context.error("The static property method \"" +
                     name +
@@ -52,7 +52,7 @@ public class StaticMethodExtractor implements Extractor {
         }
         if (parameters.size() == 1) {
             Type paramType = Type.extract(parameters.get(0).asType());
-            if (!context.getBaseType().equals(paramType)) {
+            if (!context.getTargetType().equals(paramType)) {
                 context.error("The static property method \"" +
                         name +
                         "\" has wrong parameter. " +

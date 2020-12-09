@@ -26,4 +26,22 @@ public enum Access {
                 throw new IllegalStateException("This is impossible!");
         }
     }
+
+    public static Access fromModifier(Modifier modifier) {
+        if (modifier == null) {
+            return Access.NONE;
+        }
+        switch (modifier) {
+            case PUBLIC:
+                return Access.PUBLIC;
+            case DEFAULT:
+                return Access.DEFAULT;
+            case PROTECTED:
+                return Access.PROTECTED;
+            case PRIVATE:
+                return Access.PRIVATE;
+            default:
+                return Access.UNKNOWN;
+        }
+    }
 }

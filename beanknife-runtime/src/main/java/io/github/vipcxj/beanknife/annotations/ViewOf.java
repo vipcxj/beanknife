@@ -9,6 +9,7 @@ import java.lang.annotation.*;
 @Repeatable(ViewOfs.class)
 public @interface ViewOf {
     Class<?> value() default Self.class;
+    Class<?> config() default Self.class;
     String genPackage() default "";
     String genName() default "";
     Access access() default Access.PUBLIC;

@@ -1,11 +1,14 @@
 package io.github.vipcxj.beanknife.utils;
 
 import io.github.vipcxj.beanknife.annotations.Access;
+import io.github.vipcxj.beanknife.annotations.GeneratedMeta;
+import io.github.vipcxj.beanknife.annotations.GeneratedView;
 import io.github.vipcxj.beanknife.annotations.ViewProperty;
 import io.github.vipcxj.beanknife.models.Context;
 import io.github.vipcxj.beanknife.models.Property;
 import io.github.vipcxj.beanknife.models.Type;
 import io.github.vipcxj.beanknife.models.ViewOfData;
+import org.apache.commons.text.StringEscapeUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -452,5 +455,155 @@ public class Utils {
             writer.print(access);
             writer.print(" ");
         }
+    }
+
+    public static void printAnnotationValue(@Nonnull PrintWriter writer, @Nonnull AnnotationValue annValue, @Nonnull Context context, String indent, int indentNum) {
+        Object value = annValue.getValue();
+        AnnotationValueKind valueType = getAnnotationValueType(annValue);
+        switch (valueType) {
+            case ENUM: {
+                VariableElement enumValue = (VariableElement) value;
+                TypeElement enumClass = (TypeElement) enumValue.getEnclosingElement();
+                Type enumClassType = Type.extract(enumClass.asType());
+                enumClassType.printType(writer, context, false, false);
+                writer.print(".");
+                writer.print(enumValue.getSimpleName());
+                break;
+            }
+            case BOXED: {
+                if (value instanceof Character) {
+                    writer.print("'");
+                    writer.print(value);
+                    writer.print("'");
+                } else if (value instanceof Long) {
+                    writer.print(value);
+                    writer.print("l");
+                } else if (value instanceof Float) {
+                    writer.print(value);
+                    writer.print("f");
+                } else {
+                    writer.print(value);
+                }
+                break;
+            }
+            case TYPE: {
+                Type type = Type.extract((TypeMirror) value);
+                type.printType(writer, context, false, false);
+                writer.print(".class");
+                break;
+            }
+            case STRING: {
+                writer.print("\"");
+                writer.print(StringEscapeUtils.escapeJava((String) value));
+                writer.print("\"");
+                break;
+            }
+            case ANNOTATION: {
+                printAnnotation(writer, (AnnotationMirror) value, context, indent, indentNum);
+                break;
+            }
+            case ARRAY: {
+                //noinspection unchecked
+                List<? extends AnnotationValue> annotationValues = (List<? extends AnnotationValue>) value;
+                if (annotationValues.isEmpty()) {
+                    writer.print("{}");
+                } else {
+                    writer.println("{");
+                    int i = 0;
+                    for (AnnotationValue annotationValue : annotationValues) {
+                        Utils.printIndent(writer, indent, indentNum + 1);
+                        printAnnotationValue(writer, annotationValue, context, indent, indentNum + 1);
+                        if (i != annotationValues.size() - 1) {
+                            writer.println(",");
+                        } else {
+                            writer.println();
+                        }
+                        ++i;
+                    }
+                    writer.print("}");
+                }
+                break;
+            }
+            default:
+                throw new IllegalArgumentException("This is impossible.");
+        }
+    }
+
+    private static boolean shouldBreakLineForPrintingAnnotation(Collection<? extends AnnotationValue> annotationValues) {
+        return annotationValues.size() > 3
+                || (annotationValues.size() != 1 && annotationValues.stream().anyMatch(a -> a.getValue() instanceof List && !((List<?>) a.getValue()).isEmpty()));
+    }
+
+    public static void printAnnotation(@Nonnull PrintWriter writer, @Nonnull AnnotationMirror annotation, @Nonnull Context context, String indent, int indentNum) {
+        writer.print("@");
+        Type type = Type.extract(annotation.getAnnotationType());
+        type.printType(writer, context, false, false);
+        Map<? extends ExecutableElement, ? extends AnnotationValue> attributes = context.getProcessingEnv().getElementUtils().getElementValuesWithDefaults(annotation);
+        boolean shouldBreakLine = shouldBreakLineForPrintingAnnotation(attributes.values());
+        boolean useValue = attributes.size() == 1 && attributes.keySet().iterator().next().getSimpleName().toString().equals("value");
+        if (attributes.isEmpty()) {
+            writer.println();
+        } else if (useValue) {
+            AnnotationValue annotationValue = attributes.values().iterator().next();
+            writer.print("(");
+            printAnnotationValue(writer, annotationValue, context, indent, indentNum);
+            writer.print(")");
+        } else if (shouldBreakLine) {
+            writer.println("(");
+            int i = 0;
+            for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : attributes.entrySet()) {
+                Utils.printIndent(writer, indent, indentNum + 1);
+                writer.print(entry.getKey().getSimpleName());
+                writer.print(" = ");
+                printAnnotationValue(writer, entry.getValue(), context, indent, indentNum + 1);
+                if (i != attributes.size() - 1) {
+                    writer.println(",");
+                } else {
+                    writer.println();
+                }
+                ++i;
+            }
+            writer.print(")");
+        } else {
+            writer.print("(");
+            int i = 0;
+            for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : attributes.entrySet()) {
+                writer.print(entry.getKey().getSimpleName());
+                writer.print(" = ");
+                printAnnotationValue(writer, entry.getValue(), context, indent, indentNum);
+                if (i != attributes.size() - 1) {
+                    writer.print(", ");
+                }
+                ++i;
+            }
+        }
+    }
+
+    public static boolean shouldIgnoredElement(Element element) {
+        GeneratedMeta generatedMeta = element.getAnnotation(GeneratedMeta.class);
+        if (generatedMeta != null) {
+            return true;
+        }
+        GeneratedView generatedView = element.getAnnotation(GeneratedView.class);
+        if (generatedView != null) {
+            return true;
+        }
+        return element.getKind() != ElementKind.CLASS;
+    }
+
+    public static boolean isViewMetaTargetTo(ProcessingEnvironment environment, AnnotationMirror viewMeta, TypeElement sourceElement, TypeElement targetElement) {
+        Map<? extends ExecutableElement, ? extends AnnotationValue> elementValuesWithDefaults = environment.getElementUtils().getElementValuesWithDefaults(viewMeta);
+        for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : elementValuesWithDefaults.entrySet()) {
+            if (entry.getKey().getSimpleName().toString().equals("of")) {
+                TypeElement target = (TypeElement) ((DeclaredType) entry.getValue().getValue()).asElement();
+                if (target.getQualifiedName().toString().equals(Self.class.getCanonicalName())) {
+                    target = sourceElement;
+                }
+                if (target.equals(targetElement)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

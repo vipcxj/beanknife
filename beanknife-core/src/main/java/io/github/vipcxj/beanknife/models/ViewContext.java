@@ -21,22 +21,41 @@ import java.util.stream.Collectors;
 public class ViewContext extends Context {
 
     private final ViewOfData viewOf;
-    private final Type baseType;
+    private final Type targetType;
     private final Type genType;
     private final boolean samePackage;
     private final List<String> errors;
 
-    public ViewContext(@Nonnull ProcessingEnvironment processingEnv, @Nonnull Type baseType, @Nonnull Type genType, @Nonnull ViewOfData viewOf) {
-        super(processingEnv, genType.getPackageName());
+    public ViewContext(@Nonnull ProcessingEnvironment processingEnv, @Nonnull ViewOfData viewOf) {
+        super(processingEnv);
         this.viewOf = viewOf;
-        this.baseType = baseType;
-        this.genType = genType;
-        this.samePackage = baseType.isSamePackage(genType);
+        this.targetType = Type.extract(viewOf.getTargetElement().asType());
+        this.genType = Utils.extractGenType(
+                this.targetType,
+                viewOf.getGenName(),
+                viewOf.getGenPackage(),
+                "View"
+        );
+        this.packageName = this.genType.getPackageName();
+        this.samePackage = this.targetType.isSamePackage(this.genType);
+        this.containers.push(Type.fromPackage(this.packageName));
         this.errors = new ArrayList<>();
     }
 
-    public Type getBaseType() {
-        return baseType;
+    public ViewOfData getViewOf() {
+        return viewOf;
+    }
+
+    public Type getTargetType() {
+        return targetType;
+    }
+
+    public Type getGenType() {
+        return genType;
+    }
+
+    public boolean isSamePackage() {
+        return samePackage;
     }
 
     private int checkAnnConflict(NewViewProperty newViewProperty, OverrideViewProperty overrideViewProperty) {
@@ -49,15 +68,13 @@ public class ViewContext extends Context {
         Utils.logWarn(getProcessingEnv(), message);
     }
 
-    public void collectData(
-            @Nonnull TypeElement baseType,
-            @Nonnull TypeElement configType
-
-    ) {
+    public void collectData() {
+        TypeElement targetElement = viewOf.getTargetElement();
+        TypeElement configElement = viewOf.getConfigElement();
         getProperties().clear();
-        importVariable(this.baseType);
+        importVariable(this.targetType);
         Elements elementUtils = getProcessingEnv().getElementUtils();
-        List<? extends Element> members = elementUtils.getAllMembers(baseType);
+        List<? extends Element> members = elementUtils.getAllMembers(targetElement);
         for (Element member : members) {
             Property property = null;
             if (member.getKind() == ElementKind.FIELD) {
@@ -78,8 +95,8 @@ public class ViewContext extends Context {
                 || Arrays.stream(viewOf.getExcludes()).anyMatch(exclude -> exclude.equals(property.getName())));
         List<Property> baseProperties = new ArrayList<>(getProperties());
         boolean useConfig = false;
-        if (configType != baseType) {
-            members = elementUtils.getAllMembers(configType);
+        if (configElement != targetElement) {
+            members = elementUtils.getAllMembers(configElement);
             for (Element member : members) {
                 NewViewProperty newViewProperty = member.getAnnotation(NewViewProperty.class);
                 OverrideViewProperty overrideViewProperty = member.getAnnotation(OverrideViewProperty.class);
@@ -121,7 +138,7 @@ public class ViewContext extends Context {
                 } else if (member.getKind() == ElementKind.METHOD) {
                     useConfig = true;
                     Extractor extractor;
-                    Type containerType = Type.extract(configType.asType());
+                    Type containerType = Type.extract(configElement.asType());
                     Dynamic dynamic = member.getAnnotation(Dynamic.class);
                     if (dynamic != null) {
                         extractor = new DynamicMethodExtractor(containerType, (ExecutableElement) member);
@@ -167,7 +184,7 @@ public class ViewContext extends Context {
             }
         }
         if (useConfig) {
-            importVariable(Type.extract(configType.asType()));
+            importVariable(Type.extract(configElement.asType()));
         }
         for (Property property : getProperties()) {
             importVariable(property.getType());
@@ -303,7 +320,7 @@ public class ViewContext extends Context {
         }
         genType.printType(writer, this, true, false);
         writer.print(" read(");
-        baseType.printType(writer, this, true, false);
+        targetType.printType(writer, this, true, false);
         writer.println(" source) {");
         if (hasEmptyConstructor) {
             Utils.printIndent(writer, INDENT, 2);

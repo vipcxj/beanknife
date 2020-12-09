@@ -9,8 +9,8 @@ public class ViewOfProcessorTest {
     public void testBeanWithOnlyFields() {
         Utils.testViewCase(
                 new ViewOfProcessor(),
-                "io.github.vipcxj.beanknife.cases.view.FieldBeanViewConfig",
-                new String[] {"io.github.vipcxj.beanknife.cases.meta.FieldBeanView"},
+                "io.github.vipcxj.beanknife.cases.beans.FieldBeanViewConfig",
+                new String[] {"io.github.vipcxj.beanknife.cases.beans.FieldBeanView"},
                 "View"
         );
     }

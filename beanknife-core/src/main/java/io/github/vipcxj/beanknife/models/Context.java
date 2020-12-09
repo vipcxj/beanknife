@@ -1,5 +1,6 @@
 package io.github.vipcxj.beanknife.models;
 
+import io.github.vipcxj.beanknife.annotations.GeneratedMeta;
 import io.github.vipcxj.beanknife.utils.Utils;
 
 import javax.annotation.Nonnull;
@@ -18,22 +19,21 @@ public class Context {
 
     final static String INDENT = "    ";
 
-    private final Stack<Type> containers;
     private final List<String> imports;
     private final Set<String> symbols;
     private final Stack<Map<String, String>> fieldsStack;
     private final ProcessingEnvironment processingEnv;
-    private final String packageName;
+    protected String packageName;
     private final List<Property> properties;
+    protected final Stack<Type> containers;
 
-    public Context(@Nonnull ProcessingEnvironment processingEnv, @Nonnull String packageName) {
-        this.containers = new Stack<>();
+    public Context(@Nonnull ProcessingEnvironment processingEnv) {
         this.imports = new ArrayList<>();
         this.symbols = new HashSet<>();
         this.fieldsStack = new Stack<>();
         this.processingEnv = processingEnv;
-        this.packageName = packageName;
         this.properties = new LinkedList<>();
+        this.containers = new Stack<>();
     }
 
     public void enter(Type type) {
@@ -194,6 +194,7 @@ public class Context {
         return printed;
     }
 
+    @Nonnull
     public String getPackageName() {
         return packageName;
     }

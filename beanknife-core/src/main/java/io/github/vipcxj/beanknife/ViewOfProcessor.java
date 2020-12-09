@@ -1,7 +1,8 @@
 package io.github.vipcxj.beanknife;
 
 import com.google.auto.service.AutoService;
-import io.github.vipcxj.beanknife.models.Type;
+import io.github.vipcxj.beanknife.annotations.ViewMeta;
+import io.github.vipcxj.beanknife.annotations.ViewMetas;
 import io.github.vipcxj.beanknife.models.ViewContext;
 import io.github.vipcxj.beanknife.models.ViewOfData;
 import io.github.vipcxj.beanknife.utils.Utils;
@@ -15,6 +16,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @SupportedAnnotationTypes("io.github.vipcxj.beanknife.annotations.ViewOf")
@@ -27,7 +29,7 @@ public class ViewOfProcessor extends AbstractProcessor {
         for (TypeElement annotation : annotations) {
             Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
             for (Element element : elements) {
-                if (!element.getModifiers().contains(Modifier.ABSTRACT) && element.getKind() == ElementKind.CLASS) {
+                if (element.getKind() == ElementKind.CLASS) {
                     List<AnnotationMirror> annotationMirrors = Utils.extractAnnotations(
                             processingEnv,
                             element,
@@ -37,27 +39,19 @@ public class ViewOfProcessor extends AbstractProcessor {
                     TypeElement typeElement = (TypeElement) element;
                     Set<String> targetClassNames = new HashSet<>();
                     for (AnnotationMirror annotationMirror : annotationMirrors) {
-                        ViewOfData viewOf = ViewOfData.read(processingEnv, annotationMirror);
-                        TypeElement targetElement = (TypeElement) viewOf.getValue().asElement();
-                        if ("io.github.vipcxj.beanknife.utils.Self".equals(targetElement.getQualifiedName().toString())) {
-                            targetElement = typeElement;
+                        ViewOfData viewOf = ViewOfData.read(processingEnv, annotationMirror, typeElement);
+                        ViewContext context = new ViewContext(processingEnv, viewOf);
+                        if (shouldIgnore(roundEnv, context.getViewOf().getTargetElement())) {
+                            continue;
                         }
-                        Type targetClassName = Type.extract(targetElement.asType());
-                        Type genClassName = Utils.extractGenType(
-                                targetClassName,
-                                viewOf.getGenName(),
-                                viewOf.getGenPackage(),
-                                "View"
-                        );
-                        boolean samePackage = targetClassName.getPackageName().equals(genClassName.getPackageName());
-                        String genQualifiedName = genClassName.getQualifiedName();
+                        String genQualifiedName = context.getGenType().getQualifiedName();
                         if (!targetClassNames.contains(genQualifiedName)) {
                             targetClassNames.add(genQualifiedName);
-                            if (!Utils.canSeeFromOtherClass(typeElement, samePackage)) {
+                            if (!Utils.canSeeFromOtherClass(typeElement, context.isSamePackage())) {
                                 Utils.logError(
                                         processingEnv,
                                         "The target class "
-                                                + targetClassName.getQualifiedName()
+                                                + context.getTargetType().getQualifiedName()
                                                 + " can not be seen by the generated class "
                                                 + genQualifiedName
                                                 + "."
@@ -65,7 +59,7 @@ public class ViewOfProcessor extends AbstractProcessor {
                                 continue;
                             }
                             try {
-                                writeBuilderFile(viewOf, targetElement, typeElement, genClassName);
+                                writeBuilderFile(context);
                             } catch (IOException e) {
                                 processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, e.getMessage());
                             }
@@ -81,17 +75,52 @@ public class ViewOfProcessor extends AbstractProcessor {
         return true;
     }
 
-    private void writeBuilderFile(ViewOfData viewOf, TypeElement baseElement, TypeElement configElement, Type genType) throws IOException {
-        Modifier modifier = viewOf.getAccess();
+    private void writeBuilderFile(ViewContext context) throws IOException {
+        Modifier modifier = context.getViewOf().getAccess();
         if (modifier == null) {
             return;
         }
-        JavaFileObject sourceFile = processingEnv.getFiler().createSourceFile(genType.getFlatQualifiedName());
+        JavaFileObject sourceFile = processingEnv.getFiler().createSourceFile(context.getGenType().getQualifiedName(), context.getViewOf().getTargetElement(), context.getViewOf().getConfigElement());
         try (PrintWriter writer = new PrintWriter(sourceFile.openWriter())) {
-            Type baseType = Type.extract(baseElement.asType());
-            ViewContext context = new ViewContext(processingEnv, baseType, genType, viewOf);
-            context.collectData(baseElement, configElement);
+            context.collectData();
             context.print(writer);
         }
+    }
+
+
+    private boolean shouldIgnore(RoundEnvironment roundEnv, TypeElement targetElement) {
+        Set<? extends Element> candidates = roundEnv.getElementsAnnotatedWith(ViewMeta.class);
+        for (Element candidate : candidates) {
+            if (Utils.shouldIgnoredElement(candidate)) {
+                continue;
+            }
+            List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(candidate);
+            for (AnnotationMirror annotationMirror : annotationMirrors) {
+                if (((TypeElement) annotationMirror.getAnnotationType().asElement()).getQualifiedName().toString().equals(ViewMeta.class.getCanonicalName())) {
+                    if (Utils.isViewMetaTargetTo(processingEnv, annotationMirror, (TypeElement) candidate, targetElement)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        candidates = roundEnv.getElementsAnnotatedWith(ViewMetas.class);
+        for (Element candidate : candidates) {
+            if (Utils.shouldIgnoredElement(candidate)) {
+                continue;
+            }
+            List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(candidate);
+            for (AnnotationMirror annotationMirror : annotationMirrors) {
+                if (((TypeElement) annotationMirror.getAnnotationType().asElement()).getQualifiedName().toString().equals(ViewMetas.class.getCanonicalName())) {
+                    Map<? extends ExecutableElement, ? extends AnnotationValue> elementValuesWithDefaults = processingEnv.getElementUtils().getElementValuesWithDefaults(annotationMirror);
+                    List<AnnotationMirror> viewMetas = Utils.getAnnotationElement(annotationMirror, elementValuesWithDefaults);
+                    for (AnnotationMirror viewMeta : viewMetas) {
+                        if (Utils.isViewMetaTargetTo(processingEnv, viewMeta, (TypeElement) candidate, targetElement)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
     }
 }

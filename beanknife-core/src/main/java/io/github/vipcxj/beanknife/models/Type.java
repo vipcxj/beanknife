@@ -4,6 +4,7 @@ import io.github.vipcxj.beanknife.utils.Utils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.*;
 import javax.lang.model.type.*;
 import java.io.PrintWriter;
@@ -18,6 +19,7 @@ public class Type {
     private final String packageName;
     private final String simpleName;
     private final boolean array;
+    private final boolean annotation;
     private final boolean typeVar;
     private final boolean wildcard;
     private final List<Type> parameters;
@@ -39,6 +41,7 @@ public class Type {
             @Nonnull String packageName,
             @Nonnull String simpleName,
             boolean array,
+            boolean annotation,
             boolean typeVar,
             boolean wildcard,
             @Nonnull List<Type> parameters,
@@ -49,6 +52,7 @@ public class Type {
         this.packageName = packageName;
         this.simpleName = simpleName;
         this.array = array;
+        this.annotation = annotation;
         this.typeVar = typeVar;
         this.wildcard = wildcard;
         this.parameters = parameters;
@@ -66,6 +70,7 @@ public class Type {
                 packageName,
                 simpleName,
                 true,
+                annotation,
                 typeVar,
                 false,
                 parameters,
@@ -83,6 +88,7 @@ public class Type {
                 packageName,
                 simpleName,
                 array,
+                annotation,
                 typeVar,
                 false,
                 parameters,
@@ -97,6 +103,7 @@ public class Type {
                 packageName,
                 simpleName,
                 array,
+                annotation,
                 typeVar,
                 wildcard,
                 parameters,
@@ -111,6 +118,7 @@ public class Type {
                 packageName,
                 simpleName + postfix,
                 array,
+                annotation,
                 typeVar,
                 wildcard,
                 parameters,
@@ -128,10 +136,29 @@ public class Type {
                 packageName,
                 getEnclosedFlatSimpleName(),
                 array,
+                annotation,
                 typeVar,
                 wildcard,
                 parameters,
                 null,
+                upperBound,
+                lowerBound
+        );
+    }
+
+    public Type withoutParameters() {
+        if (parameters.isEmpty()) {
+            return this;
+        }
+        return new Type(
+                packageName,
+                simpleName,
+                array,
+                annotation,
+                typeVar,
+                wildcard,
+                Collections.emptyList(),
+                container,
                 upperBound,
                 lowerBound
         );
@@ -156,12 +183,17 @@ public class Type {
         return (imported || type.isLangType()) ? type.getEnclosedSimpleName() : type.getQualifiedName();
     }
 
+    public static Type extract(ProcessingEnvironment env, Class clazz) {
+        return extract(env.getElementUtils().getTypeElement(clazz.getCanonicalName()).asType());
+    }
+
     @Nonnull
     public static Type extract(TypeMirror type) {
         if (type.getKind().isPrimitive()) {
             return new Type(
                     "",
                     type.toString(),
+                    false,
                     false,
                     false,
                     false,
@@ -181,6 +213,7 @@ public class Type {
                 parameters.add(extract(typeArgument));
             }
             TypeElement element = (TypeElement) declaredType.asElement();
+            boolean annotation = element.getKind() == ElementKind.ANNOTATION_TYPE;
             Element enclosingElement = element.getEnclosingElement();
             Type parentType = null;
             String packageName;
@@ -195,6 +228,7 @@ public class Type {
                     packageName,
                     element.getSimpleName().toString(),
                     false,
+                    annotation,
                     false,
                     false,
                     parameters,
@@ -207,6 +241,7 @@ public class Type {
             return new Type(
                     "",
                     type.toString(),
+                    false,
                     false,
                     true,
                     false,
@@ -221,6 +256,7 @@ public class Type {
                     "?",
                     false,
                     false,
+                    false,
                     true,
                     Collections.emptyList(),
                     null,
@@ -230,6 +266,21 @@ public class Type {
         } else {
             throw new UnsupportedOperationException("Type " + type + " is not supported.");
         }
+    }
+
+    public static Type fromPackage(String packageName) {
+        return new Type(
+                packageName,
+                "",
+                false,
+                false,
+                false,
+                false,
+                Collections.emptyList(),
+                null,
+                null,
+                null
+        );
     }
 
     /**
@@ -336,6 +387,10 @@ public class Type {
 
     public boolean isArray() {
         return array;
+    }
+
+    public boolean isAnnotation() {
+        return annotation;
     }
 
     public boolean isTypeVar() {
