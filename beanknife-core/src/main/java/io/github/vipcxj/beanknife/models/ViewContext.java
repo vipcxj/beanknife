@@ -8,11 +8,12 @@ import org.apache.commons.text.StringEscapeUtils;
 import javax.annotation.Nonnull;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.*;
+import javax.lang.model.type.*;
 import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.lang.annotation.Annotation;
+import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -187,6 +188,115 @@ public class ViewContext extends Context {
         }
         for (Property property : getProperties()) {
             importVariable(property.getType());
+        }
+    }
+
+    private List<DeclaredType> getConverters(Element element) {
+        return Utils.getAnnotationsOn(this, element, UsePropertyConverter.class, UsePropertyConverter.class)
+                .stream().map(annotation -> {
+                    Map<? extends ExecutableElement, ? extends AnnotationValue> attributes = getProcessingEnv().getElementUtils().getElementValuesWithDefaults(annotation);
+                    return Utils.getTypeAnnotationValue(annotation, attributes, "value");
+                }).collect(Collectors.toList());
+    }
+
+    private int calcTypeAssignScore(DeclaredType beAssigned, DeclaredType toAssign) {
+        if (Objects.equals(beAssigned, toAssign)) {
+            return 0;
+        }
+        TypeElement beAssignedElement = (TypeElement) beAssigned.asElement();
+        TypeElement toAssignElement = (TypeElement) toAssign.asElement();
+        boolean beAssignedIsInterface = beAssignedElement.getKind() == ElementKind.INTERFACE;
+        boolean beAssignedIsAnnotation = Utils.isThisTypeElement(beAssignedElement, Annotation.class);
+        boolean beAssignedIsEnum = Utils.isThisTypeElement(beAssignedElement, Enum.class);
+        boolean toAssignIsAnnotation = toAssignElement.getKind() == ElementKind.ANNOTATION_TYPE;
+        boolean toAssignIsClass = toAssignElement.getKind() == ElementKind.CLASS;
+        boolean toAssignIsEnum = toAssignElement.getKind() == ElementKind.ENUM;
+        int score = -1;
+        if (
+                beAssignedElement.getKind() == toAssignElement.getKind()
+                || (beAssignedIsInterface && toAssignIsClass)
+                || (beAssignedIsAnnotation && toAssignIsAnnotation)
+                || (beAssignedIsEnum && toAssignIsEnum)
+        ) {
+            if (beAssignedIsInterface) {
+                for (TypeMirror anInterface : toAssignElement.getInterfaces()) {
+                    int parentScore = calcTypeAssignScore(beAssigned, (DeclaredType) anInterface);
+                    if (parentScore >= 0 && (score == -1 || score > parentScore + 1)) {
+                        score = parentScore + 1;
+                    }
+                }
+            }
+            if (beAssignedIsAnnotation && toAssignIsAnnotation) {
+                score = 1;
+            }
+            if (toAssignIsClass) {
+                int parentScore = calcTypeAssignScore(beAssigned, (DeclaredType) toAssignElement.getSuperclass());
+                if (parentScore >= 0 && (score == -1 || score > parentScore + 1)) {
+                    score = parentScore + 1;
+                }
+            }
+            if (beAssignedIsEnum && toAssignIsEnum) {
+                score = 1;
+            }
+        }
+        return score;
+    }
+
+    // let beAssigned := toAssign
+    private int calcTypeAssignScore(TypeMirror beAssigned, TypeMirror toAssign) {
+        Types typeUtils = getProcessingEnv().getTypeUtils();
+        if (!typeUtils.isAssignable(toAssign, beAssigned)) {
+            return -1;
+        }
+        if (beAssigned.getKind() == TypeKind.ARRAY) {
+            ArrayType beAssignedArrayType = (ArrayType) beAssigned;
+            ArrayType toAssignArrayType = (ArrayType) toAssign;
+            return calcTypeAssignScore(beAssignedArrayType.getComponentType(), toAssignArrayType.getComponentType());
+        } else if (beAssigned.getKind().isPrimitive()) {
+            return typeUtils.isSameType(beAssigned, toAssign) ? 0 : 1;
+        } else if (beAssigned.getKind() == TypeKind.DECLARED) {
+            return calcTypeAssignScore((DeclaredType) beAssigned, (DeclaredType) toAssign);
+        } else {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    private int calcConverterScore(DeclaredType converter, TypeMirror toType, TypeMirror fromType) {
+        Types typeUtils = getProcessingEnv().getTypeUtils();
+        List<? extends TypeMirror> typeArguments = converter.getTypeArguments();
+        TypeMirror converterFromType = typeArguments.get(0);
+        TypeMirror converterToType = typeArguments.get(1);
+        if (!typeUtils.isAssignable(fromType, converterFromType) || !typeUtils.isAssignable(converterToType, toType)) {
+            return -1;
+        }
+        return calcTypeAssignScore(converterFromType, fromType) + calcTypeAssignScore(toType, converterToType);
+    }
+
+    private DeclaredType selectConverter(Element member, List<DeclaredType> converters, TypeMirror toType, TypeMirror fromType) {
+        List<DeclaredType> results = new ArrayList<>();
+        int score = -1;
+        for (DeclaredType converter : converters) {
+            int theScore = calcConverterScore(converter, toType, fromType);
+            if (theScore >= 0 && (score == -1 || score >= theScore)) {
+                score = theScore;
+                results.clear();
+                results.add(converter);
+            }
+        }
+        if (results.size() == 1) {
+            return results.get(0);
+        } else if (results.size() > 1) {
+            error(
+                    "Ambiguous converters on member " +
+                            member.getSimpleName() +
+                            ": " +
+                            results.stream()
+                                    .map(converter -> ((TypeElement) converter.asElement()).getQualifiedName())
+                                    .collect(Collectors.joining(", "))
+            );
+            return null;
+        } else {
+            return null;
         }
     }
 

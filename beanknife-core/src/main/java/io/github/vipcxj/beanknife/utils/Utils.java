@@ -1,5 +1,6 @@
 package io.github.vipcxj.beanknife.utils;
 
+import com.google.auto.common.AnnotationMirrors;
 import io.github.vipcxj.beanknife.annotations.Access;
 import io.github.vipcxj.beanknife.annotations.internal.GeneratedMeta;
 import io.github.vipcxj.beanknife.annotations.internal.GeneratedView;
@@ -15,6 +16,7 @@ import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
 import java.io.IOException;
@@ -645,5 +647,32 @@ public class Utils {
         }
         Utils.printIndent(writer, indent, indentNum);
         writer.println(" */");
+    }
+
+    public static boolean isThisTypeElement(@Nonnull TypeElement typeElement, @Nonnull Class<?> type) {
+        return typeElement.getQualifiedName().toString().equals(type.getCanonicalName());
+    }
+
+    public static boolean isThisAnnotation(@Nonnull AnnotationMirror annotation, @Nonnull Class<?> type) {
+        TypeElement element = (TypeElement) annotation.getAnnotationType().asElement();
+        return element.getQualifiedName().toString().equals(type.getCanonicalName());
+    }
+
+    public static List<AnnotationMirror> getAnnotationsOn(@Nonnull Context context, @Nonnull Element element, @Nonnull Class<?> type, @Nullable Class<?> repeatContainerType) {
+        List<AnnotationMirror> result = new ArrayList<>();
+        Elements elementUtils = context.getProcessingEnv().getElementUtils();
+        List<? extends AnnotationMirror> allAnnotations = elementUtils.getAllAnnotationMirrors(element);
+        for (AnnotationMirror annotation : allAnnotations) {
+            if (isThisAnnotation(annotation, type)) {
+                result.add(annotation);
+            } else if (repeatContainerType != null && isThisAnnotation(annotation, repeatContainerType)){
+                Map<? extends ExecutableElement, ? extends AnnotationValue> attributes = elementUtils.getElementValuesWithDefaults(annotation);
+                List<AnnotationMirror> annotations = getAnnotationElement(annotation, attributes);
+                result.addAll(annotations);
+            } else {
+                result.addAll(getAnnotationsOn(context, annotation.getAnnotationType().asElement(), type, repeatContainerType));
+            }
+        }
+        return result;
     }
 }
