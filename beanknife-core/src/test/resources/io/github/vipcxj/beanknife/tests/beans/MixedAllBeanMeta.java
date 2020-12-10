@@ -1,11 +1,8 @@
 package io.github.vipcxj.beanknife.cases.beans;
 
-import io.github.vipcxj.beanknife.annotations.GeneratedMeta;
+import io.github.vipcxj.beanknife.annotations.internal.GeneratedMeta;
 
-@GeneratedMeta(
-        targetClass = "io.github.vipcxj.beanknife.cases.beans.MixedAllBean",
-        configClass = "io.github.vipcxj.beanknife.cases.beans.MixedAllBean"
-)
+@GeneratedMeta(targetClass = MixedAllBean.class, configClass = MixedAllBean.class)
 public class MixedAllBeanMeta {
     public static final String a = "a";
     public static final String b = "b";

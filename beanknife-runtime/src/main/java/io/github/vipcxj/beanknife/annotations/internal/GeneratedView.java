@@ -1,4 +1,4 @@
-package io.github.vipcxj.beanknife.annotations;
+package io.github.vipcxj.beanknife.annotations.internal;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -7,8 +7,7 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.SOURCE)
-public @interface GeneratedMeta {
-    String targetClass();
-    String configClass();
-    Class<?>[] proxies() default {};
+public @interface GeneratedView {
+    Class<?> targetClass();
+    Class<?> configClass();
 }

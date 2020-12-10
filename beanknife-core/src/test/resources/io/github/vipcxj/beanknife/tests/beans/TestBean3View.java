@@ -1,8 +1,11 @@
 package io.github.vipcxj.beanknife.tests.beans;
 
+import io.github.vipcxj.beanknife.annotations.internal.GeneratedView;
+
 import java.util.List;
 import java.util.Set;
 
+@GeneratedView(targetClass = TestBean3.class, configClass = TestBean3ViewConfig.class)
 public class TestBean3View {
 
     private int a;

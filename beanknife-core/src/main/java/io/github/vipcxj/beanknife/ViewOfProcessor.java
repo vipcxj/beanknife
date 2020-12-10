@@ -11,9 +11,7 @@ import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 import javax.tools.Diagnostic;
-import javax.tools.JavaFileObject;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -59,7 +57,7 @@ public class ViewOfProcessor extends AbstractProcessor {
                                 continue;
                             }
                             try {
-                                writeBuilderFile(context);
+                                Utils.writeViewFile(context);
                             } catch (IOException e) {
                                 processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, e.getMessage());
                             }
@@ -74,19 +72,6 @@ public class ViewOfProcessor extends AbstractProcessor {
         }
         return true;
     }
-
-    private void writeBuilderFile(ViewContext context) throws IOException {
-        Modifier modifier = context.getViewOf().getAccess();
-        if (modifier == null) {
-            return;
-        }
-        JavaFileObject sourceFile = processingEnv.getFiler().createSourceFile(context.getGenType().getQualifiedName(), context.getViewOf().getTargetElement(), context.getViewOf().getConfigElement());
-        try (PrintWriter writer = new PrintWriter(sourceFile.openWriter())) {
-            context.collectData();
-            context.print(writer);
-        }
-    }
-
 
     private boolean shouldIgnore(RoundEnvironment roundEnv, TypeElement targetElement) {
         Set<? extends Element> candidates = roundEnv.getElementsAnnotatedWith(ViewMeta.class);

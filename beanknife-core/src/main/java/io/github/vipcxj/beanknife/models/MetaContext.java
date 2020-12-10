@@ -1,8 +1,7 @@
 package io.github.vipcxj.beanknife.models;
 
-import io.github.vipcxj.beanknife.annotations.GeneratedMeta;
+import io.github.vipcxj.beanknife.annotations.internal.GeneratedMeta;
 import io.github.vipcxj.beanknife.utils.Utils;
-import org.apache.commons.text.StringEscapeUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -65,6 +64,8 @@ public class MetaContext extends Context {
 
     private void importAll() {
         importVariable(generatedType);
+        importVariable(Type.extract(viewMeta.getOf().asType()));
+        importVariable(Type.extract(viewMeta.getConfig().asType()));
         if (!viewOfDataList.isEmpty()) {
             for (ViewOfData viewOfData : viewOfDataList) {
                 importVariable(Type.extract(viewOfData.getConfigElement().asType()));
@@ -79,17 +80,17 @@ public class MetaContext extends Context {
         }
         writer.print("@");
         generatedType.printType(writer, this, false, false);
-        writer.println("(");
-        Utils.printIndent(writer, INDENT, 1);
-        writer.print("targetClass = \"");
-        writer.print(StringEscapeUtils.escapeJava(viewMeta.getOf().getQualifiedName().toString()));
-        writer.println("\",");
-        Utils.printIndent(writer, INDENT, 1);
-        writer.print("configClass = \"");
-        writer.print(StringEscapeUtils.escapeJava(viewMeta.getConfig().getQualifiedName().toString()));
         int viewOfNum = viewOfDataList.size();
         if (viewOfNum > 0) {
-            writer.println("\",");
+            writer.println("(");
+            Utils.printIndent(writer, INDENT, 1);
+            writer.print("targetClass = ");
+            Type.extract(viewMeta.getOf().asType()).printType(writer, this, false, false);
+            writer.println(".class,");
+            Utils.printIndent(writer, INDENT, 1);
+            writer.print("configClass = ");
+            Type.extract(viewMeta.getConfig().asType()).printType(writer, this, false, false);
+            writer.println(".class,");
             Utils.printIndent(writer, INDENT, 1);
             writer.println("proxies = {");
             int i = 0;
@@ -107,7 +108,12 @@ public class MetaContext extends Context {
             Utils.printIndent(writer, INDENT, 1);
             writer.println("}");
         } else {
-            writer.println("\"");
+            writer.print("(targetClass = ");
+            Type.extract(viewMeta.getOf().asType()).printType(writer, this, false, false);
+            writer.print(".class, ");
+            writer.print("configClass = ");
+            Type.extract(viewMeta.getConfig().asType()).printType(writer, this, false, false);
+            writer.print(".class");
         }
         writer.println(")");
         genType.openClass(writer, Modifier.PUBLIC, this, INDENT, 0);

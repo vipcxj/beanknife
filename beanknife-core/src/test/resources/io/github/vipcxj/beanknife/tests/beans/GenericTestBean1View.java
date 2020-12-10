@@ -1,7 +1,10 @@
 package io.github.vipcxj.beanknife.tests.beans;
 
+import io.github.vipcxj.beanknife.annotations.internal.GeneratedView;
+
 import java.util.List;
 
+@GeneratedView(targetClass = GenericTestBean1.class, configClass = GenericTestBean1.class)
 public class GenericTestBean1View<T1, T2 extends Number> {
 
     private T1 a;

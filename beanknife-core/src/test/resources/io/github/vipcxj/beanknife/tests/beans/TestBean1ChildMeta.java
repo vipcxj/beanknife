@@ -1,11 +1,8 @@
 package io.github.vipcxj.beanknife.tests.beans;
 
-import io.github.vipcxj.beanknife.annotations.GeneratedMeta;
+import io.github.vipcxj.beanknife.annotations.internal.GeneratedMeta;
 
-@GeneratedMeta(
-        targetClass = "io.github.vipcxj.beanknife.tests.beans.TestBean1Child",
-        configClass = "io.github.vipcxj.beanknife.tests.beans.TestBean1Child"
-)
+@GeneratedMeta(targetClass = TestBean1Child.class, configClass = TestBean1Child.class)
 public class TestBean1ChildMeta {
     public static final String a = "a";
     public static final String c = "c";

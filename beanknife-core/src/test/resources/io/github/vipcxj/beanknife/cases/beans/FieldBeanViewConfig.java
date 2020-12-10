@@ -1,4 +1,4 @@
-package io.github.vipcxj.beanknife.cases.view;
+package io.github.vipcxj.beanknife.cases.beans;
 
 import io.github.vipcxj.beanknife.annotations.ViewOf;
 import io.github.vipcxj.beanknife.cases.beans.FieldBean;

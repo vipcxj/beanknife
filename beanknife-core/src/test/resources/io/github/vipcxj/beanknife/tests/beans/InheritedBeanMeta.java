@@ -1,11 +1,8 @@
 package io.github.vipcxj.beanknife.cases.beans;
 
-import io.github.vipcxj.beanknife.annotations.GeneratedMeta;
+import io.github.vipcxj.beanknife.annotations.internal.GeneratedMeta;
 
-@GeneratedMeta(
-        targetClass = "io.github.vipcxj.beanknife.cases.beans.InheritedBean",
-        configClass = "io.github.vipcxj.beanknife.cases.beans.InheritedBean"
-)
+@GeneratedMeta(targetClass = InheritedBean.class, configClass = InheritedBean.class)
 public class InheritedBeanMeta {
     public static final String a = "a";
     public static final String b = "b";

@@ -166,24 +166,24 @@ public class Type {
 
     public String relativeName(Type type, boolean imported) {
         String packageName = type.getPackageName();
-        String parentName = type.getPackageWithParent();
-        String parentNameOfMe = getPackageWithParent();
+        String qualifiedName = type.getQualifiedName();
         String packageNameOfMe = getPackageName();
-        if (packageName.equals(packageNameOfMe)) {
-            if (parentName.equals(parentNameOfMe)) {
+        String qualifiedNameOfMe = getQualifiedName();
+        if (packageName.equals(packageNameOfMe) && !isPackage() && type.isNested()) {
+            if (qualifiedName.equals(qualifiedNameOfMe)) {
                 return type.getSimpleName();
             }
-            if (parentName.startsWith(parentNameOfMe) && parentName.charAt(parentNameOfMe.length()) == '.') {
+            if (qualifiedName.startsWith(qualifiedNameOfMe) && qualifiedName.charAt(qualifiedNameOfMe.length()) == '.') {
                 return type.getSimpleName();
             }
-            if (parentNameOfMe.startsWith(parentName) && parentNameOfMe.charAt(parentName.length()) == '.') {
+            if (qualifiedNameOfMe.startsWith(qualifiedName) && qualifiedNameOfMe.charAt(qualifiedName.length()) == '.') {
                 return type.getSimpleName();
             }
         }
         return (imported || type.isLangType()) ? type.getEnclosedSimpleName() : type.getQualifiedName();
     }
 
-    public static Type extract(ProcessingEnvironment env, Class clazz) {
+    public static Type extract(ProcessingEnvironment env, Class<?> clazz) {
         return extract(env.getElementUtils().getTypeElement(clazz.getCanonicalName()).asType());
     }
 
@@ -427,6 +427,14 @@ public class Type {
 
     public boolean isBoolean() {
         return packageName.isEmpty() && "boolean".equals(simpleName);
+    }
+
+    public boolean isNested() {
+        return container != null;
+    }
+
+    public boolean isPackage() {
+        return simpleName.isEmpty();
     }
 
     public void openClass(@Nonnull PrintWriter writer, @Nonnull Modifier modifier, @Nonnull Context context, String indent, int indentNum) {

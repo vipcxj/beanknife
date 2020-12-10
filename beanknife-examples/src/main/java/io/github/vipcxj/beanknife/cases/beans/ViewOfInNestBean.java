@@ -1,9 +1,8 @@
 package io.github.vipcxj.beanknife.cases.beans;
 
-import io.github.vipcxj.beanknife.annotations.ViewMeta;
+import io.github.vipcxj.beanknife.annotations.ViewOf;
 
-@ViewMeta
-public class NestBean {
+public class ViewOfInNestBean {
 
     private int a;
     private String b;
@@ -20,7 +19,7 @@ public class NestBean {
         this.b = b;
     }
 
-    @ViewMeta
+    @ViewOf
     static class Bean1 {
 
         private int a;
@@ -54,7 +53,7 @@ public class NestBean {
             public void setB(String b) {
                 this.b = b;
             }
-            @ViewMeta
+            @ViewOf
             protected static class Bean3 {
 
                 private int a;
@@ -71,6 +70,18 @@ public class NestBean {
                 public void setB(String b) {
                     this.b = b;
                 }
+            }
+        }
+    }
+
+    static class Bean2 {
+        int a;
+        @ViewOf
+        class Bean1 {
+            long b;
+            @ViewOf
+            class Bean3 {
+                String c;
             }
         }
     }

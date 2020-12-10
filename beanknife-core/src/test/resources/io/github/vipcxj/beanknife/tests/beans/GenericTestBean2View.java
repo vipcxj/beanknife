@@ -1,8 +1,11 @@
 package io.github.vipcxj.beanknife.tests.beans;
 
+import io.github.vipcxj.beanknife.annotations.internal.GeneratedView;
+
 import java.util.List;
 import java.util.Set;
 
+@GeneratedView(targetClass = GenericTestBean2.class, configClass = GenericTestBean2.class)
 public class GenericTestBean2View<T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> {
 
     private T1 a;

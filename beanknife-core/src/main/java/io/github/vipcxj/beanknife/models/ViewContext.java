@@ -1,9 +1,7 @@
 package io.github.vipcxj.beanknife.models;
 
-import io.github.vipcxj.beanknife.annotations.Access;
-import io.github.vipcxj.beanknife.annotations.Dynamic;
-import io.github.vipcxj.beanknife.annotations.NewViewProperty;
-import io.github.vipcxj.beanknife.annotations.OverrideViewProperty;
+import io.github.vipcxj.beanknife.annotations.*;
+import io.github.vipcxj.beanknife.annotations.internal.GeneratedView;
 import io.github.vipcxj.beanknife.utils.Utils;
 import org.apache.commons.text.StringEscapeUtils;
 
@@ -22,7 +20,9 @@ public class ViewContext extends Context {
 
     private final ViewOfData viewOf;
     private final Type targetType;
+    private final Type configType;
     private final Type genType;
+    private final Type generatedType;
     private final boolean samePackage;
     private final List<String> errors;
 
@@ -30,12 +30,14 @@ public class ViewContext extends Context {
         super(processingEnv);
         this.viewOf = viewOf;
         this.targetType = Type.extract(viewOf.getTargetElement().asType());
+        this.configType = Type.extract(viewOf.getConfigElement().asType());
         this.genType = Utils.extractGenType(
                 this.targetType,
                 viewOf.getGenName(),
                 viewOf.getGenPackage(),
                 "View"
         );
+        this.generatedType = Type.extract(processingEnv.getElementUtils().getTypeElement(GeneratedView.class.getCanonicalName()).asType());
         this.packageName = this.genType.getPackageName();
         this.samePackage = this.targetType.isSamePackage(this.genType);
         this.containers.push(Type.fromPackage(this.packageName));
@@ -73,6 +75,8 @@ public class ViewContext extends Context {
         TypeElement configElement = viewOf.getConfigElement();
         getProperties().clear();
         importVariable(this.targetType);
+        importVariable(this.configType);
+        importVariable(this.generatedType);
         Elements elementUtils = getProcessingEnv().getElementUtils();
         List<? extends Element> members = elementUtils.getAllMembers(targetElement);
         for (Element member : members) {
@@ -94,7 +98,6 @@ public class ViewContext extends Context {
                 || excludePatterns.stream().anyMatch(pattern -> pattern.matcher(property.getName()).matches())
                 || Arrays.stream(viewOf.getExcludes()).anyMatch(exclude -> exclude.equals(property.getName())));
         List<Property> baseProperties = new ArrayList<>(getProperties());
-        boolean useConfig = false;
         if (configElement != targetElement) {
             members = elementUtils.getAllMembers(configElement);
             for (Element member : members) {
@@ -136,7 +139,6 @@ public class ViewContext extends Context {
                         throw new IllegalStateException("This is impossible!");
                     }
                 } else if (member.getKind() == ElementKind.METHOD) {
-                    useConfig = true;
                     Extractor extractor;
                     Type containerType = Type.extract(configElement.asType());
                     Dynamic dynamic = member.getAnnotation(Dynamic.class);
@@ -183,9 +185,6 @@ public class ViewContext extends Context {
                 }
             }
         }
-        if (useConfig) {
-            importVariable(Type.extract(configElement.asType()));
-        }
         for (Property property : getProperties()) {
             importVariable(property.getType());
         }
@@ -200,6 +199,13 @@ public class ViewContext extends Context {
         if (super.print(writer)) {
             writer.println();
         }
+        writer.print("@");
+        generatedType.printType(writer, this, false, false);
+        writer.print("(targetClass = ");
+        targetType.printType(writer, this, false, false);
+        writer.print(".class, configClass = ");
+        configType.printType(writer, this, false, false);
+        writer.println(".class)");
         List<Property> properties = getProperties();
         boolean empty = true;
         enter(genType);

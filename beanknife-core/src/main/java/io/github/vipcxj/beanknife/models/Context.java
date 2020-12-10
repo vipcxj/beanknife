@@ -1,6 +1,5 @@
 package io.github.vipcxj.beanknife.models;
 
-import io.github.vipcxj.beanknife.annotations.GeneratedMeta;
 import io.github.vipcxj.beanknife.utils.Utils;
 
 import javax.annotation.Nonnull;

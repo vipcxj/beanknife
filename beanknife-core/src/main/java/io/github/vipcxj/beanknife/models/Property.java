@@ -172,6 +172,7 @@ public class Property {
 
     public void printGetter(@Nonnull PrintWriter writer, @Nonnull Context context, String indent, int indentNum) {
         if (!hasGetter()) return;
+        Utils.printComment(writer, comment, indent, indentNum);
         Utils.printIndent(writer, indent, indentNum);
         Utils.printAccess(writer, getter);
         printType(writer, context, true, false);

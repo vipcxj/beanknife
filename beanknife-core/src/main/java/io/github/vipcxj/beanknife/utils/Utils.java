@@ -1,13 +1,10 @@
 package io.github.vipcxj.beanknife.utils;
 
 import io.github.vipcxj.beanknife.annotations.Access;
-import io.github.vipcxj.beanknife.annotations.GeneratedMeta;
-import io.github.vipcxj.beanknife.annotations.GeneratedView;
+import io.github.vipcxj.beanknife.annotations.internal.GeneratedMeta;
+import io.github.vipcxj.beanknife.annotations.internal.GeneratedView;
 import io.github.vipcxj.beanknife.annotations.ViewProperty;
-import io.github.vipcxj.beanknife.models.Context;
-import io.github.vipcxj.beanknife.models.Property;
-import io.github.vipcxj.beanknife.models.Type;
-import io.github.vipcxj.beanknife.models.ViewOfData;
+import io.github.vipcxj.beanknife.models.*;
 import org.apache.commons.text.StringEscapeUtils;
 
 import javax.annotation.Nonnull;
@@ -19,6 +16,8 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
+import javax.tools.JavaFileObject;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.*;
 
@@ -395,6 +394,16 @@ public class Utils {
         return values;
     }
 
+    public static DeclaredType[] getTypeArrayAnnotationValue(@Nonnull AnnotationMirror annotation, @Nonnull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues, @Nonnull String name) {
+        List<? extends AnnotationValue> annValues = getArrayAnnotationValue(annotation, annotationValues, name);
+        DeclaredType[] values = new DeclaredType[annValues.size()];
+        int i = 0;
+        for (AnnotationValue annValue : annValues) {
+            values[i++] = (DeclaredType) annValue.getValue();
+        }
+        return values;
+    }
+
     public static List<AnnotationMirror> getAnnotationElement(AnnotationMirror annotation, @Nonnull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues) {
         for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : annotationValues.entrySet()) {
             if ("value".equals(entry.getKey().getSimpleName().toString())) {
@@ -605,5 +614,36 @@ public class Utils {
             }
         }
         return false;
+    }
+
+    public static void writeViewFile(ViewContext context) throws IOException {
+        Modifier modifier = context.getViewOf().getAccess();
+        if (modifier == null) {
+            return;
+        }
+        JavaFileObject sourceFile = context.getProcessingEnv().getFiler().createSourceFile(context.getGenType().getQualifiedName(), context.getViewOf().getTargetElement(), context.getViewOf().getConfigElement());
+        try (PrintWriter writer = new PrintWriter(sourceFile.openWriter())) {
+            context.collectData();
+            context.print(writer);
+        }
+    }
+
+    public static void printComment(@Nonnull PrintWriter writer, String comment, String indent, int indentNum) {
+        if (comment == null || comment.isEmpty()) {
+            return;
+        }
+        String[] lines = comment.split("[\\r\\n]+");
+        if (lines.length == 0) {
+            return;
+        }
+        Utils.printIndent(writer, indent, indentNum);
+        writer.println("/**");
+        for (String line : lines) {
+            Utils.printIndent(writer, indent, indentNum);
+            writer.print(" * ");
+            writer.println(line);
+        }
+        Utils.printIndent(writer, indent, indentNum);
+        writer.println(" */");
     }
 }
