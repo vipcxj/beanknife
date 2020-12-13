@@ -5,7 +5,7 @@ import io.github.vipcxj.beanknife.PropertyConverter;
 import java.lang.annotation.*;
 
 @Target({ ElementType.FIELD, ElementType.ANNOTATION_TYPE })
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.RUNTIME)
 @Repeatable(UsePropertyConverters.class)
 public @interface UsePropertyConverter {
     Class<? extends PropertyConverter<?, ?>> value();

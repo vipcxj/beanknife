@@ -3,27 +3,38 @@ package io.github.vipcxj.beanknife;
 import com.google.auto.service.AutoService;
 import io.github.vipcxj.beanknife.annotations.ViewMeta;
 import io.github.vipcxj.beanknife.annotations.ViewMetas;
-import io.github.vipcxj.beanknife.models.ViewContext;
+import io.github.vipcxj.beanknife.models.MetaContext;
+import io.github.vipcxj.beanknife.models.ViewMetaData;
 import io.github.vipcxj.beanknife.models.ViewOfData;
+import io.github.vipcxj.beanknife.models.ViewProcessorData;
+import io.github.vipcxj.beanknife.utils.ProcessorManager;
 import io.github.vipcxj.beanknife.utils.Utils;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 import javax.tools.Diagnostic;
+import javax.tools.JavaFileObject;
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.io.PrintWriter;
+import java.util.*;
 
-@SupportedAnnotationTypes("io.github.vipcxj.beanknife.annotations.ViewOf")
+@SupportedAnnotationTypes({"io.github.vipcxj.beanknife.annotations.ViewOf", "io.github.vipcxj.beanknife.annotations.ViewOfs"})
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 @AutoService(Processor.class)
 public class ViewOfProcessor extends AbstractProcessor {
 
+    private ProcessorManager manager;
+
+    @Override
+    public synchronized void init(ProcessingEnvironment processingEnv) {
+        super.init(processingEnv);
+        this.manager = new ProcessorManager(processingEnv);
+    }
+
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        ViewProcessorData viewProcessorData = this.manager.getData(roundEnv);
         for (TypeElement annotation : annotations) {
             Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
             for (Element element : elements) {
@@ -35,34 +46,30 @@ public class ViewOfProcessor extends AbstractProcessor {
                             "io.github.vipcxj.beanknife.annotations.ViewOfs"
                     );
                     TypeElement typeElement = (TypeElement) element;
-                    Set<String> targetClassNames = new HashSet<>();
+                    Set<String> metaClassNames = new HashSet<>();
                     for (AnnotationMirror annotationMirror : annotationMirrors) {
                         ViewOfData viewOf = ViewOfData.read(processingEnv, annotationMirror, typeElement);
-                        ViewContext context = new ViewContext(processingEnv, viewOf);
-                        if (shouldIgnore(roundEnv, context.getViewOf().getTargetElement())) {
+                        if (hasMeta(roundEnv, viewOf.getTargetElement())) {
                             continue;
                         }
-                        String genQualifiedName = context.getGenType().getQualifiedName();
-                        if (!targetClassNames.contains(genQualifiedName)) {
-                            targetClassNames.add(genQualifiedName);
-                            if (!Utils.canSeeFromOtherClass(typeElement, context.isSamePackage())) {
-                                Utils.logError(
-                                        processingEnv,
-                                        "The target class "
-                                                + context.getTargetType().getQualifiedName()
-                                                + " can not be seen by the generated class "
-                                                + genQualifiedName
-                                                + "."
-                                );
-                                continue;
+                        List<ViewOfData> viewOfDataList = Utils.collectViewOfs(processingEnv, roundEnv, viewOf.getTargetElement());
+                        TypeElement mostImportantViewConfigElement = getMostImportantViewConfigElement(viewOfDataList);
+                        if (Objects.equals(typeElement, mostImportantViewConfigElement)) {
+                            ViewMetaData viewMetaData = new ViewMetaData("", "", viewOf.getTargetElement(), viewOf.getTargetElement());
+                            MetaContext metaContext = new MetaContext(processingEnv, viewMetaData, viewOfDataList);
+                            String metaClassName = metaContext.getGenType().getQualifiedName();
+                            if (!metaClassNames.contains(metaClassName)) {
+                                metaClassNames.add(metaClassName);
+                                try {
+                                    JavaFileObject sourceFile = processingEnv.getFiler().createSourceFile(metaClassName, viewOf.getTargetElement(), typeElement);
+                                    try (PrintWriter writer = new PrintWriter(sourceFile.openWriter())) {
+                                        metaContext.collectData();
+                                        metaContext.print(writer);
+                                    }
+                                } catch (IOException e) {
+                                    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, e.getMessage());
+                                }
                             }
-                            try {
-                                Utils.writeViewFile(context);
-                            } catch (IOException e) {
-                                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, e.getMessage());
-                            }
-                        } else {
-                            processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING, "Repeated ViewMeta annotation with class name: " + genQualifiedName + ".");
                         }
                     }
                 } else {
@@ -70,10 +77,10 @@ public class ViewOfProcessor extends AbstractProcessor {
                 }
             }
         }
-        return true;
+        return false;
     }
 
-    private boolean shouldIgnore(RoundEnvironment roundEnv, TypeElement targetElement) {
+    private boolean hasMeta(RoundEnvironment roundEnv, TypeElement targetElement) {
         Set<? extends Element> candidates = roundEnv.getElementsAnnotatedWith(ViewMeta.class);
         for (Element candidate : candidates) {
             if (Utils.shouldIgnoredElement(candidate)) {
@@ -81,7 +88,7 @@ public class ViewOfProcessor extends AbstractProcessor {
             }
             List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(candidate);
             for (AnnotationMirror annotationMirror : annotationMirrors) {
-                if (((TypeElement) annotationMirror.getAnnotationType().asElement()).getQualifiedName().toString().equals(ViewMeta.class.getCanonicalName())) {
+                if (Utils.isThisAnnotation(annotationMirror, ViewMeta.class)) {
                     if (Utils.isViewMetaTargetTo(processingEnv, annotationMirror, (TypeElement) candidate, targetElement)) {
                         return true;
                     }
@@ -95,7 +102,7 @@ public class ViewOfProcessor extends AbstractProcessor {
             }
             List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(candidate);
             for (AnnotationMirror annotationMirror : annotationMirrors) {
-                if (((TypeElement) annotationMirror.getAnnotationType().asElement()).getQualifiedName().toString().equals(ViewMetas.class.getCanonicalName())) {
+                if (Utils.isThisAnnotation(annotationMirror, ViewMetas.class)) {
                     Map<? extends ExecutableElement, ? extends AnnotationValue> elementValuesWithDefaults = processingEnv.getElementUtils().getElementValuesWithDefaults(annotationMirror);
                     List<AnnotationMirror> viewMetas = Utils.getAnnotationElement(annotationMirror, elementValuesWithDefaults);
                     for (AnnotationMirror viewMeta : viewMetas) {
@@ -107,5 +114,9 @@ public class ViewOfProcessor extends AbstractProcessor {
             }
         }
         return false;
+    }
+
+    private TypeElement getMostImportantViewConfigElement(List<ViewOfData> viewOfDataList) {
+        return viewOfDataList.stream().map(ViewOfData::getConfigElement).max(Comparator.comparing(e -> e.getQualifiedName().toString())).orElse(null);
     }
 }

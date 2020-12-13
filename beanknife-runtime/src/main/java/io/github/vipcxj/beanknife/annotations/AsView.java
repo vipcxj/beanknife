@@ -7,4 +7,6 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.SOURCE)
-public @interface AsView { }
+public @interface AsView {
+    String value();
+}

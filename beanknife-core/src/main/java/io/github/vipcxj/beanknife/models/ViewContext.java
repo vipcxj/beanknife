@@ -1,5 +1,8 @@
 package io.github.vipcxj.beanknife.models;
 
+import com.sun.source.tree.*;
+import com.sun.source.util.Trees;
+import io.github.vipcxj.beanknife.PropertyConverter;
 import io.github.vipcxj.beanknife.annotations.*;
 import io.github.vipcxj.beanknife.annotations.internal.GeneratedView;
 import io.github.vipcxj.beanknife.utils.Utils;
@@ -8,7 +11,10 @@ import org.apache.commons.text.StringEscapeUtils;
 import javax.annotation.Nonnull;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.*;
-import javax.lang.model.type.*;
+import javax.lang.model.type.ArrayType;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import java.io.PrintWriter;
@@ -19,7 +25,9 @@ import java.util.stream.Collectors;
 
 public class ViewContext extends Context {
 
+    private final Trees trees;
     private final ViewOfData viewOf;
+    private final ViewProcessorData viewProcessorData;
     private final Type targetType;
     private final Type configType;
     private final Type genType;
@@ -27,9 +35,11 @@ public class ViewContext extends Context {
     private final boolean samePackage;
     private final List<String> errors;
 
-    public ViewContext(@Nonnull ProcessingEnvironment processingEnv, @Nonnull ViewOfData viewOf) {
+    public ViewContext(@Nonnull Trees trees, @Nonnull ProcessingEnvironment processingEnv, @Nonnull ViewOfData viewOf, @Nonnull ViewProcessorData viewProcessorData) {
         super(processingEnv);
+        this.trees = trees;
         this.viewOf = viewOf;
+        this.viewProcessorData = viewProcessorData;
         this.targetType = Type.extract(viewOf.getTargetElement().asType());
         this.configType = Type.extract(viewOf.getConfigElement().asType());
         this.genType = Utils.extractGenType(
@@ -57,8 +67,8 @@ public class ViewContext extends Context {
         return genType;
     }
 
-    public boolean isSamePackage() {
-        return samePackage;
+    public Trees getTrees() {
+        return trees;
     }
 
     private int checkAnnConflict(NewViewProperty newViewProperty, OverrideViewProperty overrideViewProperty) {
@@ -126,16 +136,36 @@ public class ViewContext extends Context {
                 }
                 if (member.getKind() == ElementKind.FIELD) {
                     if (overrideViewProperty != null) {
+                        List<DeclaredType> converters = getConverters(member);
                         String name = overrideViewProperty.value();
+                        TypeMirror newType = extractType(member);
                         getProperties().replaceAll(p -> {
                             if (p.getName().equals(name)) {
-                                return p
+                                Property newProperty = p
                                         .withGetterAccess(Utils.resolveGetterAccess(viewOf, overrideViewProperty.getter()))
                                         .withSetterAccess(Utils.resolveSetterAccess(viewOf, overrideViewProperty.setter()));
+                                DeclaredType converter = selectConverter(member, converters, member.asType(), p.getTypeMirror());
+                                // DeclaredType viewTarget = getViewTarget(newType);
+                                // boolean isView = false;
+                                if (!getProcessingEnv().getTypeUtils().isAssignable(p.getTypeMirror(), newType) && converter == null) {
+                                    // if (viewTarget == null) {
+                                        error("The property " + p.getName() + " can not be override because type mismatched.");
+                                        return null;
+                                    // }
+//                                    if (!getProcessingEnv().getTypeUtils().isSameType(viewTarget, p.getTypeMirror())) {
+//                                        error("The property \" + p.getName() + \" can not be override, because it is not the view type of " + p.getType().getQualifiedName() + ".");
+//                                        return null;
+//                                    }
+//                                    isView = true;
+                                }
+                                // newProperty = newProperty.withType(newType, isView ? viewTarget : null);
+                                newProperty = newProperty.withType(newType, null);
+                                return converter != null ? newProperty.withConverter(converter) : newProperty;
                             } else {
                                 return p;
                             }
                         });
+                        getProperties().removeIf(Objects::isNull);
                     } else {
                         throw new IllegalStateException("This is impossible!");
                     }
@@ -146,7 +176,7 @@ public class ViewContext extends Context {
                     if (dynamic != null) {
                         extractor = new DynamicMethodExtractor(containerType, (ExecutableElement) member);
                     } else {
-                        extractor = new StaticMethodExtractor(containerType, (ExecutableElement) member);
+                        extractor = new StaticMethodExtractor(this, containerType, (ExecutableElement) member);
                     }
                     if (overrideViewProperty != null) {
                         String name = overrideViewProperty.value();
@@ -188,11 +218,49 @@ public class ViewContext extends Context {
         }
         for (Property property : getProperties()) {
             importVariable(property.getType());
+            DeclaredType converter = property.getConverter();
+            if (converter != null) {
+                importVariable(Type.extract(converter));
+            }
+        }
+    }
+
+    private DeclaredType getViewTarget(TypeMirror typeMirror) {
+        if (typeMirror.getKind() == TypeKind.DECLARED) {
+            DeclaredType declaredType = (DeclaredType) typeMirror;
+            TypeElement typeElement = Utils.toElement(declaredType);
+            if (typeElement.getKind() == ElementKind.CLASS) {
+                for (AnnotationMirror annotationMirror : typeElement.getAnnotationMirrors()) {
+                    if (Utils.isThisAnnotation(annotationMirror, GeneratedView.class)) {
+                        Map<? extends ExecutableElement, ? extends AnnotationValue> attributes = getProcessingEnv().getElementUtils().getElementValuesWithDefaults(annotationMirror);
+                        return Utils.getTypeAnnotationValue(annotationMirror, attributes, "targetClass");
+                    }
+                }
+                return null;
+            } else if (typeElement.getKind() == ElementKind.INTERFACE) {
+                if (
+                        Utils.isThisTypeElement(typeElement, List.class)
+                        || Utils.isThisTypeElement(typeElement, Queue.class)
+                        || Utils.isThisTypeElement(typeElement, Set.class)
+                ) {
+                    return getViewTarget(declaredType.getTypeArguments().get(0));
+                } else if (Utils.isThisTypeElement(typeElement, Map.class)) {
+                    return getViewTarget(declaredType.getTypeArguments().get(1));
+                } else {
+                    return null;
+                }
+            } else {
+                return null;
+            }
+        } else if (typeMirror.getKind() == TypeKind.ARRAY) {
+            return getViewTarget(((ArrayType) typeMirror).getComponentType());
+        } else {
+            return null;
         }
     }
 
     private List<DeclaredType> getConverters(Element element) {
-        return Utils.getAnnotationsOn(this, element, UsePropertyConverter.class, UsePropertyConverter.class)
+        return Utils.getAnnotationsOn(this, element, UsePropertyConverter.class, UsePropertyConverters.class)
                 .stream().map(annotation -> {
                     Map<? extends ExecutableElement, ? extends AnnotationValue> attributes = getProcessingEnv().getElementUtils().getElementValuesWithDefaults(annotation);
                     return Utils.getTypeAnnotationValue(annotation, attributes, "value");
@@ -200,7 +268,7 @@ public class ViewContext extends Context {
     }
 
     private int calcTypeAssignScore(DeclaredType beAssigned, DeclaredType toAssign) {
-        if (Objects.equals(beAssigned, toAssign)) {
+        if (getProcessingEnv().getTypeUtils().isSameType(beAssigned, toAssign)) {
             return 0;
         }
         TypeElement beAssignedElement = (TypeElement) beAssigned.asElement();
@@ -230,9 +298,12 @@ public class ViewContext extends Context {
                 score = 1;
             }
             if (toAssignIsClass) {
-                int parentScore = calcTypeAssignScore(beAssigned, (DeclaredType) toAssignElement.getSuperclass());
-                if (parentScore >= 0 && (score == -1 || score > parentScore + 1)) {
-                    score = parentScore + 1;
+                TypeMirror superClass = toAssignElement.getSuperclass();
+                if (superClass.getKind() != TypeKind.NONE) {
+                    int parentScore = calcTypeAssignScore(beAssigned, (DeclaredType) superClass);
+                    if (parentScore >= 0 && (score == -1 || score > parentScore + 1)) {
+                        score = parentScore + 1;
+                    }
                 }
             }
             if (beAssignedIsEnum && toAssignIsEnum) {
@@ -263,7 +334,11 @@ public class ViewContext extends Context {
 
     private int calcConverterScore(DeclaredType converter, TypeMirror toType, TypeMirror fromType) {
         Types typeUtils = getProcessingEnv().getTypeUtils();
-        List<? extends TypeMirror> typeArguments = converter.getTypeArguments();
+        DeclaredType realConverter = Utils.findSuperType(converter, PropertyConverter.class);
+        if (realConverter == null) {
+            throw new IllegalArgumentException("This is impossible.");
+        }
+        List<? extends TypeMirror> typeArguments = realConverter.getTypeArguments();
         TypeMirror converterFromType = typeArguments.get(0);
         TypeMirror converterToType = typeArguments.get(1);
         if (!typeUtils.isAssignable(fromType, converterFromType) || !typeUtils.isAssignable(converterToType, toType)) {
@@ -276,6 +351,19 @@ public class ViewContext extends Context {
         List<DeclaredType> results = new ArrayList<>();
         int score = -1;
         for (DeclaredType converter : converters) {
+            TypeElement converterElement = Utils.toElement(converter);
+            if (!converterElement.getTypeParameters().isEmpty()) {
+                error("The property converter must make sure the from type and to type. So it can not be a generic type. The invalid converter: " + converterElement.getQualifiedName() + ".");
+                continue;
+            }
+            if (converterElement.getModifiers().contains(Modifier.ABSTRACT)) {
+                error("The property converter should be instantiable. So it can not be abstract. The invalid converter: " + converterElement.getQualifiedName() + ".");
+                continue;
+            }
+            if (!Utils.hasEmptyConstructor(getProcessingEnv(), converterElement)) {
+                error("The property converter should be instantiable. So it should has a empty constructor. The invalid converter: " + converterElement.getQualifiedName() + ".");
+                continue;
+            }
             int theScore = calcConverterScore(converter, toType, fromType);
             if (theScore >= 0 && (score == -1 || score >= theScore)) {
                 score = theScore;
@@ -398,7 +486,7 @@ public class ViewContext extends Context {
         int i = 0;
         for (String error : errors) {
             Utils.printIndent(writer, INDENT, 1);
-            writer.print("public static void ");
+            writer.print("public static String ");
             writer.print("error");
             writer.print(i++);
             writer.println("() {");
@@ -457,13 +545,27 @@ public class ViewContext extends Context {
                         property.getExtractor().print(writer, this);
                         writer.println(";");
                     } else {
+                        DeclaredType converter = property.getConverter();
+                        DeclaredType viewTarget = property.getViewTarget();
+                        if (converter != null) {
+                            writer.print("new ");
+                            Type.extract(converter).printType(writer, this, false, false);
+                            writer.print("().convert(");
+                        } else if (viewTarget != null) {
+                            property.getType().printType(writer, this, false, false);
+                            writer.print(".read(");
+                        }
                         if (property.isMethod()) {
                             writer.print("source.");
                             writer.print(property.getGetterName());
-                            writer.println("();");
+                            writer.print("()");
                         } else {
                             writer.print("source.");
                             writer.print(property.getName());
+                        }
+                        if (converter != null || viewTarget != null) {
+                            writer.println(");");
+                        } else {
                             writer.println(";");
                         }
                     }
@@ -510,5 +612,42 @@ public class ViewContext extends Context {
         writer.println("}");
         writer.println();
         return false;
+    }
+
+    public TypeMirror extractType(Element member) {
+        if (member.getKind() == ElementKind.METHOD) {
+            ExecutableElement executableElement = (ExecutableElement) member;
+            TypeMirror type = executableElement.getReturnType();
+            if (type.getKind() != TypeKind.ERROR) {
+                return type;
+            }
+        } else if (member.getKind() == ElementKind.FIELD) {
+            TypeMirror type = member.asType();
+            if (type.getKind() != TypeKind.ERROR) {
+                return type;
+            }
+        } else {
+            throw new IllegalArgumentException("Not supported member type: " + member.getKind() + ".");
+        }
+        CompilationUnitTree compilationUnit = trees.getPath(member).getCompilationUnit();
+        List<? extends ImportTree> importTrees = compilationUnit.getImports();
+        Set<String> imports = new HashSet<>();
+        for (ImportTree importTree : importTrees) {
+            if (!importTree.isStatic()) {
+                Tree qualifiedIdentifier = importTree.getQualifiedIdentifier();
+                if (qualifiedIdentifier.getKind() == Tree.Kind.MEMBER_SELECT) {
+                    MemberSelectTree memberSelectTree = (MemberSelectTree) qualifiedIdentifier;
+                }
+            }
+        }
+        Tree tree = trees.getTree(member);
+        if (tree.getKind() == Tree.Kind.METHOD) {
+            MethodTree methodTree = (MethodTree) tree;
+            Tree typeTree = methodTree.getReturnType();
+        } else if (tree.getKind() == Tree.Kind.VARIABLE) {
+            VariableTree variableTree = (VariableTree) tree;
+            Tree typeTree = variableTree.getType();
+        }
+        return null;
     }
 }

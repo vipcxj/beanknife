@@ -2,6 +2,7 @@ package io.github.vipcxj.beanknife.models;
 
 import io.github.vipcxj.beanknife.annotations.internal.GeneratedMeta;
 import io.github.vipcxj.beanknife.utils.Utils;
+import org.apache.commons.text.StringEscapeUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -125,9 +126,35 @@ public class MetaContext extends Context {
             writer.print("public static final String ");
             writer.print(variableName);
             writer.print(" = \"");
-            writer.print(property.getName());
+            writer.print(StringEscapeUtils.escapeJava(property.getName()));
             writer.print("\";");
             writer.println();
+        }
+        if (viewOfNum > 0) {
+            writer.println();
+            Utils.printIndent(writer, INDENT, 1);
+            writer.println("public static class Views {");
+            names.clear();
+            viewOfDataList.stream()
+                    .map(viewOfData -> Utils.extractGenType(
+                            Type.extract(viewOfData.getTargetElement().asType()),
+                            viewOfData.getGenName(),
+                            viewOfData.getGenPackage(),
+                            "View"
+                    ).getQualifiedName())
+                    .forEach(viewName -> {
+                        String variableName = Utils.createValidFieldName(viewName, names);
+                        names.add(variableName);
+                        Utils.printIndent(writer, INDENT, 2);
+                        writer.print("public static final String ");
+                        writer.print(variableName);
+                        writer.print(" = \"");
+                        writer.print(StringEscapeUtils.escapeJava(viewName));
+                        writer.print("\";");
+                        writer.println();
+                    });
+            Utils.printIndent(writer, INDENT, 1);
+            writer.println("}");
         }
         genType.closeClass(writer, INDENT, 0);
         return true;

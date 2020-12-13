@@ -1,7 +1,14 @@
 package io.github.vipcxj.beanknife.utils;
 
 import com.google.auto.common.AnnotationMirrors;
+import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.Tree;
+import com.sun.source.tree.VariableTree;
+import com.sun.source.util.TreePath;
+import com.sun.source.util.Trees;
 import io.github.vipcxj.beanknife.annotations.Access;
+import io.github.vipcxj.beanknife.annotations.ViewOf;
+import io.github.vipcxj.beanknife.annotations.ViewOfs;
 import io.github.vipcxj.beanknife.annotations.internal.GeneratedMeta;
 import io.github.vipcxj.beanknife.annotations.internal.GeneratedView;
 import io.github.vipcxj.beanknife.annotations.ViewProperty;
@@ -11,12 +18,15 @@ import org.apache.commons.text.StringEscapeUtils;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
+import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
 import java.io.IOException;
@@ -81,6 +91,7 @@ public class Utils {
     }
 
     public static String createValidFieldName(String name, Set<String> names) {
+        name = name.replaceAll("\\.", "_");
         if (SourceVersion.isKeyword(name) || names.contains(name)) {
             return createValidFieldName(name + "_", names);
         } else {
@@ -649,6 +660,33 @@ public class Utils {
         writer.println(" */");
     }
 
+    public static boolean isThisType(@Nonnull TypeMirror typeMirror, @Nonnull Class<?> type) {
+        if (typeMirror.getKind().isPrimitive()) {
+            return type.isPrimitive()
+                    &&((typeMirror.getKind() == TypeKind.BOOLEAN && type == boolean.class)
+                    || (typeMirror.getKind() == TypeKind.BYTE && type == byte.class)
+                    || (typeMirror.getKind() == TypeKind.CHAR && type == char.class)
+                    || (typeMirror.getKind() == TypeKind.SHORT && type == short.class)
+                    || (typeMirror.getKind() == TypeKind.INT && type == int.class)
+                    || (typeMirror.getKind() == TypeKind.LONG && type == long.class)
+                    || (typeMirror.getKind() == TypeKind.FLOAT && type == float.class)
+                    || (typeMirror.getKind() == TypeKind.DOUBLE && type == double.class));
+        } else if (typeMirror.getKind() == TypeKind.VOID) {
+            return type == void.class;
+        } else if (typeMirror.getKind() == TypeKind.ARRAY) {
+            return type.isArray() && isThisType(((ArrayType) typeMirror).getComponentType(), type.getComponentType());
+        } else if (typeMirror.getKind() == TypeKind.DECLARED) {
+            String canonicalName = type.getCanonicalName();
+            if (canonicalName == null) {
+                throw new UnsupportedOperationException();
+            }
+            DeclaredType declaredType = (DeclaredType) typeMirror;
+            return toElement(declaredType).getQualifiedName().toString().equals(canonicalName);
+        } else {
+            throw new UnsupportedOperationException();
+        }
+    }
+
     public static boolean isThisTypeElement(@Nonnull TypeElement typeElement, @Nonnull Class<?> type) {
         return typeElement.getQualifiedName().toString().equals(type.getCanonicalName());
     }
@@ -659,6 +697,14 @@ public class Utils {
     }
 
     public static List<AnnotationMirror> getAnnotationsOn(@Nonnull Context context, @Nonnull Element element, @Nonnull Class<?> type, @Nullable Class<?> repeatContainerType) {
+        return getAnnotationsOn(context, element, type, repeatContainerType, new HashSet<>());
+    }
+
+    private static List<AnnotationMirror> getAnnotationsOn(@Nonnull Context context, @Nonnull Element element, @Nonnull Class<?> type, @Nullable Class<?> repeatContainerType, @Nonnull Set<Element> visited) {
+        if (visited.contains(element)) {
+            return Collections.emptyList();
+        }
+        visited.add(element);
         List<AnnotationMirror> result = new ArrayList<>();
         Elements elementUtils = context.getProcessingEnv().getElementUtils();
         List<? extends AnnotationMirror> allAnnotations = elementUtils.getAllAnnotationMirrors(element);
@@ -670,9 +716,172 @@ public class Utils {
                 List<AnnotationMirror> annotations = getAnnotationElement(annotation, attributes);
                 result.addAll(annotations);
             } else {
-                result.addAll(getAnnotationsOn(context, annotation.getAnnotationType().asElement(), type, repeatContainerType));
+                result.addAll(getAnnotationsOn(context, annotation.getAnnotationType().asElement(), type, repeatContainerType, visited));
             }
         }
         return result;
+    }
+
+    public static DeclaredType toType(TypeElement element) {
+        return (DeclaredType) element.asType();
+    }
+
+    public static TypeElement toElement(DeclaredType type) {
+        return (TypeElement) type.asElement();
+    }
+
+    public static DeclaredType findSuperType(DeclaredType theType, Class<?> type) {
+        TypeElement element = toElement(theType);
+        if (type.isInterface()) {
+            for (TypeMirror anInterface : element.getInterfaces()) {
+                if (isThisType(anInterface, type)) {
+                    return (DeclaredType) anInterface;
+                }
+            }
+        }
+        TypeMirror superType = element.getSuperclass();
+        if (superType.getKind() == TypeKind.NONE) {
+            return null;
+        }
+        if (isThisType(superType, type)) {
+            return (DeclaredType) superType;
+        }
+        return findSuperType((DeclaredType) superType, type);
+    }
+
+    public static boolean hasEmptyConstructor(ProcessingEnvironment env, TypeElement element) {
+        ExecutableElement emptyConstructor = findMethod(env, element, "<init>", true);
+        return emptyConstructor != null || findMethod(env, element, "<init>", false) == null;
+    }
+
+    public static ExecutableElement findMethod(ProcessingEnvironment env, TypeElement element, String name, boolean matchParameters, TypeMirror... argTypes) {
+        Types typeUtils = env.getTypeUtils();
+        for (Element member : env.getElementUtils().getAllMembers(element)) {
+            if (member.getKind() == ElementKind.METHOD && member.getSimpleName().toString().equals(name)) {
+                ExecutableElement executable = (ExecutableElement) member;
+                List<? extends VariableElement> parameters = executable.getParameters();
+                if (matchParameters) {
+                    if (parameters.size() != argTypes.length) {
+                        continue;
+                    }
+                    boolean matched = true;
+                    for (int i = 0; i < parameters.size(); ++i) {
+                        VariableElement variable = parameters.get(i);
+                        TypeMirror argType = argTypes[i];
+                        if (!typeUtils.isAssignable(argType, variable.asType())) {
+                            matched = false;
+                            break;
+                        }
+                    }
+                    if (!matched) {
+                        continue;
+                    }
+                }
+                return executable;
+            }
+        }
+        return null;
+    }
+
+    private static void collectViewOfs(List<ViewOfData> results, ProcessingEnvironment processingEnv, TypeElement candidate, TypeElement targetElement, AnnotationMirror viewOf) {
+        Map<? extends ExecutableElement, ? extends AnnotationValue> elementValuesWithDefaults = processingEnv.getElementUtils().getElementValuesWithDefaults(viewOf);
+        Map<String, ? extends AnnotationValue> attributes = CollectionUtils.mapKey(elementValuesWithDefaults, e -> e.getSimpleName().toString());
+        TypeElement target = (TypeElement) ((DeclaredType) attributes.get("value").getValue()).asElement();
+        if (target.getQualifiedName().toString().equals(Self.class.getCanonicalName())) {
+            target = candidate;
+        }
+        if (!target.equals(targetElement)) {
+            return;
+        }
+        TypeElement config = (TypeElement) ((DeclaredType) attributes.get("config").getValue()).asElement();
+        if (config.getQualifiedName().toString().equals(Self.class.getCanonicalName())) {
+            config = candidate;
+        }
+        ViewOfData viewOfData = ViewOfData.read(processingEnv, viewOf, candidate);
+        viewOfData.setConfigElement(config);
+        viewOfData.setTargetElement(target);
+        results.add(viewOfData);
+    }
+
+    private static void collectViewOfs(List<ViewOfData> results, ProcessingEnvironment processingEnv, TypeElement candidate, AnnotationMirror viewOf) {
+        Map<? extends ExecutableElement, ? extends AnnotationValue> elementValuesWithDefaults = processingEnv.getElementUtils().getElementValuesWithDefaults(viewOf);
+        TypeElement targetElement = toElement(getTypeAnnotationValue(viewOf, elementValuesWithDefaults, "value"));
+        if (isThisTypeElement(targetElement, Self.class)) {
+            targetElement = candidate;
+        }
+        TypeElement configElement = toElement(getTypeAnnotationValue(viewOf, elementValuesWithDefaults, "config"));
+        if (isThisTypeElement(configElement, Self.class)) {
+            configElement = candidate;
+        }
+        ViewOfData viewOfData = ViewOfData.read(processingEnv, viewOf, candidate);
+        viewOfData.setConfigElement(configElement);
+        viewOfData.setTargetElement(targetElement);
+        results.add(viewOfData);
+    }
+
+    public static List<ViewOfData> collectViewOfs(ProcessingEnvironment processingEnv, RoundEnvironment roundEnv) {
+        Set<? extends Element> candidates = roundEnv.getElementsAnnotatedWith(ViewOf.class);
+        List<ViewOfData> out = new ArrayList<>();
+        for (Element candidate : candidates) {
+            if (Utils.shouldIgnoredElement(candidate)) {
+                continue;
+            }
+            List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(candidate);
+            for (AnnotationMirror annotationMirror : annotationMirrors) {
+                if (Utils.isThisAnnotation(annotationMirror, ViewOf.class)) {
+                    collectViewOfs(out, processingEnv, (TypeElement) candidate, annotationMirror);
+                }
+            }
+        }
+        candidates = roundEnv.getElementsAnnotatedWith(ViewOfs.class);
+        for (Element candidate : candidates) {
+            if (Utils.shouldIgnoredElement(candidate)) {
+                continue;
+            }
+            List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(candidate);
+            for (AnnotationMirror annotationMirror : annotationMirrors) {
+                if (Utils.isThisAnnotation(annotationMirror, ViewOfs.class)) {
+                    Map<? extends ExecutableElement, ? extends AnnotationValue> elementValuesWithDefaults = processingEnv.getElementUtils().getElementValuesWithDefaults(annotationMirror);
+                    List<AnnotationMirror> viewOfs = Utils.getAnnotationElement(annotationMirror, elementValuesWithDefaults);
+                    for (AnnotationMirror viewOf : viewOfs) {
+                        collectViewOfs(out, processingEnv, (TypeElement) candidate, viewOf);
+                    }
+                }
+            }
+        }
+        return out;
+    }
+
+    public static List<ViewOfData> collectViewOfs(ProcessingEnvironment processingEnv, RoundEnvironment roundEnv, TypeElement targetElement) {
+        Set<? extends Element> candidates = roundEnv.getElementsAnnotatedWith(ViewOf.class);
+        List<ViewOfData> out = new ArrayList<>();
+        for (Element candidate : candidates) {
+            if (Utils.shouldIgnoredElement(candidate)) {
+                continue;
+            }
+            List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(candidate);
+            for (AnnotationMirror annotationMirror : annotationMirrors) {
+                if (Utils.isThisAnnotation(annotationMirror, ViewOf.class)) {
+                    collectViewOfs(out, processingEnv, (TypeElement) candidate, targetElement, annotationMirror);
+                }
+            }
+        }
+        candidates = roundEnv.getElementsAnnotatedWith(ViewOfs.class);
+        for (Element candidate : candidates) {
+            if (Utils.shouldIgnoredElement(candidate)) {
+                continue;
+            }
+            List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(candidate);
+            for (AnnotationMirror annotationMirror : annotationMirrors) {
+                if (Utils.isThisAnnotation(annotationMirror, ViewOfs.class)) {
+                    Map<? extends ExecutableElement, ? extends AnnotationValue> elementValuesWithDefaults = processingEnv.getElementUtils().getElementValuesWithDefaults(annotationMirror);
+                    List<AnnotationMirror> viewOfs = Utils.getAnnotationElement(annotationMirror, elementValuesWithDefaults);
+                    for (AnnotationMirror viewOf : viewOfs) {
+                        collectViewOfs(out, processingEnv, (TypeElement) candidate, targetElement, viewOf);
+                    }
+                }
+            }
+        }
+        return out;
     }
 }

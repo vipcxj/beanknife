@@ -4,10 +4,12 @@ import io.github.vipcxj.beanknife.annotations.Access;
 import io.github.vipcxj.beanknife.utils.Utils;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import java.io.PrintWriter;
 
@@ -17,8 +19,8 @@ public class Property {
     private final Modifier modifier;
     private Access getter;
     private Access setter;
-    private final Type type;
-    private final TypeMirror typeMirror;
+    private Type type;
+    private TypeMirror typeMirror;
     private final boolean method;
     private final String getterName;
     private final String setterName;
@@ -26,6 +28,8 @@ public class Property {
     private final Element element;
     private final String comment;
     private Extractor extractor;
+    private DeclaredType converter;
+    private DeclaredType viewTarget;
 
     public Property(
             String name,
@@ -73,6 +77,9 @@ public class Property {
         this.element = other.element;
         this.typeMirror = other.typeMirror;
         this.comment = other.comment != null ? other.comment : commentIfNone;
+        this.extractor = other.extractor;
+        this.converter = other.converter;
+        this.viewTarget = other.viewTarget;
     }
 
     public Property withGetterAccess(Access access) {
@@ -90,6 +97,20 @@ public class Property {
     public Property withExtractor(Extractor extractor) {
         Property property = new Property(this, null);
         property.extractor = extractor;
+        return property;
+    }
+
+    public Property withType(@Nonnull TypeMirror type, @Nullable DeclaredType viewTarget) {
+        Property property = new Property(this, null);
+        property.type = Type.extract(type);
+        property.typeMirror = type;
+        property.viewTarget = viewTarget;
+        return property;
+    }
+
+    public Property withConverter(DeclaredType converter) {
+        Property property = new Property(this, null);
+        property.converter = converter;
         return property;
     }
 
@@ -147,6 +168,14 @@ public class Property {
 
     public Extractor getExtractor() {
         return extractor;
+    }
+
+    public DeclaredType getConverter() {
+        return converter;
+    }
+
+    public DeclaredType getViewTarget() {
+        return viewTarget;
     }
 
     public boolean isDynamic() {

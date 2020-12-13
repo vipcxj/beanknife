@@ -6,6 +6,7 @@ import com.google.testing.compile.Compiler;
 import com.google.testing.compile.JavaFileObjects;
 
 import javax.annotation.processing.Processor;
+import java.util.List;
 
 public class Utils {
 
@@ -13,10 +14,10 @@ public class Utils {
         return qualifiedClassName.replaceAll("\\.", "/") + ".java";
     }
 
-    public static void testViewCase(Processor processor, String qualifiedClassName, String[] targetQualifiedClassNames, String postfix) {
+    public static void testViewCase(List<Processor> processors, String qualifiedClassName, String[] targetQualifiedClassNames, String postfix) {
         String sourcePath = toSourcePath(qualifiedClassName);
         Compilation compilation = Compiler.javac()
-                .withProcessors(processor)
+                .withProcessors(processors.toArray(new Processor[0]))
                 .compile(JavaFileObjects.forResource(sourcePath));
         if (targetQualifiedClassNames == null) {
             String genClassName = qualifiedClassName + postfix;
