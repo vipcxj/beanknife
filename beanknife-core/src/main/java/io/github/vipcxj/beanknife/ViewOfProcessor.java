@@ -6,8 +6,6 @@ import io.github.vipcxj.beanknife.annotations.ViewMetas;
 import io.github.vipcxj.beanknife.models.MetaContext;
 import io.github.vipcxj.beanknife.models.ViewMetaData;
 import io.github.vipcxj.beanknife.models.ViewOfData;
-import io.github.vipcxj.beanknife.models.ViewProcessorData;
-import io.github.vipcxj.beanknife.utils.ProcessorManager;
 import io.github.vipcxj.beanknife.utils.Utils;
 
 import javax.annotation.processing.*;
@@ -24,17 +22,13 @@ import java.util.*;
 @AutoService(Processor.class)
 public class ViewOfProcessor extends AbstractProcessor {
 
-    private ProcessorManager manager;
-
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
-        this.manager = new ProcessorManager(processingEnv);
     }
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        ViewProcessorData viewProcessorData = this.manager.getData(roundEnv);
         for (TypeElement annotation : annotations) {
             Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
             for (Element element : elements) {

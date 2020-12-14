@@ -31,6 +31,7 @@ import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.*;
 
 public class Utils {
@@ -453,7 +454,14 @@ public class Utils {
     }
 
     public static void logError(ProcessingEnvironment env, String message) {
-        env.getMessager().printMessage(Diagnostic.Kind.ERROR, message);
+        env.getMessager().printMessage(Diagnostic.Kind.ERROR, message != null ? message : "");
+    }
+
+    public static void logError(ProcessingEnvironment env, Throwable t) {
+        StringWriter stringWriter = new StringWriter();
+        PrintWriter writer = new PrintWriter(stringWriter);
+        t.printStackTrace(writer);
+        env.getMessager().printMessage(Diagnostic.Kind.ERROR, stringWriter.toString());
     }
 
     public static void printIndent(@Nonnull PrintWriter writer, String indent, int num) {

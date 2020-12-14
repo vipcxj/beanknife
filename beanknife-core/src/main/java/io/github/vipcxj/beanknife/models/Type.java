@@ -24,8 +24,8 @@ public class Type {
     private final boolean wildcard;
     private final List<Type> parameters;
     private final Type container;
-    private final TypeMirror upperBound;
-    private final TypeMirror lowerBound;
+    private final List<Type> upperBounds;
+    private final List<Type> lowerBounds;
 
     /**
      * 构造函数
@@ -33,9 +33,9 @@ public class Type {
      * @param simpleName 类名，不包括包名，特别的，对于嵌套类，有如下形式Parent.Nest1.Nest2
      * @param array 是否是数组
      * @param parameters 泛型参数列表
-     * @param upperBound 类型上界，可为空，此时默认为 {@link Object}
+     * @param upperBounds 类型上界，可为空，此时默认为 {@link Object}
      * @param container 包裹类，可为空
-     * @param lowerBound 类型下界，可为空
+     * @param lowerBounds 类型下界，可为空
      */
     public Type(
             @Nonnull String packageName,
@@ -46,8 +46,8 @@ public class Type {
             boolean wildcard,
             @Nonnull List<Type> parameters,
             @Nullable Type container,
-            @Nullable TypeMirror upperBound,
-            @Nullable TypeMirror lowerBound
+            @Nonnull List<Type> upperBounds,
+            @Nonnull List<Type> lowerBounds
     ) {
         this.packageName = packageName;
         this.simpleName = simpleName;
@@ -57,8 +57,8 @@ public class Type {
         this.wildcard = wildcard;
         this.parameters = parameters;
         this.container = container;
-        this.upperBound = upperBound;
-        this.lowerBound = lowerBound;
+        this.upperBounds = upperBounds;
+        this.lowerBounds = lowerBounds;
     }
 
     public Type toArrayType() {
@@ -75,8 +75,8 @@ public class Type {
                 false,
                 parameters,
                 container,
-                upperBound,
-                lowerBound
+                upperBounds,
+                lowerBounds
         );
     }
 
@@ -93,8 +93,8 @@ public class Type {
                 false,
                 parameters,
                 !removeParents ? container : null,
-                upperBound,
-                lowerBound
+                upperBounds,
+                lowerBounds
         );
     }
 
@@ -108,8 +108,8 @@ public class Type {
                 wildcard,
                 parameters,
                 container,
-                upperBound,
-                lowerBound
+                upperBounds,
+                lowerBounds
         );
     }
 
@@ -123,8 +123,8 @@ public class Type {
                 wildcard,
                 parameters,
                 container,
-                upperBound,
-                lowerBound
+                upperBounds,
+                lowerBounds
         );
     }
 
@@ -141,8 +141,8 @@ public class Type {
                 wildcard,
                 parameters,
                 null,
-                upperBound,
-                lowerBound
+                upperBounds,
+                lowerBounds
         );
     }
 
@@ -159,8 +159,23 @@ public class Type {
                 wildcard,
                 Collections.emptyList(),
                 container,
-                upperBound,
-                lowerBound
+                upperBounds,
+                lowerBounds
+        );
+    }
+
+    public Type withParameters(List<Type> parameters) {
+        return new Type(
+                packageName,
+                simpleName,
+                array,
+                annotation,
+                typeVar,
+                wildcard,
+                parameters,
+                container,
+                upperBounds,
+                lowerBounds
         );
     }
 
@@ -183,8 +198,99 @@ public class Type {
         return (imported || type.isLangType()) ? type.getEnclosedSimpleName() : type.getQualifiedName();
     }
 
+    public static Type create(String packageName, String typeName, boolean array, boolean annotation) {
+        return new Type(
+                packageName,
+                typeName,
+                array,
+                annotation,
+                false,
+                false,
+                Collections.emptyList(),
+                null,
+                Collections.emptyList(),
+                Collections.emptyList()
+        );
+    }
+
     public static Type extract(ProcessingEnvironment env, Class<?> clazz) {
         return extract(env.getElementUtils().getTypeElement(clazz.getCanonicalName()).asType());
+    }
+
+    private static List<Type> parseBounds(TypeMirror typeMirror) {
+        if (typeMirror.getKind() == TypeKind.INTERSECTION) {
+            IntersectionType intersectionType = (IntersectionType) typeMirror;
+            return intersectionType.getBounds()
+                    .stream()
+                    .map(Type::extract)
+                    .filter(Type::isNotObjectType)
+                    .collect(Collectors.toList());
+        } else {
+            return Collections.singletonList(Type.extract(typeMirror));
+        }
+    }
+
+    @Nonnull
+    public static Type createUnboundedWildcard() {
+        return new Type(
+                "",
+                "?",
+                false,
+                false,
+                false,
+                true,
+                Collections.emptyList(),
+                null,
+                Collections.emptyList(),
+                Collections.emptyList()
+        );
+    }
+
+    @Nonnull
+    public static Type createExtendsWildcard(@Nonnull List<Type> upperBounds) {
+        return new Type(
+                "",
+                "?",
+                false,
+                false,
+                false,
+                true,
+                Collections.emptyList(),
+                null,
+                upperBounds,
+                Collections.emptyList()
+        );
+    }
+
+    @Nonnull
+    public static Type createSuperWildcard(@Nonnull List<Type> lowerBounds) {
+        return new Type(
+                "",
+                "?",
+                false,
+                false,
+                false,
+                true,
+                Collections.emptyList(),
+                null,
+                Collections.emptyList(),
+                lowerBounds
+        );
+    }
+
+    public static Type createTypeParameter(@Nonnull String name, @Nonnull List<Type> bounds) {
+        return new Type(
+                "",
+                name,
+                false,
+                false,
+                true,
+                false,
+                Collections.emptyList(),
+                null,
+                bounds,
+                Collections.emptyList()
+        );
     }
 
     @Nonnull
@@ -199,8 +305,8 @@ public class Type {
                     false,
                     Collections.emptyList(),
                     null,
-                    null,
-                    null
+                    Collections.emptyList(),
+                    Collections.emptyList()
             );
         } else if (type.getKind() == TypeKind.ARRAY) {
             ArrayType arrayType = (ArrayType) type;
@@ -233,8 +339,8 @@ public class Type {
                     false,
                     parameters,
                     parentType,
-                    null,
-                    null
+                    Collections.emptyList(),
+                    Collections.emptyList()
             );
         } else if (type.getKind() == TypeKind.TYPEVAR) {
             TypeVariable typeVariable = (TypeVariable) type;
@@ -247,7 +353,8 @@ public class Type {
                     false,
                     Collections.emptyList(),
                     null,
-                    typeVariable.getUpperBound(), typeVariable.getLowerBound()
+                    parseBounds(typeVariable.getUpperBound()),
+                    parseBounds(typeVariable.getLowerBound())
             );
         } else if (type.getKind() == TypeKind.WILDCARD) {
             WildcardType wildcardType = (WildcardType) type;
@@ -260,8 +367,8 @@ public class Type {
                     true,
                     Collections.emptyList(),
                     null,
-                    wildcardType.getExtendsBound(),
-                    wildcardType.getSuperBound()
+                    parseBounds(wildcardType.getExtendsBound()),
+                    parseBounds(wildcardType.getSuperBound())
             );
         } else {
             throw new UnsupportedOperationException("Type " + type + " is not supported.");
@@ -278,8 +385,8 @@ public class Type {
                 false,
                 Collections.emptyList(),
                 null,
-                null,
-                null
+                Collections.emptyList(),
+                Collections.emptyList()
         );
     }
 
@@ -327,13 +434,6 @@ public class Type {
         );
     }
 
-    public String getPackageWithParent() {
-        if (container == null) {
-            return packageName;
-        }
-        return container.getQualifiedName();
-    }
-
     /**
      * 获取最外层类，如果不是嵌套类，则为其本身
      * @return 最外层类
@@ -372,19 +472,6 @@ public class Type {
         );
     }
 
-    /**
-     * 获取全限定单独类名。特别的，对于嵌套类，例如 a.b.c.D.E 返回 a.b.c.D$E
-     * @return 全限定单独类名
-     */
-    @Nonnull
-    public String getFlatQualifiedName() {
-        return combine(
-                ".",
-                packageName,
-                getEnclosedFlatSimpleName()
-        );
-    }
-
     public boolean isArray() {
         return array;
     }
@@ -401,12 +488,12 @@ public class Type {
         return wildcard;
     }
 
-    public TypeMirror getLowerBound() {
-        return lowerBound;
+    public List<Type> getLowerBounds() {
+        return lowerBounds;
     }
 
-    public TypeMirror getUpperBound() {
-        return upperBound;
+    public List<Type> getUpperBounds() {
+        return upperBounds;
     }
 
     public List<Type> getParameters() {
@@ -542,34 +629,25 @@ public class Type {
             }
             parameter.printType(writer, context, true, withBound);
             if (withBound) {
-                TypeMirror upperBound = parameter.upperBound;
-                TypeMirror lowerBound = parameter.lowerBound;
-                if (upperBound != null && upperBound.getKind() != TypeKind.NONE && upperBound.getKind() != TypeKind.NULL) {
-                    if (upperBound.getKind() == TypeKind.INTERSECTION) {
-                        IntersectionType intersectionType = (IntersectionType) upperBound;
-                        writer.print(" extends ");
-                        List<Type> partTypes = intersectionType.getBounds().stream()
-                                .map(Type::extract)
-                                .filter(Type::isNotObjectType)
-                                .collect(Collectors.toList());
-                        for (int i = 0; i < partTypes.size(); ++i) {
-                            partTypes.get(i).printType(writer, context, true, true);
-                            if (i != partTypes.size() - 1) {
-                                writer.print(" & ");
-                            }
-                        }
-                    } else {
-                        Type bound = Type.extract(upperBound);
-                        if (bound.isNotObjectType()) {
-                            writer.print(" extends ");
-                            bound.printType(writer, context, true, true);
+                List<Type> upperBounds = parameter.upperBounds;
+                List<Type> lowerBounds = parameter.lowerBounds;
+                if (!upperBounds.isEmpty()) {
+                    writer.print(" extends ");
+                    for (int i = 0; i < upperBounds.size(); ++i) {
+                        upperBounds.get(i).printType(writer, context, true, true);
+                        if (i != upperBounds.size() - 1) {
+                            writer.print(" & ");
                         }
                     }
                 }
-                if (lowerBound != null && lowerBound.getKind() != TypeKind.NONE && lowerBound.getKind() != TypeKind.NULL) {
-                    Type bound = Type.extract(lowerBound);
+                if (!lowerBounds.isEmpty()) {
                     writer.print(" super ");
-                    bound.printType(writer, context, true, true);
+                    for (int i = 0; i < lowerBounds.size(); ++i) {
+                        lowerBounds.get(i).printType(writer, context, true, true);
+                        if (i != lowerBounds.size() - 1) {
+                            writer.print(" & ");
+                        }
+                    }
                 }
             }
             start = false;
@@ -589,13 +667,13 @@ public class Type {
                 Objects.equals(simpleName, type.simpleName) &&
                 Objects.equals(parameters, type.parameters) &&
                 Objects.equals(container, type.container) &&
-                Objects.equals(upperBound, type.upperBound) &&
-                Objects.equals(lowerBound, type.lowerBound);
+                Objects.equals(upperBounds, type.upperBounds) &&
+                Objects.equals(lowerBounds, type.lowerBounds);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(packageName, simpleName, array, typeVar, wildcard, parameters, container, upperBound, lowerBound);
+        return Objects.hash(packageName, simpleName, array, typeVar, wildcard, parameters, container, upperBounds, lowerBounds);
     }
 
     @Override

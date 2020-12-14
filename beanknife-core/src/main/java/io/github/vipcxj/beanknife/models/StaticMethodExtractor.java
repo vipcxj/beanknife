@@ -17,15 +17,10 @@ public class StaticMethodExtractor implements Extractor {
     private final ExecutableElement executableElement;
     private final Type returnType;
 
-    public StaticMethodExtractor(ViewContext context, Type container, ExecutableElement executableElement) {
+    public StaticMethodExtractor(Type container, ExecutableElement executableElement, TypeMirror returnType) {
         this.container = container;
         this.executableElement = executableElement;
-        TypeMirror typeMirror = executableElement.getReturnType();
-        if (typeMirror.getKind() == TypeKind.ERROR) {
-            this.returnType = null;
-        } else {
-            this.returnType = typeMirror.getKind() != TypeKind.VOID ? Type.extract(typeMirror) : null;
-        }
+        this.returnType = returnType.getKind() != TypeKind.VOID ? Type.extract(returnType) : null;
     }
 
     @Override

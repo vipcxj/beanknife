@@ -19,11 +19,10 @@ public class DynamicMethodExtractor implements Extractor {
     private final ExecutableElement executableElement;
     private final Type returnType;
 
-    public DynamicMethodExtractor(Type container, ExecutableElement executableElement) {
+    public DynamicMethodExtractor(Type container, ExecutableElement executableElement, TypeMirror returnType) {
         this.container = container;
         this.executableElement = executableElement;
-        TypeMirror typeMirror = executableElement.getReturnType();
-        this.returnType = typeMirror.getKind() != TypeKind.VOID ? Type.extract(typeMirror) : null;
+        this.returnType = returnType.getKind() != TypeKind.VOID ? Type.extract(returnType) : null;
     }
 
     @Override

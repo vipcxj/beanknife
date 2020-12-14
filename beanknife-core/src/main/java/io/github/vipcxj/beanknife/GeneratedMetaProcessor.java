@@ -6,7 +6,6 @@ import io.github.vipcxj.beanknife.annotations.internal.GeneratedMeta;
 import io.github.vipcxj.beanknife.models.ViewContext;
 import io.github.vipcxj.beanknife.models.ViewOfData;
 import io.github.vipcxj.beanknife.models.ViewProcessorData;
-import io.github.vipcxj.beanknife.utils.ProcessorManager;
 import io.github.vipcxj.beanknife.utils.Utils;
 
 import javax.annotation.processing.*;
@@ -18,24 +17,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-@SupportedAnnotationTypes({"io.github.vipcxj.beanknife.annotations.internal.GeneratedMeta"})
+@SupportedAnnotationTypes({"io.github.vipcxj.beanknife.annotations.internal.GeneratedMeta", "io.github.vipcxj.beanknife.annotations.ViewOf", "io.github.vipcxj.beanknife.annotations.ViewOfs"})
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 @AutoService(Processor.class)
 public class GeneratedMetaProcessor extends AbstractProcessor {
 
     private Trees trees;
-    private ProcessorManager manager;
+    private ViewProcessorData viewProcessorData;
 
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
         this.trees = Trees.instance(processingEnv);
-        this.manager = new ProcessorManager(processingEnv);
+        this.viewProcessorData = new ViewProcessorData();
     }
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         try {
+            this.viewProcessorData.collect(processingEnv, roundEnv);
             for (TypeElement annotation : annotations) {
                 Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
                 for (Element element : elements) {
@@ -47,10 +47,9 @@ public class GeneratedMetaProcessor extends AbstractProcessor {
                             DeclaredType[] proxies = Utils.getTypeArrayAnnotationValue(annotationMirror, annotationValues, "proxies");
                             for (DeclaredType proxy : proxies) {
                                 TypeElement proxyElement = (TypeElement) proxy.asElement();
-                                ViewProcessorData viewProcessorData = this.manager.getData(roundEnv);
-                                List<ViewOfData> viewOfs = viewProcessorData.getByConfigElement(proxyElement);
+                                List<ViewOfData> viewOfs = this.viewProcessorData.getByConfigElement(proxyElement);
                                 for (ViewOfData viewOf : viewOfs) {
-                                    processViewOf(viewProcessorData, viewOf, targetElement);
+                                    processViewOf(this.viewProcessorData, viewOf, targetElement);
                                 }
                             }
                         }
@@ -59,7 +58,7 @@ public class GeneratedMetaProcessor extends AbstractProcessor {
             }
             return true;
         } catch (Throwable t) {
-            Utils.logError(processingEnv, t.getMessage());
+            Utils.logError(processingEnv, t);
             return false;
         }
     }

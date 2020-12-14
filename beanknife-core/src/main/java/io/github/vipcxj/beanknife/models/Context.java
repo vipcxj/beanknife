@@ -6,9 +6,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
-import javax.lang.model.type.IntersectionType;
-import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import java.io.PrintWriter;
@@ -94,20 +91,11 @@ public class Context {
         for (Type parameter : name.getParameters()) {
             importVariable(parameter);
         }
-        TypeMirror upperBound = name.getUpperBound();
-        if (upperBound != null && upperBound.getKind() != TypeKind.NONE && upperBound.getKind() != TypeKind.NULL) {
-            if (upperBound.getKind() == TypeKind.INTERSECTION) {
-                IntersectionType intersectionType = (IntersectionType) upperBound;
-                for (TypeMirror bound : intersectionType.getBounds()) {
-                    importVariable(Type.extract(bound));
-                }
-            } else {
-                importVariable(Type.extract(upperBound));
-            }
+        for (Type upperBound : name.getUpperBounds()) {
+            importVariable(upperBound);
         }
-        TypeMirror lowerBound = name.getLowerBound();
-        if (lowerBound != null && lowerBound.getKind() != TypeKind.NONE && lowerBound.getKind() != TypeKind.NULL) {
-            importVariable(Type.extract(lowerBound));
+        for (Type lowerBound : name.getLowerBounds()) {
+            importVariable(lowerBound);
         }
         return imported;
     }

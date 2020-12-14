@@ -82,7 +82,7 @@ public class ViewMetaProcessor extends AbstractProcessor {
             }
             return true;
         } catch (Throwable throwable) {
-            Utils.logError(processingEnv, throwable.getMessage());
+            Utils.logError(processingEnv, throwable);
             return false;
         }
     }

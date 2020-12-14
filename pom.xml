@@ -12,6 +12,7 @@
         <module>beanknife-core</module>
         <module>beanknife-examples</module>
         <module>beanknife-runtime</module>
+        <module>ast-test</module>
     </modules>
 
     <properties>

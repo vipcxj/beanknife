@@ -1,10 +1,12 @@
 package io.github.vipcxj.beanknife.models;
 
 import com.sun.source.tree.*;
+import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
 import io.github.vipcxj.beanknife.PropertyConverter;
 import io.github.vipcxj.beanknife.annotations.*;
 import io.github.vipcxj.beanknife.annotations.internal.GeneratedView;
+import io.github.vipcxj.beanknife.utils.TreeUtils;
 import io.github.vipcxj.beanknife.utils.Utils;
 import org.apache.commons.text.StringEscapeUtils;
 
@@ -138,7 +140,7 @@ public class ViewContext extends Context {
                     if (overrideViewProperty != null) {
                         List<DeclaredType> converters = getConverters(member);
                         String name = overrideViewProperty.value();
-                        TypeMirror newType = extractType(member);
+                        Type newType = extractType(member);
                         getProperties().replaceAll(p -> {
                             if (p.getName().equals(name)) {
                                 Property newProperty = p
@@ -172,11 +174,12 @@ public class ViewContext extends Context {
                 } else if (member.getKind() == ElementKind.METHOD) {
                     Extractor extractor;
                     Type containerType = Type.extract(configElement.asType());
+                    Type newType = extractType(member);
                     Dynamic dynamic = member.getAnnotation(Dynamic.class);
                     if (dynamic != null) {
-                        extractor = new DynamicMethodExtractor(containerType, (ExecutableElement) member);
+                        extractor = new DynamicMethodExtractor(containerType, (ExecutableElement) member, newType);
                     } else {
-                        extractor = new StaticMethodExtractor(this, containerType, (ExecutableElement) member);
+                        extractor = new StaticMethodExtractor(containerType, (ExecutableElement) member, newType);
                     }
                     if (overrideViewProperty != null) {
                         String name = overrideViewProperty.value();
@@ -614,40 +617,122 @@ public class ViewContext extends Context {
         return false;
     }
 
-    public TypeMirror extractType(Element member) {
-        if (member.getKind() == ElementKind.METHOD) {
-            ExecutableElement executableElement = (ExecutableElement) member;
-            TypeMirror type = executableElement.getReturnType();
-            if (type.getKind() != TypeKind.ERROR) {
-                return type;
-            }
-        } else if (member.getKind() == ElementKind.FIELD) {
-            TypeMirror type = member.asType();
-            if (type.getKind() != TypeKind.ERROR) {
-                return type;
+    private Type fixType(Set<String> imports, String packageName, String typeName) {
+        String fixedTypeName = viewProcessorData.fixType(imports, packageName, typeName);
+        if (fixedTypeName != null) {
+            int index = fixedTypeName.indexOf('.');
+            if (index != -1) {
+                String pName = fixedTypeName.substring(0, index);
+                String tName = fixedTypeName.substring(index + 1);
+                return Type.create(pName, tName, false, false);
+            } else {
+                return Type.create("", fixedTypeName, false, false);
             }
         } else {
-            throw new IllegalArgumentException("Not supported member type: " + member.getKind() + ".");
+            return null;
         }
-        CompilationUnitTree compilationUnit = trees.getPath(member).getCompilationUnit();
-        List<? extends ImportTree> importTrees = compilationUnit.getImports();
-        Set<String> imports = new HashSet<>();
-        for (ImportTree importTree : importTrees) {
-            if (!importTree.isStatic()) {
-                Tree qualifiedIdentifier = importTree.getQualifiedIdentifier();
-                if (qualifiedIdentifier.getKind() == Tree.Kind.MEMBER_SELECT) {
-                    MemberSelectTree memberSelectTree = (MemberSelectTree) qualifiedIdentifier;
-                }
+    }
+
+    private Type tryGetTypeMirror(CompilationUnitTree compilationUnit, Tree tree) {
+        TreePath path = trees.getPath(compilationUnit, tree);
+        TypeMirror typeMirror = trees.getTypeMirror(path);
+        if (typeMirror != null && typeMirror.getKind() != TypeKind.ERROR && typeMirror.getKind() != TypeKind.VOID && typeMirror.getKind() != TypeKind.NONE) {
+            return Type.extract(typeMirror);
+        } else {
+            return null;
+        }
+    }
+
+    private Type fixType(CompilationUnitTree compilationUnit, Set<String> imports, String packageName, Tree tree) {
+        Type type = tryGetTypeMirror(compilationUnit, tree);
+        if (type != null) {
+            return type;
+        }
+        if (tree.getKind() == Tree.Kind.PARAMETERIZED_TYPE) {
+            ParameterizedTypeTree parameterizedTypeTree = (ParameterizedTypeTree) tree;
+            Type baseType = fixType(compilationUnit, imports, packageName, parameterizedTypeTree.getType());
+            List<Type> parameters = parameterizedTypeTree.getTypeArguments()
+                    .stream()
+                    .map(t -> fixType(compilationUnit, imports, packageName, t))
+                    .collect(Collectors.toList());
+            if (baseType == null || parameters.stream().anyMatch(Objects::isNull)) {
+                return null;
+            } else {
+                return baseType.withParameters(parameters);
             }
+        } else if (tree.getKind() == Tree.Kind.MEMBER_SELECT) {
+            String typeName = TreeUtils.parseMemberSelect((MemberSelectTree) tree);
+            return fixType(imports, packageName, typeName);
+        } else if (tree.getKind() == Tree.Kind.IDENTIFIER) {
+            IdentifierTree identifierTree = (IdentifierTree) tree;
+            return fixType(imports, packageName, identifierTree.getName().toString());
+        } else if (tree.getKind() == Tree.Kind.UNBOUNDED_WILDCARD) {
+            return Type.createUnboundedWildcard();
+        } else if (tree.getKind() == Tree.Kind.EXTENDS_WILDCARD || tree.getKind() == Tree.Kind.SUPER_WILDCARD) {
+            WildcardTree wildcardTree = (WildcardTree) tree;
+            Tree bounds = wildcardTree.getBound();
+            List<Type> boundTypes;
+            if (bounds.getKind() == Tree.Kind.INTERSECTION_TYPE) {
+                IntersectionTypeTree intersectionTypeTree = (IntersectionTypeTree) bounds;
+                boundTypes = intersectionTypeTree.getBounds()
+                        .stream()
+                        .map(bound -> fixType(compilationUnit, imports, packageName, bound))
+                        .collect(Collectors.toList());
+            } else {
+                boundTypes = Collections.singletonList(fixType(compilationUnit, imports, packageName, bounds));
+            }
+            if (boundTypes.stream().anyMatch(Objects::isNull)) {
+                return null;
+            }
+            if (tree.getKind() == Tree.Kind.EXTENDS_WILDCARD) {
+                return Type.createExtendsWildcard(boundTypes);
+            } else {
+                return Type.createSuperWildcard(boundTypes);
+            }
+        } else if (tree.getKind() == Tree.Kind.TYPE_PARAMETER) {
+            TypeParameterTree typeParameterTree = (TypeParameterTree) tree;
+            List<Type> boundTypes = typeParameterTree.getBounds()
+                    .stream()
+                    .map(bound -> fixType(compilationUnit, imports, packageName, bound))
+                    .collect(Collectors.toList());
+            if (boundTypes.stream().anyMatch(Objects::isNull)) {
+                return null;
+            }
+            return Type.createTypeParameter(typeParameterTree.getName().toString(), boundTypes);
+        } else {
+            throw new UnsupportedOperationException("Unsupported tree kind: " + tree.getKind() + ".");
         }
-        Tree tree = trees.getTree(member);
+    }
+
+    public Type extractType(Element element) {
+        if (element.getKind() == ElementKind.METHOD) {
+            ExecutableElement executableElement = (ExecutableElement) element;
+            TypeMirror type = executableElement.getReturnType();
+            if (type.getKind() != TypeKind.ERROR) {
+                return Type.extract(type);
+            }
+        } else if (element.getKind() == ElementKind.FIELD) {
+            TypeMirror type = element.asType();
+            if (type.getKind() != TypeKind.ERROR) {
+                return Type.extract(type);
+            }
+        } else {
+            throw new IllegalArgumentException("Not supported element type: " + element.getKind() + ".");
+        }
+        String packageName = getProcessingEnv().getElementUtils().getPackageOf(element).getQualifiedName().toString();
+        CompilationUnitTree compilationUnit = getTrees().getPath(element).getCompilationUnit();
+        Set<String> imports = compilationUnit.getImports().stream().map(TreeUtils::parseImport).collect(Collectors.toSet());
+        Tree tree = getTrees().getTree(element);
+        Tree typeTree;
         if (tree.getKind() == Tree.Kind.METHOD) {
             MethodTree methodTree = (MethodTree) tree;
-            Tree typeTree = methodTree.getReturnType();
+            typeTree = methodTree.getReturnType();
         } else if (tree.getKind() == Tree.Kind.VARIABLE) {
             VariableTree variableTree = (VariableTree) tree;
-            Tree typeTree = variableTree.getType();
+            typeTree = variableTree.getType();
+        } else {
+            throw new UnsupportedOperationException("Unsupported tree kind: " + tree.getKind() + ".");
         }
-        return null;
+        return fixType(compilationUnit, imports, packageName, typeTree);
     }
 }
