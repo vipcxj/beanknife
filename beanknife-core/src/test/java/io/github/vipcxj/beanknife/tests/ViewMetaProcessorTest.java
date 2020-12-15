@@ -1,12 +1,11 @@
 package io.github.vipcxj.beanknife.tests;
 
-import io.github.vipcxj.beanknife.GeneratedMetaProcessor;
-import io.github.vipcxj.beanknife.ViewMetaProcessor;
-import io.github.vipcxj.beanknife.ViewOfProcessor;
+import io.github.vipcxj.beanknife.core.GeneratedMetaProcessor;
+import io.github.vipcxj.beanknife.core.ViewMetaProcessor;
+import io.github.vipcxj.beanknife.core.ViewOfProcessor;
 import org.junit.Test;
 
 import java.util.Arrays;
-import java.util.Collections;
 
 import static io.github.vipcxj.beanknife.tests.Utils.testViewCase;
 

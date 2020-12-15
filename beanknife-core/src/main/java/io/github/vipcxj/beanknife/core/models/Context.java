@@ -1,0 +1,332 @@
+package io.github.vipcxj.beanknife.core.models;
+
+import com.sun.source.tree.*;
+import com.sun.source.util.TreePath;
+import com.sun.source.util.Trees;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import io.github.vipcxj.beanknife.core.utils.TreeUtils;
+import io.github.vipcxj.beanknife.core.utils.Utils;
+
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
+import javax.tools.Diagnostic;
+import java.io.PrintWriter;
+import java.util.*;
+import java.util.stream.Collectors;
+
+public class Context {
+
+    final static String INDENT = "    ";
+
+    private final List<String> imports;
+    private final Set<String> symbols;
+    private final Stack<Map<String, String>> fieldsStack;
+    protected final Trees trees;
+    protected final ProcessingEnvironment processingEnv;
+    protected final ProcessorData processorData;
+    protected String packageName;
+    private final List<Property> properties;
+    protected final Stack<Type> containers;
+
+    public Context(@NonNull Trees trees, @NonNull ProcessingEnvironment processingEnv, ProcessorData processorData) {
+        this.imports = new ArrayList<>();
+        this.symbols = new HashSet<>();
+        this.fieldsStack = new Stack<>();
+        this.trees = trees;
+        this.processingEnv = processingEnv;
+        this.processorData = processorData;
+        this.properties = new LinkedList<>();
+        this.containers = new Stack<>();
+    }
+
+    public void enter(Type type) {
+        if (!packageName.equals(type.getPackageName())) {
+            throw new IllegalArgumentException("Package must be " + type.getPackageName() + ".");
+        }
+        containers.push(type);
+        fieldsStack.push(new HashMap<>());
+    }
+
+    public void exit() {
+        fieldsStack.pop();
+        containers.pop();
+    }
+
+    public Type getContainer() {
+        return containers.peek();
+    }
+
+    public Map<String, String> getFields() {
+        return fieldsStack.peek();
+    }
+
+    public String getMappedFieldName(@NonNull String property) {
+        return getMappedFieldName(property, property);
+    }
+
+    public String getMappedFieldName(@NonNull Property property) {
+        return getMappedFieldName(property.getName(), property.getName());
+    }
+
+    private String getMappedFieldName(@NonNull String property, @NonNull String name) {
+        String mappedName = getFields().get(property);
+        if (mappedName != null) {
+            return mappedName;
+        }
+        if (SourceVersion.isKeyword(name) || getFields().containsKey(name)) {
+            return getMappedFieldName(property, name + "_");
+        } else {
+            getFields().put(property, name);
+            return name;
+        }
+    }
+
+    public boolean importVariable(Type name) {
+        boolean imported = false;
+        if (!name.isTypeVar() && !name.isWildcard()) {
+            Type topmostEnclosingType = name.getTopmostEnclosingType();
+            String symbol = topmostEnclosingType.getSimpleName();
+            String importName = topmostEnclosingType.getQualifiedName();
+            if (symbols.contains(symbol)) {
+                imported = imports.contains(importName);
+            } else if (!name.getPackageName().isEmpty()) {
+                imported = true;
+                imports.add(importName);
+                symbols.add(symbol);
+            }
+        }
+        for (Type parameter : name.getParameters()) {
+            importVariable(parameter);
+        }
+        for (Type upperBound : name.getUpperBounds()) {
+            importVariable(upperBound);
+        }
+        for (Type lowerBound : name.getLowerBounds()) {
+            importVariable(lowerBound);
+        }
+        return imported;
+    }
+
+    public void addProperty(Property property, boolean override) {
+        Elements elementUtils = processingEnv.getElementUtils();
+        boolean done = false;
+        ListIterator<Property> iterator = properties.listIterator();
+        while (iterator.hasNext()) {
+            Property p = iterator.next();
+            if (elementUtils.hides(property.getElement(), p.getElement())) {
+                iterator.remove();
+                if (Utils.isNotObjectProperty(property)) {
+                    iterator.add(new Property(property, p.getComment()));
+                }
+                done = true;
+                break;
+            } else if (elementUtils.hides(p.getElement(), property.getElement())) {
+                done = true;
+                break;
+            } else if (p.getGetterName().equals(property.getGetterName())) {
+                if (override || (!p.isMethod() && property.isMethod())) {
+                    iterator.remove();
+                    if (Utils.isNotObjectProperty(property)) {
+                        iterator.add(new Property(property, p.getComment()));
+                    }
+                } else if (p.isMethod() == property.isMethod()) {
+                    Element ownerP = p.getElement().getEnclosingElement();
+                    Element ownerProperty = property.getElement().getEnclosingElement();
+                    processingEnv.getMessager().printMessage(
+                            Diagnostic.Kind.ERROR,
+                            "Property conflict: "
+                                    + (ownerP != null
+                                    ? p.getElement().getSimpleName() + " in " + ownerP.getSimpleName()
+                                    : p.getElement().getSimpleName())
+                                    + " / "
+                                    + (ownerProperty != null
+                                    ? property.getElement().getSimpleName() + " in " + ownerProperty.getSimpleName()
+                                    : property.getElement().getSimpleName())
+                    );
+                }
+                done = true;
+                break;
+            }
+        }
+        if (!done && Utils.isNotObjectProperty(property)) {
+            properties.add(property);
+        }
+    }
+
+    public String relativeName(Type name) {
+        return getContainer().relativeName(name, importVariable(name));
+    }
+
+    public boolean print(@NonNull PrintWriter writer) {
+        boolean printed = false;
+        if (!packageName.isEmpty()) {
+            printed = true;
+            writer.print("package ");
+            writer.print(packageName);
+            writer.print(";");
+            writer.println();
+        }
+        if (!imports.isEmpty()) {
+            boolean imported = false;
+            imports.sort(String::compareTo);
+            for (String anImport : imports) {
+                if ((!anImport.startsWith(packageName)
+                        || (anImport.length() > packageName.length() + 1 && anImport.substring(packageName.length() + 1).indexOf('.') != -1))
+                        && !anImport.startsWith("java.lang")
+                ) {
+                    if (!imported) {
+                        imported = true;
+                        printed = true;
+                        writer.println();
+                    }
+                    writer.print("import ");
+                    writer.print(anImport);
+                    writer.println(";");
+                }
+            }
+        }
+        return printed;
+    }
+
+    @NonNull
+    public String getPackageName() {
+        return packageName;
+    }
+
+    public List<Property> getProperties() {
+        return properties;
+    }
+
+    public ProcessingEnvironment getProcessingEnv() {
+        return processingEnv;
+    }
+
+    public Trees getTrees() {
+        return trees;
+    }
+
+    private Type fixType(Set<String> imports, String packageName, String typeName) {
+        String fixedTypeName = processorData.fixType(imports, packageName, typeName);
+        if (fixedTypeName != null) {
+            int index = fixedTypeName.indexOf('.');
+            if (index != -1) {
+                String pName = fixedTypeName.substring(0, index);
+                String tName = fixedTypeName.substring(index + 1);
+                return Type.create(this,  pName, tName, false, false);
+            } else {
+                return Type.create(this, "", fixedTypeName, false, false);
+            }
+        } else {
+            return null;
+        }
+    }
+
+    private Type tryGetTypeMirror(CompilationUnitTree compilationUnit, Tree tree) {
+        TreePath path = trees.getPath(compilationUnit, tree);
+        TypeMirror typeMirror = trees.getTypeMirror(path);
+        if (typeMirror != null && typeMirror.getKind() != TypeKind.ERROR && typeMirror.getKind() != TypeKind.VOID && typeMirror.getKind() != TypeKind.NONE) {
+            return Type.extract(this, typeMirror);
+        } else {
+            return null;
+        }
+    }
+
+    private Type fixType(CompilationUnitTree compilationUnit, Set<String> imports, String packageName, Tree tree) {
+        Type type = tryGetTypeMirror(compilationUnit, tree);
+        if (type != null) {
+            return type;
+        }
+        if (tree.getKind() == Tree.Kind.PARAMETERIZED_TYPE) {
+            ParameterizedTypeTree parameterizedTypeTree = (ParameterizedTypeTree) tree;
+            Type baseType = fixType(compilationUnit, imports, packageName, parameterizedTypeTree.getType());
+            List<Type> parameters = parameterizedTypeTree.getTypeArguments()
+                    .stream()
+                    .map(t -> fixType(compilationUnit, imports, packageName, t))
+                    .collect(Collectors.toList());
+            if (baseType == null || parameters.stream().anyMatch(Objects::isNull)) {
+                return null;
+            } else {
+                return baseType.withParameters(parameters);
+            }
+        } else if (tree.getKind() == Tree.Kind.MEMBER_SELECT) {
+            String typeName = TreeUtils.parseMemberSelect((MemberSelectTree) tree);
+            return fixType(imports, packageName, typeName);
+        } else if (tree.getKind() == Tree.Kind.IDENTIFIER) {
+            IdentifierTree identifierTree = (IdentifierTree) tree;
+            return fixType(imports, packageName, identifierTree.getName().toString());
+        } else if (tree.getKind() == Tree.Kind.UNBOUNDED_WILDCARD) {
+            return Type.createUnboundedWildcard(this);
+        } else if (tree.getKind() == Tree.Kind.EXTENDS_WILDCARD || tree.getKind() == Tree.Kind.SUPER_WILDCARD) {
+            WildcardTree wildcardTree = (WildcardTree) tree;
+            Tree bounds = wildcardTree.getBound();
+            List<Type> boundTypes;
+            if (bounds.getKind() == Tree.Kind.INTERSECTION_TYPE) {
+                IntersectionTypeTree intersectionTypeTree = (IntersectionTypeTree) bounds;
+                boundTypes = intersectionTypeTree.getBounds()
+                        .stream()
+                        .map(bound -> fixType(compilationUnit, imports, packageName, bound))
+                        .collect(Collectors.toList());
+            } else {
+                boundTypes = Collections.singletonList(fixType(compilationUnit, imports, packageName, bounds));
+            }
+            if (boundTypes.stream().anyMatch(Objects::isNull)) {
+                return null;
+            }
+            if (tree.getKind() == Tree.Kind.EXTENDS_WILDCARD) {
+                return Type.createExtendsWildcard(this, boundTypes);
+            } else {
+                return Type.createSuperWildcard(this, boundTypes);
+            }
+        } else if (tree.getKind() == Tree.Kind.TYPE_PARAMETER) {
+            TypeParameterTree typeParameterTree = (TypeParameterTree) tree;
+            List<Type> boundTypes = typeParameterTree.getBounds()
+                    .stream()
+                    .map(bound -> fixType(compilationUnit, imports, packageName, bound))
+                    .collect(Collectors.toList());
+            if (boundTypes.stream().anyMatch(Objects::isNull)) {
+                return null;
+            }
+            return Type.createTypeParameter(this, typeParameterTree.getName().toString(), boundTypes);
+        } else {
+            throw new UnsupportedOperationException("Unsupported tree kind: " + tree.getKind() + ".");
+        }
+    }
+
+    public Type extractType(Element element) {
+        if (element.getKind() == ElementKind.METHOD) {
+            ExecutableElement executableElement = (ExecutableElement) element;
+            TypeMirror type = executableElement.getReturnType();
+            if (type.getKind() != TypeKind.ERROR) {
+                return Type.extract(this, type);
+            }
+        } else if (element.getKind() == ElementKind.FIELD) {
+            TypeMirror type = element.asType();
+            if (type.getKind() != TypeKind.ERROR) {
+                return Type.extract(this, type);
+            }
+        } else {
+            throw new IllegalArgumentException("Not supported element type: " + element.getKind() + ".");
+        }
+        String packageName = getProcessingEnv().getElementUtils().getPackageOf(element).getQualifiedName().toString();
+        CompilationUnitTree compilationUnit = getTrees().getPath(element).getCompilationUnit();
+        Set<String> imports = compilationUnit.getImports().stream().map(TreeUtils::parseImport).collect(Collectors.toSet());
+        Tree tree = getTrees().getTree(element);
+        Tree typeTree;
+        if (tree.getKind() == Tree.Kind.METHOD) {
+            MethodTree methodTree = (MethodTree) tree;
+            typeTree = methodTree.getReturnType();
+        } else if (tree.getKind() == Tree.Kind.VARIABLE) {
+            VariableTree variableTree = (VariableTree) tree;
+            typeTree = variableTree.getType();
+        } else {
+            throw new UnsupportedOperationException("Unsupported tree kind: " + tree.getKind() + ".");
+        }
+        return fixType(compilationUnit, imports, packageName, typeTree);
+    }
+}

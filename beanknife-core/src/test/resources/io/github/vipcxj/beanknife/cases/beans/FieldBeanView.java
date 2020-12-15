@@ -1,6 +1,6 @@
 package io.github.vipcxj.beanknife.cases.beans;
 
-import io.github.vipcxj.beanknife.annotations.internal.GeneratedView;
+import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedView;
 import java.util.Date;
 
 @GeneratedView(targetClass = FieldBean.class, configClass = FieldBeanViewConfig.class)

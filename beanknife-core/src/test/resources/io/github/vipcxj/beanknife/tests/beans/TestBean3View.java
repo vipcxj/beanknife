@@ -1,6 +1,6 @@
 package io.github.vipcxj.beanknife.tests.beans;
 
-import io.github.vipcxj.beanknife.annotations.internal.GeneratedView;
+import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedView;
 
 import java.util.List;
 import java.util.Set;

@@ -1,6 +1,6 @@
 package io.github.vipcxj.beanknife.tests.beans;
 
-import io.github.vipcxj.beanknife.annotations.ViewMeta;
+import io.github.vipcxj.beanknife.runtime.annotations.ViewMeta;
 
 import java.util.Set;
 

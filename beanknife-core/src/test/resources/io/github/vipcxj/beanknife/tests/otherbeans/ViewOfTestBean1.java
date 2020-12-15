@@ -1,6 +1,6 @@
 package io.github.vipcxj.beanknife.tests.otherbeans;
 
-import io.github.vipcxj.beanknife.annotations.internal.GeneratedMeta;
+import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedMeta;
 import io.github.vipcxj.beanknife.tests.beans.TestBean1;
 
 @GeneratedMeta(targetClass = TestBean1.class, configClass = TestBean1.class)

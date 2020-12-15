@@ -1,8 +1,6 @@
 package io.github.vipcxj.beanknife.tests.beans;
 
-import io.github.vipcxj.beanknife.annotations.*;
-
-import java.util.Date;
+import io.github.vipcxj.beanknife.runtime.annotations.*;
 
 @ViewOf(value = TestBean3.class, emptyConstructor = Access.NONE, includePattern = ".*", excludes = {"d1"})
 @RemoveViewProperty("beans1")

@@ -1,7 +1,7 @@
 package io.github.vipcxj.beanknife.tests.beans;
 
-import io.github.vipcxj.beanknife.annotations.Access;
-import io.github.vipcxj.beanknife.annotations.ViewProperty;
+import io.github.vipcxj.beanknife.runtime.annotations.Access;
+import io.github.vipcxj.beanknife.runtime.annotations.ViewProperty;
 
 import java.util.List;
 import java.util.Set;

@@ -1,9 +1,9 @@
 package io.github.vipcxj.beanknife.cases.beans;
 
-import io.github.vipcxj.beanknife.annotations.NullNumberAsZero;
-import io.github.vipcxj.beanknife.annotations.OverrideViewProperty;
-import io.github.vipcxj.beanknife.annotations.ViewMeta;
-import io.github.vipcxj.beanknife.annotations.ViewOf;
+import io.github.vipcxj.beanknife.runtime.annotations.NullNumberAsZero;
+import io.github.vipcxj.beanknife.runtime.annotations.OverrideViewProperty;
+import io.github.vipcxj.beanknife.runtime.annotations.ViewMeta;
+import io.github.vipcxj.beanknife.runtime.annotations.ViewOf;
 
 @ViewMeta(of = ConverterBean.class)
 @ViewOf(value = ConverterBean.class, includes = {ConverterBeanMeta.a, ConverterBeanMeta.b})

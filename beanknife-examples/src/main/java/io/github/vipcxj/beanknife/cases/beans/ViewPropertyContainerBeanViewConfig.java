@@ -1,15 +1,13 @@
 package io.github.vipcxj.beanknife.cases.beans;
 
-import io.github.vipcxj.beanknife.annotations.AsView;
-import io.github.vipcxj.beanknife.annotations.NewViewProperty;
-import io.github.vipcxj.beanknife.annotations.OverrideViewProperty;
-import io.github.vipcxj.beanknife.annotations.ViewOf;
-
-import java.util.List;
+import io.github.vipcxj.beanknife.runtime.annotations.AsView;
+import io.github.vipcxj.beanknife.runtime.annotations.NewViewProperty;
+import io.github.vipcxj.beanknife.runtime.annotations.OverrideViewProperty;
+import io.github.vipcxj.beanknife.runtime.annotations.ViewOf;
 
 @ViewOf(value = ViewPropertyContainerBean.class, includePattern = ".*")
 public class ViewPropertyContainerBeanViewConfig {
-    @NewViewProperty("newProperty")
+/*    @NewViewProperty("newProperty")
     public GenericBeanView<String, Integer> newProperty() {
         return null;
     }
@@ -19,5 +17,5 @@ public class ViewPropertyContainerBeanViewConfig {
     private ViewPropertyBeanWithoutParent aProperty;
     @OverrideViewProperty(ViewPropertyContainerBeanMeta.children)
     @AsView(ViewPropertyBeanMeta.Views.io_github_vipcxj_beanknife_cases_beans_ViewPropertyBeanWithoutParent)
-    private List<ViewPropertyBeanWithoutParent> children;
+    private List<ViewPropertyBeanWithoutParent> children;*/
 }

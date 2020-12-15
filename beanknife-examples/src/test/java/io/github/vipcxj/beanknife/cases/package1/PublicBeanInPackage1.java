@@ -1,6 +1,6 @@
 package io.github.vipcxj.beanknife.cases.package1;
 
-import io.github.vipcxj.beanknife.annotations.ViewMeta;
+import io.github.vipcxj.beanknife.runtime.annotations.ViewMeta;
 
 @ViewMeta
 public class PublicBeanInPackage1 {
