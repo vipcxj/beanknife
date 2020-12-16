@@ -64,7 +64,7 @@ public class GeneratedMetaProcessor extends AbstractProcessor {
 
     private void processViewOf(ProcessorData processorData, ViewOfData viewOfData, TypeElement targetElement) {
         if (viewOfData.getTargetElement().equals(targetElement)) {
-            ViewContext context = new ViewContext(this.trees, processingEnv, viewOfData, processorData);
+            ViewContext context = new ViewContext(this.trees, processingEnv, processorData, viewOfData);
             try {
                 Utils.writeViewFile(context);
             } catch (IOException e) {

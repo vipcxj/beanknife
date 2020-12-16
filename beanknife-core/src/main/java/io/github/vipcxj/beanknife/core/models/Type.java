@@ -1,14 +1,16 @@
 package io.github.vipcxj.beanknife.core.models;
 
+import com.sun.source.tree.ParameterizedTypeTree;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 
 import javax.lang.model.element.*;
 import javax.lang.model.type.*;
+import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -18,7 +20,7 @@ public class Type {
     private final Context context;
     private String packageName;
     private String simpleName;
-    private boolean array;
+    private int array;
     private boolean annotation;
     private boolean typeVar;
     private boolean wildcard;
@@ -26,13 +28,13 @@ public class Type {
     private Type container;
     private List<Type> upperBounds;
     private List<Type> lowerBounds;
-    private TypeMirror typeMirror;
+    private Element element;
 
     /**
      * 构造函数
      * @param packageName 包名
      * @param simpleName 类名，不包括包名，特别的，对于嵌套类，有如下形式Parent.Nest1.Nest2
-     * @param array 是否是数组
+     * @param array 数组维数，若不是数组，则为0
      * @param parameters 泛型参数列表
      * @param upperBounds 类型上界，可为空，此时默认为 {@link Object}
      * @param container 包裹类，可为空
@@ -42,7 +44,7 @@ public class Type {
             @NonNull Context context,
             @NonNull String packageName,
             @NonNull String simpleName,
-            boolean array,
+            int array,
             boolean annotation,
             boolean typeVar,
             boolean wildcard,
@@ -50,7 +52,7 @@ public class Type {
             @CheckForNull Type container,
             @NonNull List<Type> upperBounds,
             @NonNull List<Type> lowerBounds,
-            @CheckForNull TypeMirror typeMirror
+            @CheckForNull Element element
     ) {
         this.context = context;
         this.packageName = packageName;
@@ -63,7 +65,7 @@ public class Type {
         this.container = container;
         this.upperBounds = upperBounds;
         this.lowerBounds = lowerBounds;
-        this.typeMirror = typeMirror;
+        this.element = element;
     }
 
     private Type(@NonNull Type other) {
@@ -78,22 +80,16 @@ public class Type {
         this.container = other.container;
         this.upperBounds = other.upperBounds;
         this.lowerBounds = other.lowerBounds;
-        this.typeMirror = other.typeMirror;
+        this.element = other.element;
     }
 
     @NonNull
-    public Type toArrayType(@CheckForNull ArrayType arrayType) {
-        if (array) return this;
+    public Type toArrayType() {
         if (wildcard) {
             throw new UnsupportedOperationException();
         }
-        TypeMirror typeMirror = arrayType;
-        if (typeMirror == null && this.typeMirror != null) {
-            typeMirror = context.getProcessingEnv().getTypeUtils().getArrayType(this.typeMirror);
-        }
         Type type = new Type(this);
-        type.array = true;
-        type.typeMirror = typeMirror;
+        ++type.array;
         return type;
     }
 
@@ -108,7 +104,7 @@ public class Type {
         Type type = new Type(this);
         type.simpleName = simpleName;
         type.container = removeParents ? null : container;
-        type.typeMirror = null;
+        type.element = null;
         return type;
     }
 
@@ -122,7 +118,7 @@ public class Type {
         }
         Type type = new Type(this);
         type.packageName = packageName;
-        type.typeMirror = null;
+        type.element = null;
         return type;
     }
 
@@ -136,7 +132,7 @@ public class Type {
         }
         Type type = new Type(this);
         type.simpleName += postfix;
-        type.typeMirror = null;
+        type.element = null;
         return type;
     }
 
@@ -148,7 +144,7 @@ public class Type {
         Type type = new Type(this);
         type.simpleName = getEnclosedFlatSimpleName();
         type.container = null;
-        type.typeMirror = null;
+        type.element = null;
         return type;
     }
 
@@ -159,7 +155,7 @@ public class Type {
         }
         Type type = new Type(this);
         type.parameters = Collections.emptyList();
-        type.typeMirror = null;
+        type.element = null;
         return type;
     }
 
@@ -167,6 +163,7 @@ public class Type {
     public Type withParameters(@NonNull List<Type> parameters) {
         Type type = new Type(this);
         type.parameters = parameters;
+        type.element = null;
         return type;
     }
 
@@ -189,7 +186,7 @@ public class Type {
         return (imported || type.isLangType()) ? type.getEnclosedSimpleName() : type.getQualifiedName();
     }
 
-    public static Type create(Context context, String packageName, String typeName, boolean array, boolean annotation) {
+    public static Type create(Context context, String packageName, String typeName, int array, boolean annotation) {
         return new Type(
                 context,
                 packageName,
@@ -207,45 +204,16 @@ public class Type {
     }
 
     public static Type extract(Context context, Class<?> clazz) {
-        return extract(context, context.getProcessingEnv().getElementUtils().getTypeElement(clazz.getCanonicalName()).asType());
-    }
-
-    private static List<Type> parseBounds(Context context, TypeMirror typeMirror) {
-        if (typeMirror.getKind() == TypeKind.INTERSECTION) {
-            IntersectionType intersectionType = (IntersectionType) typeMirror;
-            return intersectionType.getBounds()
-                    .stream()
-                    .map(t -> Type.extract(context, t))
-                    .filter(Type::isNotObjectType)
-                    .collect(Collectors.toList());
-        } else {
-            Type type = Type.extract(context, typeMirror);
-            return type.isNotObjectType() ? Collections.singletonList(type) : Collections.emptyList();
-        }
+        return extract(context, context.getProcessingEnv().getElementUtils().getTypeElement(clazz.getCanonicalName()));
     }
 
     @NonNull
     public static Type createWildcard(Context context, @NonNull List<Type> extendsBounds, @NonNull List<Type> supperBounds) {
-        TypeMirror typeMirror, extendsBoundsType = null, superBoundsType = null;
-        boolean validExtends = false, validSuper = false;
-        if (extendsBounds.isEmpty()) {
-            validExtends = true;
-        } else if (extendsBounds.size() == 1) {
-            extendsBoundsType = extendsBounds.get(0).typeMirror;
-            validExtends = extendsBoundsType != null;
-        }
-        if (supperBounds.isEmpty()) {
-            validSuper = true;
-        } else if (supperBounds.size() == 1) {
-            superBoundsType = supperBounds.get(0).typeMirror;
-            validSuper = superBoundsType != null;
-        }
-        typeMirror = validExtends && validSuper ? context.getProcessingEnv().getTypeUtils().getWildcardType(extendsBoundsType, superBoundsType) : null;
         return new Type(
                 context,
                 "",
                 "?",
-                false,
+                0,
                 false,
                 false,
                 true,
@@ -253,7 +221,7 @@ public class Type {
                 null,
                 extendsBounds,
                 supperBounds,
-                typeMirror
+                null
         );
     }
 
@@ -277,7 +245,7 @@ public class Type {
                 context,
                 "",
                 name,
-                false,
+                0,
                 false,
                 true,
                 false,
@@ -289,38 +257,11 @@ public class Type {
         );
     }
 
-    public static Type extract(Context context, Element element) {
-        return null;
-    }
-
-    @NonNull
-    public static Type extract(Context context, TypeMirror type) {
-        if (type.getKind().isPrimitive()) {
-            return new Type(
-                    context,
-                    "",
-                    type.toString(),
-                    false,
-                    false,
-                    false,
-                    false,
-                    Collections.emptyList(),
-                    null,
-                    Collections.emptyList(),
-                    Collections.emptyList(),
-                    type
-            );
-        } else if (type.getKind() == TypeKind.ARRAY) {
-            ArrayType arrayType = (ArrayType) type;
-            return extract(context, arrayType.getComponentType()).toArrayType(arrayType);
-        } else if (type.getKind() == TypeKind.DECLARED) {
-            DeclaredType declaredType = (DeclaredType) type;
-            List<? extends TypeMirror> typeArguments = declaredType.getTypeArguments();
-            List<Type> parameters = new ArrayList<>();
-            for (TypeMirror typeArgument : typeArguments) {
-                parameters.add(extract(context, typeArgument));
-            }
-            TypeElement element = (TypeElement) declaredType.asElement();
+    public static Type extract(@NonNull Context context, @NonNull Element element) {
+        if (element.getKind().isClass() || element.getKind().isInterface()) {
+            TypeElement typeElement = (TypeElement) element;
+            List<? extends TypeParameterElement> typeParameters = typeElement.getTypeParameters();
+            List<Type> parameters = typeParameters.stream().map(e -> extract(context, e)).collect(Collectors.toList());
             boolean annotation = element.getKind() == ElementKind.ANNOTATION_TYPE;
             Element enclosingElement = element.getEnclosingElement();
             Type parentType = null;
@@ -329,14 +270,17 @@ public class Type {
                 PackageElement packageElement = (PackageElement) enclosingElement;
                 packageName = packageElement.getQualifiedName().toString();
             } else {
-                parentType = extract(context, enclosingElement.asType());
+                parentType = extract(context, enclosingElement);
+                if (parentType == null) {
+                    return null;
+                }
                 packageName = parentType.packageName;
             }
             return new Type(
                     context,
                     packageName,
                     element.getSimpleName().toString(),
-                    false,
+                    0,
                     annotation,
                     false,
                     false,
@@ -344,45 +288,188 @@ public class Type {
                     parentType,
                     Collections.emptyList(),
                     Collections.emptyList(),
-                    type
+                    element
             );
-        } else if (type.getKind() == TypeKind.TYPEVAR) {
-            TypeVariable typeVariable = (TypeVariable) type;
-            TypeMirror lowerBound = typeVariable.getLowerBound();
+        } else if (
+                element.getKind() == ElementKind.FIELD
+                || element.getKind() == ElementKind.ENUM_CONSTANT
+                || element.getKind() == ElementKind.PARAMETER
+                || element.getKind() == ElementKind.LOCAL_VARIABLE
+                || element.getKind() == ElementKind.RESOURCE_VARIABLE
+                || element.getKind() == ElementKind.EXCEPTION_PARAMETER
+        ) {
+            return extract(context, element, element.asType());
+        } else if (element.getKind() == ElementKind.METHOD) {
+            ExecutableElement executableElement = (ExecutableElement) element;
+            return extract(context, executableElement, executableElement.getReturnType());
+        } else if (element.getKind() == ElementKind.PACKAGE) {
+            PackageElement packageElement = (PackageElement) element;
+            return fromPackage(context, packageElement.isUnnamed() ? "" : packageElement.getQualifiedName().toString());
+        } else if (element.getKind() == ElementKind.TYPE_PARAMETER) {
+            TypeParameterElement typeParameterElement = (TypeParameterElement) element;
+            List<Type> bounds = typeParameterElement.getBounds()
+                    .stream()
+                    .map(bound -> extract(context, typeParameterElement, bound))
+                    .filter(type -> type == null || type.isNotObjectType())
+                    .collect(Collectors.toList());
+            if (bounds.stream().anyMatch(Objects::isNull)) {
+                return null;
+            }
+            return createTypeParameter(context, typeParameterElement.getSimpleName().toString(), bounds);
+        }
+        throw new UnsupportedOperationException("Unsupported element kind: " + element.getKind() + ".");
+    }
+
+    @CheckForNull
+    public static Type extract(@NonNull Context context, @CheckForNull Element element, @NonNull TypeMirror type) {
+        if (type.getKind().isPrimitive()) {
             return new Type(
                     context,
                     "",
                     type.toString(),
+                    0,
                     false,
                     false,
-                    true,
                     false,
                     Collections.emptyList(),
                     null,
-                    parseBounds(context, typeVariable.getUpperBound()),
-                    lowerBound.getKind() != TypeKind.NULL ? parseBounds(context, lowerBound) : Collections.emptyList(),
-                    type
-            );
-        } else if (type.getKind() == TypeKind.WILDCARD) {
-            WildcardType wildcardType = (WildcardType) type;
-            TypeMirror extendsBound = wildcardType.getExtendsBound();
-            TypeMirror superBound = wildcardType.getSuperBound();
-            return new Type(
-                    context,
-                    "",
-                    "?",
-                    false,
-                    false,
-                    false,
-                    true,
                     Collections.emptyList(),
-                    null,
-                    extendsBound != null ? parseBounds(context, extendsBound) : Collections.emptyList(),
-                    superBound != null ? parseBounds(context, superBound) : Collections.emptyList(),
-                    type
+                    Collections.emptyList(),
+                    element
             );
+        } else if (type.getKind() == TypeKind.ARRAY) {
+            ArrayType arrayType = (ArrayType) type;
+            Type componentType = extract(context, element, arrayType.getComponentType());
+            return componentType != null ? componentType.toArrayType() : null;
+        } else if (type.getKind() == TypeKind.DECLARED) {
+            DeclaredType declaredType = (DeclaredType) type;
+            Element theElement = declaredType.asElement();
+            if (theElement.getKind().isClass() || theElement.getKind().isInterface()) {
+                return extract(context, theElement);
+            } else {
+                throw new IllegalStateException("This is impossible. The element kind is " + theElement.getKind());
+            }
+        } else if (type.getKind() == TypeKind.TYPEVAR) {
+            TypeVariable typeVariable = (TypeVariable) type;
+            Element theElement = typeVariable.asElement();
+            if (theElement.getKind() == ElementKind.TYPE_PARAMETER) {
+                return extract(context, theElement);
+            } else {
+                throw new IllegalStateException("This is impossible. The element kind is " + theElement.getKind());
+            }
+//        } else if (type.getKind() == TypeKind.WILDCARD) {
+//            WildcardType wildcardType = (WildcardType) type;
+//            TypeMirror extendsBound = wildcardType.getExtendsBound();
+//            TypeMirror superBound = wildcardType.getSuperBound();
+//            return new Type(
+//                    context,
+//                    "",
+//                    "?",
+//                    false,
+//                    false,
+//                    false,
+//                    true,
+//                    Collections.emptyList(),
+//                    null,
+//                    extendsBound != null ? parseBounds(context, extendsBound) : Collections.emptyList(),
+//                    superBound != null ? parseBounds(context, superBound) : Collections.emptyList(),
+//                    type
+//            );
+        } else if (type.getKind() == TypeKind.VOID) {
+            return null;
+        } else if (type.getKind() == TypeKind.ERROR) {
+            return element != null ? context.extractType(element) : null;
         } else {
             throw new UnsupportedOperationException("Type " + type + " is not supported.");
+        }
+    }
+
+    public TypeMirror getTypeMirror() {
+        if (element != null) {
+            if (element.getKind() == ElementKind.METHOD) {
+                ExecutableElement executableElement = (ExecutableElement) this.element;
+                return executableElement.getReturnType();
+            } else {
+                return element.asType();
+            }
+        } else if (isPrimate()) {
+            Types typeUtils = context.getProcessingEnv().getTypeUtils();
+            TypeMirror typeMirror;
+            if (isBoolean()) {
+                typeMirror = typeUtils.getPrimitiveType(TypeKind.BOOLEAN);
+            } else if (isChar()) {
+                typeMirror = typeUtils.getPrimitiveType(TypeKind.CHAR);
+            } else if (isByte()) {
+                typeMirror = typeUtils.getPrimitiveType(TypeKind.BYTE);
+            } else if (isShort()) {
+                typeMirror = typeUtils.getPrimitiveType(TypeKind.SHORT);
+            } else if (isInt()) {
+                typeMirror = typeUtils.getPrimitiveType(TypeKind.INT);
+            } else if (isLong()) {
+                typeMirror = typeUtils.getPrimitiveType(TypeKind.LONG);
+            } else if (isFloat()) {
+                typeMirror = typeUtils.getPrimitiveType(TypeKind.FLOAT);
+            } else if (isDouble()) {
+                typeMirror = typeUtils.getPrimitiveType(TypeKind.DOUBLE);
+            } else {
+                throw new IllegalArgumentException("This is impossible.");
+            }
+            for (int i = 0; i < array; ++i) {
+                typeMirror = typeUtils.getArrayType(typeMirror);
+            }
+            return typeMirror;
+        } else if (!isTypeVar() && !isWildcard()) {
+            Types typeUtils = context.getProcessingEnv().getTypeUtils();
+            Elements elementUtils = context.getProcessingEnv().getElementUtils();
+            TypeElement typeElement = elementUtils.getTypeElement(getQualifiedName());
+            if (typeElement == null) {
+                return null;
+            }
+            List<TypeMirror> typeParameters = parameters.stream().map(Type::getTypeMirror).collect(Collectors.toList());
+            if (typeParameters.stream().anyMatch(Objects::isNull)) {
+                return null;
+            }
+            TypeMirror containerTypeMirror = null;
+            if (container != null) {
+                containerTypeMirror = container.getTypeMirror();
+                if (containerTypeMirror == null || containerTypeMirror.getKind() != TypeKind.DECLARED) {
+                    return null;
+                }
+            }
+            return typeUtils.getDeclaredType((DeclaredType) containerTypeMirror, typeElement, typeParameters.toArray(new TypeMirror[0]));
+        } else {
+            return null;
+        }
+    }
+
+    public boolean canAssignTo(TypeMirror target) {
+        TypeMirror typeMirror = getTypeMirror();
+        if (typeMirror != null) {
+            Types typeUtils = context.getProcessingEnv().getTypeUtils();
+            return typeUtils.isAssignable(typeMirror, target);
+        } else {
+            return Utils.isThisType(target, Object.class);
+        }
+    }
+
+    public boolean canAssignTo(Type targetType) {
+        TypeMirror typeMirror = getTypeMirror();
+        TypeMirror targetTypeMirror = targetType.getTypeMirror();
+        if (typeMirror != null && targetTypeMirror != null) {
+            Types typeUtils = context.getProcessingEnv().getTypeUtils();
+            return typeUtils.isAssignable(typeMirror, targetTypeMirror);
+        } else {
+            return !targetType.isNotObjectType();
+        }
+    }
+
+    public boolean canBeAssignedBy(TypeMirror source) {
+        TypeMirror typeMirror = getTypeMirror();
+        if (typeMirror != null) {
+            Types typeUtils = context.getProcessingEnv().getTypeUtils();
+            return typeUtils.isAssignable(source, typeMirror);
+        } else {
+            return !isNotObjectType();
         }
     }
 
@@ -391,7 +478,7 @@ public class Type {
                 context,
                 packageName,
                 "",
-                false,
+                0,
                 false,
                 false,
                 false,
@@ -485,8 +572,12 @@ public class Type {
         );
     }
 
-    public boolean isArray() {
+    public int getArray() {
         return array;
+    }
+
+    public boolean isArray() {
+        return array > 0;
     }
 
     public boolean isAnnotation() {
@@ -529,12 +620,58 @@ public class Type {
         return packageName.isEmpty() && "boolean".equals(simpleName);
     }
 
+    public boolean isChar() {
+        return packageName.isEmpty() && "char".equals(simpleName);
+    }
+
+    public boolean isByte() {
+        return packageName.isEmpty() && "byte".equals(simpleName);
+    }
+
+    public boolean isShort() {
+        return packageName.isEmpty() && "short".equals(simpleName);
+    }
+
+    public boolean isInt() {
+        return packageName.isEmpty() && "int".equals(simpleName);
+    }
+
+    public boolean isLong() {
+        return packageName.isEmpty() && "long".equals(simpleName);
+    }
+
+    public boolean isFloat() {
+        return packageName.isEmpty() && "float".equals(simpleName);
+    }
+
+    public boolean isDouble() {
+        return packageName.isEmpty() && "double".equals(simpleName);
+    }
+
     public boolean isNested() {
         return container != null;
     }
 
     public boolean isPackage() {
         return simpleName.isEmpty();
+    }
+
+    public boolean isPrimate() {
+        return packageName.isEmpty()
+                && !typeVar
+                && !wildcard
+                && parameters.isEmpty()
+                && container == null
+                && upperBounds.isEmpty()
+                && lowerBounds.isEmpty()
+                && (simpleName.equals("boolean")
+                || simpleName.equals("char")
+                || simpleName.equals("byte")
+                || simpleName.equals("short")
+                || simpleName.equals("int")
+                || simpleName.equals("long")
+                || simpleName.equals("float")
+                || simpleName.equals("double"));
     }
 
     public void openClass(@NonNull PrintWriter writer, @NonNull Modifier modifier, @NonNull Context context, String indent, int indentNum) {
@@ -625,7 +762,7 @@ public class Type {
         if (generic) {
             printGenericParameters(writer, context, withBound);
         }
-        if (isArray()) {
+        for (int i = 0; i < array; ++i) {
             writer.print("[]");
         }
     }

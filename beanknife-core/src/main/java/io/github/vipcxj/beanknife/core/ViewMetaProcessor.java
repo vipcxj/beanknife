@@ -1,12 +1,10 @@
 package io.github.vipcxj.beanknife.core;
 
 import com.google.auto.service.AutoService;
+import com.sun.source.util.Trees;
+import io.github.vipcxj.beanknife.core.models.*;
 import io.github.vipcxj.beanknife.runtime.annotations.ViewMeta;
 import io.github.vipcxj.beanknife.runtime.annotations.ViewMetas;
-import io.github.vipcxj.beanknife.core.models.MetaContext;
-import io.github.vipcxj.beanknife.core.models.Type;
-import io.github.vipcxj.beanknife.core.models.ViewMetaData;
-import io.github.vipcxj.beanknife.core.models.ViewOfData;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 
 import javax.annotation.processing.*;
@@ -22,6 +20,16 @@ import java.util.*;
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 @AutoService(Processor.class)
 public class ViewMetaProcessor extends AbstractProcessor {
+
+    private Trees trees;
+    private ProcessorData processorData;
+
+    @Override
+    public synchronized void init(ProcessingEnvironment processingEnv) {
+        super.init(processingEnv);
+        this.trees = Trees.instance(processingEnv);
+        this.processorData = new ProcessorData();
+    }
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
@@ -43,16 +51,11 @@ public class ViewMetaProcessor extends AbstractProcessor {
                             TypeElement targetElement = viewMeta.getOf();
                             TypeElement mostImportantViewMetaElement = getMostImportantViewMetaElement(roundEnv, targetElement);
                             if (mostImportantViewMetaElement != null && !Objects.equals(configElement, mostImportantViewMetaElement)) {
-                                Type genType = Utils.extractGenType(
-                                        Type.extract(targetElement.asType()),
-                                        viewMeta.getValue(),
-                                        viewMeta.getPackageName(),
-                                        "Meta"
-                                ).withoutParameters();
+                                String genTypeName = Utils.extractGenTypeName(targetElement, viewMeta.getValue(), viewMeta.getPackageName(), "Meta");
                                 Utils.logWarn(
                                         processingEnv,
                                         "The meta class \"" +
-                                                genType.getQualifiedName() +
+                                                genTypeName +
                                                 "\" which configured on \"" +
                                                 configElement.getQualifiedName() +
                                                 "\" will not be generated, " +
@@ -62,7 +65,7 @@ public class ViewMetaProcessor extends AbstractProcessor {
                                 continue;
                             }
                             List<ViewOfData> viewOfDataList = Utils.collectViewOfs(processingEnv, roundEnv, targetElement);
-                            MetaContext context = new MetaContext(processingEnv, viewMeta, viewOfDataList);
+                            MetaContext context = new MetaContext(trees, processingEnv, processorData, viewMeta, viewOfDataList);
                             String genQualifiedName = context.getGenType().getQualifiedName();
                             if (!targetClassNames.contains(genQualifiedName)) {
                                 targetClassNames.add(genQualifiedName);

@@ -27,6 +27,11 @@ public class ProcessorData {
         return errors;
     }
 
+    @CheckForNull
+    public ViewOfData getByGenName(@NonNull String qualifiedNameWithoutParameters) {
+        return viewOfDataByGenTypeName.get(qualifiedNameWithoutParameters);
+    }
+
     @NonNull
     public List<ViewOfData> getByTargetElement(@NonNull TypeElement target) {
         List<ViewOfData> viewOfDataList = viewOfDataByTargetTypeName.get(target.getQualifiedName().toString());

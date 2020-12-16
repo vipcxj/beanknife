@@ -172,7 +172,7 @@ public class Utils {
                 modifier,
                 resolveGetterAccess(viewOf, getter),
                 resolveSetterAccess(viewOf, setter),
-                Type.extract(context, type),
+                Type.extract(context, e),
                 false,
                 createGetterName(name, type.getKind() == TypeKind.BOOLEAN),
                 setterName,
@@ -212,7 +212,7 @@ public class Utils {
                 getPropertyModifier(e),
                 resolveGetterAccess(viewOf, viewProperty != null ? viewProperty.getter() : Access.UNKNOWN),
                 resolveSetterAccess(viewOf, viewProperty != null ? viewProperty.setter() : Access.UNKNOWN),
-                Type.extract(context, type),
+                Type.extract(context, e),
                 true,
                 methodName,
                 setterName,
@@ -515,14 +515,18 @@ public class Utils {
         }
     }
 
-    public static void printAnnotationValue(@NonNull PrintWriter writer, @NonNull AnnotationValue annValue, @NonNull Context context, String indent, int indentNum) {
+/*    public static void printAnnotationValue(@NonNull PrintWriter writer, @NonNull AnnotationValue annValue, @NonNull Context context, String indent, int indentNum) {
         Object value = annValue.getValue();
         AnnotationValueKind valueType = getAnnotationValueType(annValue);
         switch (valueType) {
             case ENUM: {
                 VariableElement enumValue = (VariableElement) value;
                 TypeElement enumClass = (TypeElement) enumValue.getEnclosingElement();
-                Type enumClassType = Type.extract(context, enumClass.asType());
+                Type enumClassType = Type.extract(context, enumClass);
+                if (enumClassType == null) {
+                    context.error("Unable to resolve type: " + enumClass.getQualifiedName() + ".");
+                    return;
+                }
                 enumClassType.printType(writer, context, false, false);
                 writer.print(".");
                 writer.print(enumValue.getSimpleName());
@@ -594,7 +598,7 @@ public class Utils {
 
     public static void printAnnotation(@NonNull PrintWriter writer, @NonNull AnnotationMirror annotation, @NonNull Context context, String indent, int indentNum) {
         writer.print("@");
-        Type type = Type.extract(context, annotation.getAnnotationType());
+        Type type = Type.extract(context, annotation.getAnnotationType().asElement());
         type.printType(writer, context, false, false);
         Map<? extends ExecutableElement, ? extends AnnotationValue> attributes = context.getProcessingEnv().getElementUtils().getElementValuesWithDefaults(annotation);
         boolean shouldBreakLine = shouldBreakLineForPrintingAnnotation(attributes.values());
@@ -635,7 +639,7 @@ public class Utils {
                 ++i;
             }
         }
-    }
+    }*/
 
     public static boolean shouldIgnoredElement(Element element) {
         GeneratedMeta generatedMeta = element.getAnnotation(GeneratedMeta.class);

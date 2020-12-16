@@ -1,6 +1,8 @@
 package io.github.vipcxj.beanknife.core;
 
 import com.google.auto.service.AutoService;
+import com.sun.source.util.Trees;
+import io.github.vipcxj.beanknife.core.models.ProcessorData;
 import io.github.vipcxj.beanknife.runtime.annotations.ViewMeta;
 import io.github.vipcxj.beanknife.runtime.annotations.ViewMetas;
 import io.github.vipcxj.beanknife.core.models.MetaContext;
@@ -22,13 +24,19 @@ import java.util.*;
 @AutoService(Processor.class)
 public class ViewOfProcessor extends AbstractProcessor {
 
+    private Trees trees;
+    private ProcessorData processorData;
+
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
+        this.trees = Trees.instance(processingEnv);
+        this.processorData = new ProcessorData();
     }
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        this.processorData.collect(processingEnv, roundEnv);
         for (TypeElement annotation : annotations) {
             Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
             for (Element element : elements) {
@@ -50,7 +58,7 @@ public class ViewOfProcessor extends AbstractProcessor {
                         TypeElement mostImportantViewConfigElement = getMostImportantViewConfigElement(viewOfDataList);
                         if (Objects.equals(typeElement, mostImportantViewConfigElement)) {
                             ViewMetaData viewMetaData = new ViewMetaData("", "", viewOf.getTargetElement(), viewOf.getTargetElement());
-                            MetaContext metaContext = new MetaContext(processingEnv, viewMetaData, viewOfDataList);
+                            MetaContext metaContext = new MetaContext(trees, processingEnv, processorData, viewMetaData, viewOfDataList);
                             String metaClassName = metaContext.getGenType().getQualifiedName();
                             if (!metaClassNames.contains(metaClassName)) {
                                 metaClassNames.add(metaClassName);

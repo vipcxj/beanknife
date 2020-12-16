@@ -27,7 +27,7 @@ public class MetaContext extends Context {
         this.viewOfDataList = viewOfDataList;
         TypeElement targetElement = viewMeta.getOf();
         this.genType = Utils.extractGenType(
-                Type.extract(this, targetElement.asType()),
+                Type.extract(this, targetElement),
                 viewMeta.getValue(),
                 viewMeta.getPackageName(),
                 "Meta"
@@ -66,11 +66,11 @@ public class MetaContext extends Context {
 
     private void importAll() {
         importVariable(generatedType);
-        importVariable(Type.extract(this, viewMeta.getOf().asType()));
-        importVariable(Type.extract(this, viewMeta.getConfig().asType()));
+        importVariable(Type.extract(this, viewMeta.getOf()));
+        importVariable(Type.extract(this, viewMeta.getConfig()));
         if (!viewOfDataList.isEmpty()) {
             for (ViewOfData viewOfData : viewOfDataList) {
-                importVariable(Type.extract(this, viewOfData.getConfigElement().asType()));
+                importVariable(Type.extract(this, viewOfData.getConfigElement()));
             }
         }
     }
@@ -87,18 +87,18 @@ public class MetaContext extends Context {
             writer.println("(");
             Utils.printIndent(writer, INDENT, 1);
             writer.print("targetClass = ");
-            Type.extract(this, viewMeta.getOf().asType()).printType(writer, this, false, false);
+            Type.extract(this, viewMeta.getOf()).printType(writer, this, false, false);
             writer.println(".class,");
             Utils.printIndent(writer, INDENT, 1);
             writer.print("configClass = ");
-            Type.extract(this, viewMeta.getConfig().asType()).printType(writer, this, false, false);
+            Type.extract(this, viewMeta.getConfig()).printType(writer, this, false, false);
             writer.println(".class,");
             Utils.printIndent(writer, INDENT, 1);
             writer.println("proxies = {");
             int i = 0;
             for (ViewOfData viewOfData : viewOfDataList) {
                 Utils.printIndent(writer, INDENT, 2);
-                Type configType = Type.extract(this, viewOfData.getConfigElement().asType());
+                Type configType = Type.extract(this, viewOfData.getConfigElement());
                 configType.printType(writer, this, false, false);
                 writer.print(".class");
                 if (i++ != viewOfNum - 1) {
@@ -111,10 +111,10 @@ public class MetaContext extends Context {
             writer.println("}");
         } else {
             writer.print("(targetClass = ");
-            Type.extract(this, viewMeta.getOf().asType()).printType(writer, this, false, false);
+            Type.extract(this, viewMeta.getOf()).printType(writer, this, false, false);
             writer.print(".class, ");
             writer.print("configClass = ");
-            Type.extract(this, viewMeta.getConfig().asType()).printType(writer, this, false, false);
+            Type.extract(this, viewMeta.getConfig()).printType(writer, this, false, false);
             writer.print(".class");
         }
         writer.println(")");
@@ -138,7 +138,7 @@ public class MetaContext extends Context {
             names.clear();
             viewOfDataList.stream()
                     .map(viewOfData -> Utils.extractGenType(
-                            Type.extract(this, viewOfData.getTargetElement().asType()),
+                            Type.extract(this, viewOfData.getTargetElement()),
                             viewOfData.getGenName(),
                             viewOfData.getGenPackage(),
                             "View"

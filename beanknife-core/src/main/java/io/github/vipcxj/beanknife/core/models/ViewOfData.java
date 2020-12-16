@@ -13,6 +13,7 @@ import javax.lang.model.type.DeclaredType;
 import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class ViewOfData {
@@ -222,20 +223,30 @@ public class ViewOfData {
         writer.println(",");
     }
 
-    public void print(PrintWriter writer, Context context, String indent, int indentNum) {
+    private void printElement(@NonNull PrintWriter writer, @NonNull Context context, @NonNull Element element) {
+        Type type = Type.extract(context, element);
+        if (type == null) {
+            context.error("Unable to resolve element: " + element + ".");
+            writer.print(element);
+        } else {
+            type.printType(writer, context, false, false);
+        }
+    }
+
+    public void print(@NonNull PrintWriter writer, @NonNull Context context, @NonNull String indent, int indentNum) {
         writer.print("@");
         Type viewOfType = Type.extract(context, ViewOf.class);
         viewOfType.printType(writer, context, false, false);
         TypeElement access = context.getProcessingEnv().getElementUtils().getTypeElement(Access.class.getCanonicalName());
-        Type accessType = Type.extract(context, access.asType());
+        Type accessType = Objects.requireNonNull(Type.extract(context, access));
         writer.println("(");
         Utils.printIndent(writer, indent, indentNum + 1);
         writer.print("value = ");
-        Type.extract(context, targetElement.asType()).printType(writer, context, false, false);
+        printElement(writer, context, targetElement);
         writer.println(".class,");
         Utils.printIndent(writer, indent, indentNum + 1);
         writer.print("config = ");
-        Type.extract(context, configElement.asType()).printType(writer, context, false, false);
+        printElement(writer, context, configElement);
         writer.println(".class,");
         printStringAnnotationValue(writer, "genPackage", genPackage, indent, indentNum + 1);
         printStringAnnotationValue(writer, "genName", genName, indent, indentNum + 1);

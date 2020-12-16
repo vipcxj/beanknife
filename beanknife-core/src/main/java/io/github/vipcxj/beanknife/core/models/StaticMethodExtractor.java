@@ -7,8 +7,6 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
 import java.io.PrintWriter;
 import java.util.List;
 
@@ -18,10 +16,10 @@ public class StaticMethodExtractor implements Extractor {
     private final ExecutableElement executableElement;
     private final Type returnType;
 
-    public StaticMethodExtractor(Type container, ExecutableElement executableElement, TypeMirror returnType) {
+    public StaticMethodExtractor(Context context, Type container, ExecutableElement executableElement) {
         this.container = container;
         this.executableElement = executableElement;
-        this.returnType = returnType.getKind() != TypeKind.VOID ? Type.extract(returnType) : null;
+        this.returnType = Type.extract(context, executableElement);
     }
 
     @Override
@@ -51,7 +49,7 @@ public class StaticMethodExtractor implements Extractor {
             return false;
         }
         if (parameters.size() == 1) {
-            Type paramType = Type.extract(parameters.get(0).asType());
+            Type paramType = Type.extract(context, parameters.get(0));
             if (!context.getTargetType().equals(paramType)) {
                 context.error("The static property method \"" +
                         name +

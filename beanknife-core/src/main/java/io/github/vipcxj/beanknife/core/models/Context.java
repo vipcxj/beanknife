@@ -3,6 +3,7 @@ package io.github.vipcxj.beanknife.core.models;
 import com.sun.source.tree.*;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.github.vipcxj.beanknife.core.utils.TreeUtils;
 import io.github.vipcxj.beanknife.core.utils.Utils;
@@ -10,8 +11,6 @@ import io.github.vipcxj.beanknife.core.utils.Utils;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
@@ -33,6 +32,7 @@ public class Context {
     protected String packageName;
     private final List<Property> properties;
     protected final Stack<Type> containers;
+    protected final List<String> errors;
 
     public Context(@NonNull Trees trees, @NonNull ProcessingEnvironment processingEnv, ProcessorData processorData) {
         this.imports = new ArrayList<>();
@@ -43,6 +43,7 @@ public class Context {
         this.processorData = processorData;
         this.properties = new LinkedList<>();
         this.containers = new Stack<>();
+        this.errors = new ArrayList<>();
     }
 
     public void enter(Type type) {
@@ -218,9 +219,9 @@ public class Context {
             if (index != -1) {
                 String pName = fixedTypeName.substring(0, index);
                 String tName = fixedTypeName.substring(index + 1);
-                return Type.create(this,  pName, tName, false, false);
+                return Type.create(this,  pName, tName, 0, false);
             } else {
-                return Type.create(this, "", fixedTypeName, false, false);
+                return Type.create(this, "", fixedTypeName, 0, false);
             }
         } else {
             return null;
@@ -229,9 +230,10 @@ public class Context {
 
     private Type tryGetTypeMirror(CompilationUnitTree compilationUnit, Tree tree) {
         TreePath path = trees.getPath(compilationUnit, tree);
+        Element element = trees.getElement(path);
         TypeMirror typeMirror = trees.getTypeMirror(path);
         if (typeMirror != null && typeMirror.getKind() != TypeKind.ERROR && typeMirror.getKind() != TypeKind.VOID && typeMirror.getKind() != TypeKind.NONE) {
-            return Type.extract(this, typeMirror);
+            return Type.extract(this, element, typeMirror);
         } else {
             return null;
         }
@@ -298,21 +300,8 @@ public class Context {
         }
     }
 
-    public Type extractType(Element element) {
-        if (element.getKind() == ElementKind.METHOD) {
-            ExecutableElement executableElement = (ExecutableElement) element;
-            TypeMirror type = executableElement.getReturnType();
-            if (type.getKind() != TypeKind.ERROR) {
-                return Type.extract(this, type);
-            }
-        } else if (element.getKind() == ElementKind.FIELD) {
-            TypeMirror type = element.asType();
-            if (type.getKind() != TypeKind.ERROR) {
-                return Type.extract(this, type);
-            }
-        } else {
-            throw new IllegalArgumentException("Not supported element type: " + element.getKind() + ".");
-        }
+    @CheckForNull
+    public Type extractType(@NonNull Element element) {
         String packageName = getProcessingEnv().getElementUtils().getPackageOf(element).getQualifiedName().toString();
         CompilationUnitTree compilationUnit = getTrees().getPath(element).getCompilationUnit();
         Set<String> imports = compilationUnit.getImports().stream().map(TreeUtils::parseImport).collect(Collectors.toSet());
@@ -328,5 +317,10 @@ public class Context {
             throw new UnsupportedOperationException("Unsupported tree kind: " + tree.getKind() + ".");
         }
         return fixType(compilationUnit, imports, packageName, typeTree);
+    }
+
+    public void error(String message) {
+        errors.add(message);
+        Utils.logWarn(getProcessingEnv(), message);
     }
 }

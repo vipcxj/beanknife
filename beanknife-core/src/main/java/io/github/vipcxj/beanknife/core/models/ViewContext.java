@@ -30,13 +30,12 @@ public class ViewContext extends Context {
     private final Type genType;
     private final Type generatedType;
     private final boolean samePackage;
-    private final List<String> errors;
 
     public ViewContext(@NonNull Trees trees, @NonNull ProcessingEnvironment processingEnv, @NonNull ProcessorData processorData, @NonNull ViewOfData viewOf) {
         super(trees, processingEnv, processorData);
         this.viewOf = viewOf;
-        this.targetType = Type.extract(this, viewOf.getTargetElement().asType());
-        this.configType = Type.extract(this, viewOf.getConfigElement().asType());
+        this.targetType = Type.extract(this, viewOf.getTargetElement());
+        this.configType = Type.extract(this, viewOf.getConfigElement());
         this.genType = Utils.extractGenType(
                 this.targetType,
                 viewOf.getGenName(),
@@ -47,7 +46,6 @@ public class ViewContext extends Context {
         this.packageName = this.genType.getPackageName();
         this.samePackage = this.targetType.isSamePackage(this.genType);
         this.containers.push(Type.fromPackage(this, this.packageName));
-        this.errors = new ArrayList<>();
     }
 
     public ViewOfData getViewOf() {
@@ -69,11 +67,6 @@ public class ViewContext extends Context {
     private int checkAnnConflict(NewViewProperty newViewProperty, OverrideViewProperty overrideViewProperty) {
         return (newViewProperty != null ? 1 : 0)
                 + (overrideViewProperty != null ? 1 : 0);
-    }
-
-    public void error(String message) {
-        errors.add(message);
-        Utils.logWarn(getProcessingEnv(), message);
     }
 
     public void collectData() {
@@ -133,28 +126,27 @@ public class ViewContext extends Context {
                     if (overrideViewProperty != null) {
                         List<DeclaredType> converters = getConverters(member);
                         String name = overrideViewProperty.value();
-                        Type newType = extractType(member);
+                        Type newType = Type.extract(this, member);
                         getProperties().replaceAll(p -> {
                             if (p.getName().equals(name)) {
                                 Property newProperty = p
                                         .withGetterAccess(Utils.resolveGetterAccess(viewOf, overrideViewProperty.getter()))
                                         .withSetterAccess(Utils.resolveSetterAccess(viewOf, overrideViewProperty.setter()));
-                                DeclaredType converter = selectConverter(member, converters, member.asType(), p.getTypeMirror());
-                                // DeclaredType viewTarget = getViewTarget(newType);
-                                // boolean isView = false;
+                                TypeElement converter = selectConverter(member, converters, member.asType(), p.getTypeMirror());
+                                DeclaredType viewTarget = getViewTarget(newType);
+                                boolean isView = false;
                                 if (!getProcessingEnv().getTypeUtils().isAssignable(p.getTypeMirror(), null) && converter == null) {
-                                    // if (viewTarget == null) {
+                                    if (viewTarget == null) {
                                         error("The property " + p.getName() + " can not be override because type mismatched.");
                                         return null;
-                                    // }
-//                                    if (!getProcessingEnv().getTypeUtils().isSameType(viewTarget, p.getTypeMirror())) {
-//                                        error("The property \" + p.getName() + \" can not be override, because it is not the view type of " + p.getType().getQualifiedName() + ".");
-//                                        return null;
-//                                    }
-//                                    isView = true;
+                                    }
+                                    if (!getProcessingEnv().getTypeUtils().isSameType(viewTarget, p.getTypeMirror())) {
+                                        error("The property \" + p.getName() + \" can not be override, because it is not the view type of " + p.getType().getQualifiedName() + ".");
+                                        return null;
+                                    }
+                                    isView = true;
                                 }
-                                // newProperty = newProperty.withType(newType, isView ? viewTarget : null);
-                                newProperty = newProperty.withType(null, null);
+                                newProperty = newProperty.withType(newType, isView ? viewTarget : null);
                                 return converter != null ? newProperty.withConverter(converter) : newProperty;
                             } else {
                                 return p;
@@ -166,13 +158,13 @@ public class ViewContext extends Context {
                     }
                 } else if (member.getKind() == ElementKind.METHOD) {
                     Extractor extractor;
-                    Type containerType = Type.extract(this, configElement.asType());
-                    Type newType = extractType(member);
+                    Type containerType = Type.extract(this, configElement);
+                    Type newType = Type.extract(this, member);
                     Dynamic dynamic = member.getAnnotation(Dynamic.class);
                     if (dynamic != null) {
-                        extractor = new DynamicMethodExtractor(containerType, (ExecutableElement) member, null);
+                        extractor = new DynamicMethodExtractor(this, containerType, (ExecutableElement) member);
                     } else {
-                        extractor = new StaticMethodExtractor(containerType, (ExecutableElement) member, null);
+                        extractor = new StaticMethodExtractor(this, containerType, (ExecutableElement) member);
                     }
                     if (overrideViewProperty != null) {
                         String name = overrideViewProperty.value();
@@ -214,11 +206,18 @@ public class ViewContext extends Context {
         }
         for (Property property : getProperties()) {
             importVariable(property.getType());
-            DeclaredType converter = property.getConverter();
+            TypeElement converter = property.getConverter();
             if (converter != null) {
-                importVariable(Type.extract(this, converter));
+                Type converterType = Type.extract(this, converter);
+                if (converterType != null) {
+                    importVariable(converterType);
+                }
             }
         }
+    }
+
+    private ViewOfData getViewOf(Type type) {
+        return processorData.getByGenName(type.getQualifiedName());
     }
 
     private DeclaredType getViewTarget(TypeMirror typeMirror) {
@@ -343,8 +342,8 @@ public class ViewContext extends Context {
         return calcTypeAssignScore(converterFromType, fromType) + calcTypeAssignScore(toType, converterToType);
     }
 
-    private DeclaredType selectConverter(Element member, List<DeclaredType> converters, TypeMirror toType, TypeMirror fromType) {
-        List<DeclaredType> results = new ArrayList<>();
+    private TypeElement selectConverter(Element member, List<DeclaredType> converters, TypeMirror toType, TypeMirror fromType) {
+        List<TypeElement> results = new ArrayList<>();
         int score = -1;
         for (DeclaredType converter : converters) {
             TypeElement converterElement = Utils.toElement(converter);
@@ -364,7 +363,7 @@ public class ViewContext extends Context {
             if (theScore >= 0 && (score == -1 || score >= theScore)) {
                 score = theScore;
                 results.clear();
-                results.add(converter);
+                results.add(Utils.toElement(converter));
             }
         }
         if (results.size() == 1) {
@@ -375,7 +374,7 @@ public class ViewContext extends Context {
                             member.getSimpleName() +
                             ": " +
                             results.stream()
-                                    .map(converter -> ((TypeElement) converter.asElement()).getQualifiedName())
+                                    .map(TypeElement::getQualifiedName)
                                     .collect(Collectors.joining(", "))
             );
             return null;
@@ -533,6 +532,12 @@ public class ViewContext extends Context {
             writer.println("();");
             for (Property property : properties) {
                 if (!property.isDynamic()) {
+                    TypeElement converter = property.getConverter();
+                    Type converterType = converter != null ? Type.extract(this, converter) : null;
+                    if (converter != null && converterType == null) {
+                        error("Unable to resolve the converter of the property " + property.getName() + ".");
+                        continue;
+                    }
                     Utils.printIndent(writer, INDENT, 2);
                     writer.print("out.");
                     writer.print(this.getMappedFieldName(property));
@@ -541,11 +546,10 @@ public class ViewContext extends Context {
                         property.getExtractor().print(writer, this);
                         writer.println(";");
                     } else {
-                        DeclaredType converter = property.getConverter();
                         DeclaredType viewTarget = property.getViewTarget();
                         if (converter != null) {
                             writer.print("new ");
-                            Type.extract(this, converter).printType(writer, this, false, false);
+                            converterType.printType(writer, this, false, false);
                             writer.print("().convert(");
                         } else if (viewTarget != null) {
                             property.getType().printType(writer, this, false, false);

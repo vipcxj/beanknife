@@ -5,10 +5,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import io.github.vipcxj.beanknife.runtime.annotations.Access;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
+import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import java.io.PrintWriter;
@@ -20,7 +17,6 @@ public class Property {
     private Access getter;
     private Access setter;
     private Type type;
-    private TypeMirror typeMirror;
     private final boolean method;
     private final String getterName;
     private final String setterName;
@@ -28,7 +24,7 @@ public class Property {
     private final Element element;
     private final String comment;
     private Extractor extractor;
-    private DeclaredType converter;
+    private TypeElement converter;
     private DeclaredType viewTarget;
 
     public Property(
@@ -55,13 +51,6 @@ public class Property {
         this.writeable = writeable;
         this.element = element;
         this.comment = comment;
-        if (element.getKind() == ElementKind.FIELD) {
-            this.typeMirror = element.asType();
-        } else if (element.getKind() == ElementKind.METHOD) {
-            this.typeMirror = ((ExecutableElement) element).getReturnType();
-        } else {
-            throw new IllegalStateException("This is impossible!");
-        }
     }
 
     public Property(Property other, String commentIfNone) {
@@ -75,7 +64,6 @@ public class Property {
         this.setterName = other.setterName;
         this.writeable = other.writeable;
         this.element = other.element;
-        this.typeMirror = other.typeMirror;
         this.comment = other.comment != null ? other.comment : commentIfNone;
         this.extractor = other.extractor;
         this.converter = other.converter;
@@ -100,22 +88,26 @@ public class Property {
         return property;
     }
 
-    public Property withType(@NonNull TypeMirror type, @CheckForNull DeclaredType viewTarget) {
+    public Property withType(@NonNull Type type, @CheckForNull DeclaredType viewTarget) {
         Property property = new Property(this, null);
-        property.type = Type.extract(type);
-        property.typeMirror = type;
+        property.type = type;
         property.viewTarget = viewTarget;
         return property;
     }
 
-    public Property withConverter(DeclaredType converter) {
+    public Property withConverter(TypeElement converter) {
         Property property = new Property(this, null);
         property.converter = converter;
         return property;
     }
 
     public TypeMirror getTypeMirror() {
-        return typeMirror;
+        if (element.getKind() == ElementKind.METHOD) {
+            ExecutableElement executableElement = (ExecutableElement) this.element;
+            return executableElement.getReturnType();
+        } else {
+            return element.asType();
+        }
     }
 
     public String getName() {
@@ -170,7 +162,7 @@ public class Property {
         return extractor;
     }
 
-    public DeclaredType getConverter() {
+    public TypeElement getConverter() {
         return converter;
     }
 

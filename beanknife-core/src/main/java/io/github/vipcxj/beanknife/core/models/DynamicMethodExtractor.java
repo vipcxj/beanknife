@@ -8,8 +8,6 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
 import java.io.PrintWriter;
 import java.util.List;
 
@@ -19,10 +17,10 @@ public class DynamicMethodExtractor implements Extractor {
     private final ExecutableElement executableElement;
     private final Type returnType;
 
-    public DynamicMethodExtractor(Type container, ExecutableElement executableElement, TypeMirror returnType) {
+    public DynamicMethodExtractor(Context context, Type container, ExecutableElement executableElement) {
         this.container = container;
         this.executableElement = executableElement;
-        this.returnType = returnType.getKind() != TypeKind.VOID ? Type.extract(returnType) : null;
+        this.returnType = Type.extract(context, executableElement);
     }
 
     @Override
