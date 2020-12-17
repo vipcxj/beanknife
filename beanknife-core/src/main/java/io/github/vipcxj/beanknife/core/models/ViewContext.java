@@ -127,21 +127,25 @@ public class ViewContext extends Context {
                         List<DeclaredType> converters = getConverters(member);
                         String name = overrideViewProperty.value();
                         Type newType = Type.extract(this, member);
+                        if (newType == null) {
+                            error("Unable to resolve the type of field property: " + member.getSimpleName() + ".");
+                            continue;
+                        }
                         getProperties().replaceAll(p -> {
                             if (p.getName().equals(name)) {
                                 Property newProperty = p
                                         .withGetterAccess(Utils.resolveGetterAccess(viewOf, overrideViewProperty.getter()))
                                         .withSetterAccess(Utils.resolveSetterAccess(viewOf, overrideViewProperty.setter()));
                                 TypeElement converter = selectConverter(member, converters, member.asType(), p.getTypeMirror());
-                                DeclaredType viewTarget = getViewTarget(newType);
+                                TypeElement viewTarget = getViewTarget(newType);
                                 boolean isView = false;
-                                if (!getProcessingEnv().getTypeUtils().isAssignable(p.getTypeMirror(), null) && converter == null) {
+                                if (!newType.canBeAssignedBy(p.getTypeMirror())  && converter == null) {
                                     if (viewTarget == null) {
                                         error("The property " + p.getName() + " can not be override because type mismatched.");
                                         return null;
                                     }
-                                    if (!getProcessingEnv().getTypeUtils().isSameType(viewTarget, p.getTypeMirror())) {
-                                        error("The property \" + p.getName() + \" can not be override, because it is not the view type of " + p.getType().getQualifiedName() + ".");
+                                    if (!getProcessingEnv().getTypeUtils().isSameType(viewTarget.asType(), p.getTypeMirror())) {
+                                        error("The property \"" + p.getName() + "\" can not be override, because it is not the view type of " + p.getType().getQualifiedName() + ".");
                                         return null;
                                     }
                                     isView = true;
@@ -159,7 +163,10 @@ public class ViewContext extends Context {
                 } else if (member.getKind() == ElementKind.METHOD) {
                     Extractor extractor;
                     Type containerType = Type.extract(this, configElement);
-                    Type newType = Type.extract(this, member);
+                    if (containerType == null) {
+                        error("Unable to resolve the type config element: " + configElement.getQualifiedName());
+                        continue;
+                    }
                     Dynamic dynamic = member.getAnnotation(Dynamic.class);
                     if (dynamic != null) {
                         extractor = new DynamicMethodExtractor(this, containerType, (ExecutableElement) member);
@@ -220,35 +227,15 @@ public class ViewContext extends Context {
         return processorData.getByGenName(type.getQualifiedName());
     }
 
-    private DeclaredType getViewTarget(TypeMirror typeMirror) {
-        if (typeMirror.getKind() == TypeKind.DECLARED) {
-            DeclaredType declaredType = (DeclaredType) typeMirror;
-            TypeElement typeElement = Utils.toElement(declaredType);
-            if (typeElement.getKind() == ElementKind.CLASS) {
-                for (AnnotationMirror annotationMirror : typeElement.getAnnotationMirrors()) {
-                    if (Utils.isThisAnnotation(annotationMirror, GeneratedView.class)) {
-                        Map<? extends ExecutableElement, ? extends AnnotationValue> attributes = getProcessingEnv().getElementUtils().getElementValuesWithDefaults(annotationMirror);
-                        return Utils.getTypeAnnotationValue(annotationMirror, attributes, "targetClass");
-                    }
-                }
-                return null;
-            } else if (typeElement.getKind() == ElementKind.INTERFACE) {
-                if (
-                        Utils.isThisTypeElement(typeElement, List.class)
-                        || Utils.isThisTypeElement(typeElement, Queue.class)
-                        || Utils.isThisTypeElement(typeElement, Set.class)
-                ) {
-                    return getViewTarget(declaredType.getTypeArguments().get(0));
-                } else if (Utils.isThisTypeElement(typeElement, Map.class)) {
-                    return getViewTarget(declaredType.getTypeArguments().get(1));
-                } else {
-                    return null;
-                }
-            } else {
-                return null;
-            }
-        } else if (typeMirror.getKind() == TypeKind.ARRAY) {
-            return getViewTarget(((ArrayType) typeMirror).getComponentType());
+    private TypeElement getViewTarget(Type type) {
+        ViewOfData viewOf = getViewOf(type);
+        if (viewOf != null) {
+            return viewOf.getTargetElement();
+        }
+        if (type.isType(List.class) || type.isType(Queue.class) || type.isType(Stack.class) || type.isType(Set.class)) {
+            return getViewTarget(type.getParameters().get(0));
+        } else if (type.isType(Map.class)) {
+            return getViewTarget(type.getParameters().get(1));
         } else {
             return null;
         }
@@ -546,7 +533,7 @@ public class ViewContext extends Context {
                         property.getExtractor().print(writer, this);
                         writer.println(";");
                     } else {
-                        DeclaredType viewTarget = property.getViewTarget();
+                        TypeElement viewTarget = property.getViewTarget();
                         if (converter != null) {
                             writer.print("new ");
                             converterType.printType(writer, this, false, false);

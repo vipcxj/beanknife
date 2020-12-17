@@ -10,7 +10,7 @@ import java.util.List;
 @ViewOf(value = ViewPropertyContainerBean.class, includePattern = ".*")
 public class ViewPropertyContainerBeanViewConfig {
     @NewViewProperty("newProperty")
-    public GenericBeanView<String, Integer> newProperty(GenericBeanView<String, Integer> a) {
+    public static GenericBeanView<String, Integer> newProperty(ViewPropertyContainerBean source) {
         return null;
     }
 

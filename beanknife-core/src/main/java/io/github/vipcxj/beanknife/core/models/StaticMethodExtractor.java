@@ -12,14 +12,23 @@ import java.util.List;
 
 public class StaticMethodExtractor implements Extractor {
 
+    @NonNull
     private final Type container;
+    @NonNull
     private final ExecutableElement executableElement;
+    @NonNull
     private final Type returnType;
 
-    public StaticMethodExtractor(Context context, Type container, ExecutableElement executableElement) {
+    public StaticMethodExtractor(@NonNull Context context, @NonNull Type container, @NonNull ExecutableElement executableElement) {
         this.container = container;
         this.executableElement = executableElement;
-        this.returnType = Type.extract(context, executableElement);
+        Type type = Type.extract(context, executableElement);
+        if (type == null) {
+            context.error("Failed to resolve the return type of property method" + executableElement.getSimpleName() + ".");
+            this.returnType = Type.extract(context, Object.class);
+        } else {
+            this.returnType = type;
+        }
     }
 
     @Override
@@ -27,10 +36,6 @@ public class StaticMethodExtractor implements Extractor {
         Name name = executableElement.getSimpleName();
         if (!executableElement.getModifiers().contains(Modifier.STATIC)) {
             context.error("The static property method \"" + name + "\" should be static.");
-            return false;
-        }
-        if (returnType == null) {
-            context.error("The static property method \"" + name + "\" should return a valid type.");
             return false;
         }
         if (property != null && !returnType.equals(property.getType())) {
@@ -64,6 +69,7 @@ public class StaticMethodExtractor implements Extractor {
     }
 
     @Override
+    @NonNull
     public Type getReturnType() {
         return returnType;
     }

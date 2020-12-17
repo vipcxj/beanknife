@@ -2,11 +2,10 @@ package io.github.vipcxj.beanknife.core.models;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import io.github.vipcxj.beanknife.runtime.annotations.Access;
 import io.github.vipcxj.beanknife.core.utils.Utils;
+import io.github.vipcxj.beanknife.runtime.annotations.Access;
 
 import javax.lang.model.element.*;
-import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import java.io.PrintWriter;
 
@@ -25,7 +24,7 @@ public class Property {
     private final String comment;
     private Extractor extractor;
     private TypeElement converter;
-    private DeclaredType viewTarget;
+    private TypeElement viewTarget;
 
     public Property(
             String name,
@@ -85,10 +84,11 @@ public class Property {
     public Property withExtractor(Extractor extractor) {
         Property property = new Property(this, null);
         property.extractor = extractor;
+        property.type = extractor.getReturnType();
         return property;
     }
 
-    public Property withType(@NonNull Type type, @CheckForNull DeclaredType viewTarget) {
+    public Property withType(@NonNull Type type, @CheckForNull TypeElement viewTarget) {
         Property property = new Property(this, null);
         property.type = type;
         property.viewTarget = viewTarget;
@@ -166,7 +166,8 @@ public class Property {
         return converter;
     }
 
-    public DeclaredType getViewTarget() {
+    @CheckForNull
+    public TypeElement getViewTarget() {
         return viewTarget;
     }
 

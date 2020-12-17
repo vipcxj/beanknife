@@ -10,7 +10,6 @@ import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedView;
 import io.github.vipcxj.beanknife.runtime.annotations.ViewProperty;
 import io.github.vipcxj.beanknife.core.models.*;
 import io.github.vipcxj.beanknife.runtime.utils.Self;
-import org.apache.commons.text.StringEscapeUtils;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
@@ -172,7 +171,7 @@ public class Utils {
                 modifier,
                 resolveGetterAccess(viewOf, getter),
                 resolveSetterAccess(viewOf, setter),
-                Type.extract(context, e),
+                Type.extract(context, e, null),
                 false,
                 createGetterName(name, type.getKind() == TypeKind.BOOLEAN),
                 setterName,
@@ -212,7 +211,7 @@ public class Utils {
                 getPropertyModifier(e),
                 resolveGetterAccess(viewOf, viewProperty != null ? viewProperty.getter() : Access.UNKNOWN),
                 resolveSetterAccess(viewOf, viewProperty != null ? viewProperty.setter() : Access.UNKNOWN),
-                Type.extract(context, e),
+                Type.extract(context, e, null),
                 true,
                 methodName,
                 setterName,

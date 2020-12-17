@@ -215,7 +215,7 @@ public class Context {
     private Type fixType(Set<String> imports, String packageName, String typeName) {
         String fixedTypeName = processorData.fixType(imports, packageName, typeName);
         if (fixedTypeName != null) {
-            int index = fixedTypeName.indexOf('.');
+            int index = fixedTypeName.lastIndexOf('.');
             if (index != -1) {
                 String pName = fixedTypeName.substring(0, index);
                 String tName = fixedTypeName.substring(index + 1);
@@ -230,10 +230,15 @@ public class Context {
 
     private Type tryGetTypeMirror(CompilationUnitTree compilationUnit, Tree tree) {
         TreePath path = trees.getPath(compilationUnit, tree);
-        Element element = trees.getElement(path);
         TypeMirror typeMirror = trees.getTypeMirror(path);
-        if (typeMirror != null && typeMirror.getKind() != TypeKind.ERROR && typeMirror.getKind() != TypeKind.VOID && typeMirror.getKind() != TypeKind.NONE) {
-            return Type.extract(this, element, typeMirror);
+        if (
+                typeMirror != null
+                && typeMirror.getKind() != TypeKind.ERROR
+                && typeMirror.getKind() != TypeKind.VOID
+                && typeMirror.getKind() != TypeKind.NONE
+                && typeMirror.getKind() != TypeKind.NULL
+        ) {
+            return Type.extract(this, typeMirror, compilationUnit, tree);
         } else {
             return null;
         }
@@ -294,32 +299,20 @@ public class Context {
             if (boundTypes.stream().anyMatch(Objects::isNull)) {
                 return null;
             }
-            return Type.createTypeParameter(this, typeParameterTree.getName().toString(), boundTypes);
+            return Type.createTypeParameter(this, typeParameterTree.getName().toString(), boundTypes, compilationUnit, tree);
         } else {
             throw new UnsupportedOperationException("Unsupported tree kind: " + tree.getKind() + ".");
         }
     }
 
     @CheckForNull
-    public Type extractType(@NonNull Element element) {
-        String packageName = getProcessingEnv().getElementUtils().getPackageOf(element).getQualifiedName().toString();
-        CompilationUnitTree compilationUnit = getTrees().getPath(element).getCompilationUnit();
+    public Type fixType(@NonNull CompilationUnitTree compilationUnit, @NonNull Tree tree) {
+        String packageName = TreeUtils.parsePackageName(compilationUnit);
         Set<String> imports = compilationUnit.getImports().stream().map(TreeUtils::parseImport).collect(Collectors.toSet());
-        Tree tree = getTrees().getTree(element);
-        Tree typeTree;
-        if (tree.getKind() == Tree.Kind.METHOD) {
-            MethodTree methodTree = (MethodTree) tree;
-            typeTree = methodTree.getReturnType();
-        } else if (tree.getKind() == Tree.Kind.VARIABLE) {
-            VariableTree variableTree = (VariableTree) tree;
-            typeTree = variableTree.getType();
-        } else {
-            throw new UnsupportedOperationException("Unsupported tree kind: " + tree.getKind() + ".");
-        }
-        return fixType(compilationUnit, imports, packageName, typeTree);
+        return fixType(compilationUnit, imports, packageName, tree);
     }
 
-    public void error(String message) {
+    public void error(@NonNull String message) {
         errors.add(message);
         Utils.logWarn(getProcessingEnv(), message);
     }

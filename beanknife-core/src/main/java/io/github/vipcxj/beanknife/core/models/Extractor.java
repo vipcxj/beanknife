@@ -8,6 +8,7 @@ import java.io.PrintWriter;
 public interface Extractor {
 
     boolean check(@NonNull ViewContext context, @CheckForNull Property property);
+    @NonNull
     Type getReturnType();
     void print(PrintWriter writer, Context context);
     boolean isDynamic();

@@ -1,8 +1,11 @@
 package io.github.vipcxj.beanknife.core.models;
 
-import com.sun.source.tree.ParameterizedTypeTree;
+import com.sun.source.tree.*;
+import com.sun.source.util.TreePath;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
+import io.github.vipcxj.beanknife.core.utils.TreeUtils;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 
 import javax.lang.model.element.*;
@@ -11,9 +14,7 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class Type {
@@ -28,7 +29,8 @@ public class Type {
     private Type container;
     private List<Type> upperBounds;
     private List<Type> lowerBounds;
-    private Element element;
+    private CompilationUnitTree cu;
+    private Tree tree;
 
     /**
      * 构造函数
@@ -52,7 +54,8 @@ public class Type {
             @CheckForNull Type container,
             @NonNull List<Type> upperBounds,
             @NonNull List<Type> lowerBounds,
-            @CheckForNull Element element
+            @CheckForNull CompilationUnitTree cu,
+            @CheckForNull Tree tree
     ) {
         this.context = context;
         this.packageName = packageName;
@@ -65,7 +68,8 @@ public class Type {
         this.container = container;
         this.upperBounds = upperBounds;
         this.lowerBounds = lowerBounds;
-        this.element = element;
+        this.cu = cu;
+        this.tree = tree;
     }
 
     private Type(@NonNull Type other) {
@@ -80,7 +84,8 @@ public class Type {
         this.container = other.container;
         this.upperBounds = other.upperBounds;
         this.lowerBounds = other.lowerBounds;
-        this.element = other.element;
+        this.cu = other.cu;
+        this.tree = other.tree;
     }
 
     @NonNull
@@ -104,7 +109,8 @@ public class Type {
         Type type = new Type(this);
         type.simpleName = simpleName;
         type.container = removeParents ? null : container;
-        type.element = null;
+        type.cu = null;
+        type.tree = null;
         return type;
     }
 
@@ -118,7 +124,8 @@ public class Type {
         }
         Type type = new Type(this);
         type.packageName = packageName;
-        type.element = null;
+        type.cu = null;
+        type.tree = null;
         return type;
     }
 
@@ -132,7 +139,8 @@ public class Type {
         }
         Type type = new Type(this);
         type.simpleName += postfix;
-        type.element = null;
+        type.cu = null;
+        type.tree = null;
         return type;
     }
 
@@ -144,7 +152,8 @@ public class Type {
         Type type = new Type(this);
         type.simpleName = getEnclosedFlatSimpleName();
         type.container = null;
-        type.element = null;
+        type.cu = null;
+        type.tree = null;
         return type;
     }
 
@@ -155,7 +164,8 @@ public class Type {
         }
         Type type = new Type(this);
         type.parameters = Collections.emptyList();
-        type.element = null;
+        type.cu = null;
+        type.tree = null;
         return type;
     }
 
@@ -163,7 +173,8 @@ public class Type {
     public Type withParameters(@NonNull List<Type> parameters) {
         Type type = new Type(this);
         type.parameters = parameters;
-        type.element = null;
+        type.cu = null;
+        type.tree = null;
         return type;
     }
 
@@ -199,12 +210,13 @@ public class Type {
                 null,
                 Collections.emptyList(),
                 Collections.emptyList(),
+                null,
                 null
         );
     }
 
     public static Type extract(Context context, Class<?> clazz) {
-        return extract(context, context.getProcessingEnv().getElementUtils().getTypeElement(clazz.getCanonicalName()));
+        return extract(context, context.getProcessingEnv().getElementUtils().getTypeElement(clazz.getCanonicalName()), null);
     }
 
     @NonNull
@@ -221,6 +233,7 @@ public class Type {
                 null,
                 extendsBounds,
                 supperBounds,
+                null,
                 null
         );
     }
@@ -240,7 +253,7 @@ public class Type {
         return createWildcard(context, Collections.emptyList(), lowerBounds);
     }
 
-    public static Type createTypeParameter(Context context, @NonNull String name, @NonNull List<Type> bounds) {
+    public static Type createTypeParameter(Context context, @NonNull String name, @NonNull List<Type> bounds, @CheckForNull CompilationUnitTree cu, @CheckForNull Tree tree) {
         return new Type(
                 context,
                 "",
@@ -253,15 +266,23 @@ public class Type {
                 null,
                 bounds,
                 Collections.emptyList(),
-                null
+                cu,
+                tree
         );
     }
 
     public static Type extract(@NonNull Context context, @NonNull Element element) {
+        return extract(context, element, null);
+    }
+
+    public static Type extract(@NonNull Context context, @NonNull Element element, @Nullable List<Type> parameterTypes) {
+        CompilationUnitTree cu = TreeUtils.getCompilationUnit(context, element);
+        Tree tree = context.trees.getTree(element);
         if (element.getKind().isClass() || element.getKind().isInterface()) {
             TypeElement typeElement = (TypeElement) element;
             List<? extends TypeParameterElement> typeParameters = typeElement.getTypeParameters();
-            List<Type> parameters = typeParameters.stream().map(e -> extract(context, e)).collect(Collectors.toList());
+            List<Type> parameters;
+            parameters = Objects.requireNonNullElseGet(parameterTypes, () -> typeParameters.stream().map(e -> extract(context, e, null)).collect(Collectors.toList()));
             boolean annotation = element.getKind() == ElementKind.ANNOTATION_TYPE;
             Element enclosingElement = element.getEnclosingElement();
             Type parentType = null;
@@ -270,7 +291,7 @@ public class Type {
                 PackageElement packageElement = (PackageElement) enclosingElement;
                 packageName = packageElement.getQualifiedName().toString();
             } else {
-                parentType = extract(context, enclosingElement);
+                parentType = extract(context, enclosingElement, null);
                 if (parentType == null) {
                     return null;
                 }
@@ -288,41 +309,87 @@ public class Type {
                     parentType,
                     Collections.emptyList(),
                     Collections.emptyList(),
-                    element
+                    cu,
+                    tree
             );
         } else if (
                 element.getKind() == ElementKind.FIELD
-                || element.getKind() == ElementKind.ENUM_CONSTANT
                 || element.getKind() == ElementKind.PARAMETER
-                || element.getKind() == ElementKind.LOCAL_VARIABLE
-                || element.getKind() == ElementKind.RESOURCE_VARIABLE
-                || element.getKind() == ElementKind.EXCEPTION_PARAMETER
         ) {
-            return extract(context, element, element.asType());
+            if (tree == null || tree instanceof VariableTree) {
+                VariableTree variableTree = (VariableTree) tree;
+                tree = variableTree != null ? variableTree.getType() : null;
+                return extract(context, element.asType(), cu, tree);
+            } else {
+                throw new IllegalArgumentException("This is impossible!");
+            }
         } else if (element.getKind() == ElementKind.METHOD) {
             ExecutableElement executableElement = (ExecutableElement) element;
-            return extract(context, executableElement, executableElement.getReturnType());
+            if (tree == null || tree instanceof MethodTree) {
+                MethodTree methodTree = (MethodTree) tree;
+                tree = methodTree != null ? (methodTree).getReturnType() : null;
+                return extract(context, executableElement.getReturnType(), cu, tree);
+            } else {
+                throw new IllegalArgumentException("This is impossible!");
+            }
         } else if (element.getKind() == ElementKind.PACKAGE) {
             PackageElement packageElement = (PackageElement) element;
             return fromPackage(context, packageElement.isUnnamed() ? "" : packageElement.getQualifiedName().toString());
         } else if (element.getKind() == ElementKind.TYPE_PARAMETER) {
             TypeParameterElement typeParameterElement = (TypeParameterElement) element;
-            List<Type> bounds = typeParameterElement.getBounds()
-                    .stream()
-                    .map(bound -> extract(context, typeParameterElement, bound))
-                    .filter(type -> type == null || type.isNotObjectType())
-                    .collect(Collectors.toList());
-            if (bounds.stream().anyMatch(Objects::isNull)) {
-                return null;
+            if (tree instanceof TypeParameterTree) {
+                TypeParameterTree typeParameterTree = (TypeParameterTree) tree;
+                List<Type> bounds = typeParameterTree.getBounds().stream()
+                        .map(bound -> {
+                            TypeMirror typeMirror = TreeUtils.tryGetTypeMirror(context, element, bound);
+                            return extract(context, typeMirror, cu, bound);
+                        })
+                        .filter(type -> type == null || type.isNotObjectType())
+                        .collect(Collectors.toList());
+                if (bounds.stream().anyMatch(Objects::isNull)) {
+                    return null;
+                }
+                return createTypeParameter(context, typeParameterElement.getSimpleName().toString(), bounds, cu, tree);
+            } else if (tree == null) {
+                List<Type> bounds = typeParameterElement.getBounds().stream()
+                        .map(bound -> extract(context, bound, null, null))
+                        .filter(type -> type == null || type.isNotObjectType())
+                        .collect(Collectors.toList());
+                if (bounds.stream().anyMatch(Objects::isNull)) {
+                    return null;
+                }
+                return createTypeParameter(context, typeParameterElement.getSimpleName().toString(), bounds, cu, null);
+            } else {
+                throw new IllegalArgumentException("This is impossible!");
             }
-            return createTypeParameter(context, typeParameterElement.getSimpleName().toString(), bounds);
         }
         throw new UnsupportedOperationException("Unsupported element kind: " + element.getKind() + ".");
     }
 
+    @NonNull
+    private static List<Type> parseBounds(@NonNull Context context, @Nullable TypeMirror typeMirror, @CheckForNull CompilationUnitTree cu, @NonNull List<Tree> tree) {
+        if (typeMirror == null) {
+            return Collections.emptyList();
+        } else if (typeMirror.getKind() == TypeKind.INTERSECTION) {
+            IntersectionType intersectionType = (IntersectionType) typeMirror;
+            List<? extends TypeMirror> bounds = intersectionType.getBounds();
+            List<Type> types = new ArrayList<>();
+            for (int i = 0; i < bounds.size(); ++i) {
+                TypeMirror bound = bounds.get(i);
+                Tree boundTree = i < tree.size() ? tree.get(i) : null;
+                types.add(extract(context, bound, cu, boundTree));
+            }
+            return types;
+        } else {
+            return Collections.singletonList(extract(context, typeMirror, cu, tree.isEmpty() ? null : tree.get(0)));
+        }
+    }
+
     @CheckForNull
-    public static Type extract(@NonNull Context context, @CheckForNull Element element, @NonNull TypeMirror type) {
-        if (type.getKind().isPrimitive()) {
+    public static Type extract(@NonNull Context context, @Nullable TypeMirror type, @CheckForNull CompilationUnitTree cu, @CheckForNull Tree tree) {
+        if (type == null || type.getKind() == TypeKind.ERROR) {
+            return cu != null && tree != null ? context.fixType(cu, tree) : null;
+        } else if (type.getKind().isPrimitive()) {
             return new Type(
                     context,
                     "",
@@ -335,63 +402,113 @@ public class Type {
                     null,
                     Collections.emptyList(),
                     Collections.emptyList(),
-                    element
+                    cu,
+                    tree
             );
         } else if (type.getKind() == TypeKind.ARRAY) {
             ArrayType arrayType = (ArrayType) type;
-            Type componentType = extract(context, element, arrayType.getComponentType());
+            ArrayTypeTree arrayTypeTree = (ArrayTypeTree) tree;
+            Type componentType = extract(context, arrayType.getComponentType(), cu, arrayTypeTree != null ? arrayTypeTree.getType() : null);
             return componentType != null ? componentType.toArrayType() : null;
         } else if (type.getKind() == TypeKind.DECLARED) {
             DeclaredType declaredType = (DeclaredType) type;
-            Element theElement = declaredType.asElement();
-            if (theElement.getKind().isClass() || theElement.getKind().isInterface()) {
-                return extract(context, theElement);
-            } else {
-                throw new IllegalStateException("This is impossible. The element kind is " + theElement.getKind());
+            List<? extends Tree> typeParameterTrees = null;
+            if (tree != null && tree.getKind() == Tree.Kind.PARAMETERIZED_TYPE) {
+                ParameterizedTypeTree parameterizedTypeTree = (ParameterizedTypeTree) tree;
+                typeParameterTrees = parameterizedTypeTree.getTypeArguments();
             }
+            List<? extends TypeMirror> typeArguments = declaredType.getTypeArguments();
+            List<Type> parameterTypes = new ArrayList<>();
+            for (int i = 0; i < typeArguments.size(); ++i) {
+                TypeMirror typeArgument = typeArguments.get(i);
+                Tree typeParameterTree = typeParameterTrees != null ? typeParameterTrees.get(Math.max(i, typeParameterTrees.size() - 1)) : null;
+                Type parameterType = extract(context, typeArgument, cu, cu != null ? typeParameterTree : null);
+                if (parameterType == null) {
+                    return null;
+                }
+                parameterTypes.add(parameterType);
+            }
+            TypeElement typeElement = Utils.toElement(declaredType);
+            return extract(context, typeElement, parameterTypes);
         } else if (type.getKind() == TypeKind.TYPEVAR) {
             TypeVariable typeVariable = (TypeVariable) type;
-            Element theElement = typeVariable.asElement();
-            if (theElement.getKind() == ElementKind.TYPE_PARAMETER) {
-                return extract(context, theElement);
-            } else {
-                throw new IllegalStateException("This is impossible. The element kind is " + theElement.getKind());
+            TypeParameterTree typeParameterTree = tree instanceof TypeParameterTree ? (TypeParameterTree) tree : null;
+            List<? extends Tree> boundTrees = typeParameterTree != null ? typeParameterTree.getBounds() : null;
+            List<Type> upperBounds = new ArrayList<>();
+            TypeMirror upperBound = typeVariable.getUpperBound();
+            if (upperBound.getKind() == TypeKind.INTERSECTION) {
+                IntersectionType intersectionType = (IntersectionType) upperBound;
+                if (boundTrees != null && boundTrees.size() != intersectionType.getBounds().size()) {
+                    throw new IllegalArgumentException("This is impossible!");
+                }
+                for (int i = 0; i < intersectionType.getBounds().size(); ++i) {
+                    TypeMirror boundTypeMirror = intersectionType.getBounds().get(i);
+                    Tree boundTree = boundTrees != null ? boundTrees.get(i) : null;
+                    Type boundType = extract(context, boundTypeMirror, cu, cu != null ? boundTree : null);
+                    if (boundType == null) {
+                        return null;
+                    }
+                    upperBounds.add(boundType);
+                }
+            } else if (!Utils.isThisType(upperBound, Object.class)){
+                if (boundTrees != null && boundTrees.size() != 1) {
+                    throw new IllegalArgumentException("This is impossible!");
+                }
+                Tree boundTree = boundTrees != null ? boundTrees.get(0) : null;
+                Type boundType = extract(context, upperBound, cu, cu != null ? boundTree : null);
+                upperBounds.add(boundType);
             }
-//        } else if (type.getKind() == TypeKind.WILDCARD) {
-//            WildcardType wildcardType = (WildcardType) type;
-//            TypeMirror extendsBound = wildcardType.getExtendsBound();
-//            TypeMirror superBound = wildcardType.getSuperBound();
-//            return new Type(
-//                    context,
-//                    "",
-//                    "?",
-//                    false,
-//                    false,
-//                    false,
-//                    true,
-//                    Collections.emptyList(),
-//                    null,
-//                    extendsBound != null ? parseBounds(context, extendsBound) : Collections.emptyList(),
-//                    superBound != null ? parseBounds(context, superBound) : Collections.emptyList(),
-//                    type
-//            );
+            return Type.createTypeParameter(context, typeVariable.asElement().getSimpleName().toString(), upperBounds, cu, tree);
+        } else if (type.getKind() == TypeKind.WILDCARD) {
+            WildcardType wildcardType = (WildcardType) type;
+            TypeMirror extendsBound = wildcardType.getExtendsBound();
+            TypeMirror superBound = wildcardType.getSuperBound();
+            List<Tree> extendsBoundTrees = Collections.emptyList();
+            List<Tree> superBoundTrees = Collections.emptyList();
+            if (tree != null) {
+                WildcardTree wildcardTree = (WildcardTree) tree;
+                Tree bound = wildcardTree.getBound();
+                List<Tree> bounds = new ArrayList<>();
+                if (bound.getKind() == Tree.Kind.INTERSECTION_TYPE) {
+                    IntersectionTypeTree intersectionTypeTree = (IntersectionTypeTree) bound;
+                    bounds.addAll(intersectionTypeTree.getBounds());
+                } else {
+                    bounds.add(bound);
+                }
+                if (tree.getKind() == Tree.Kind.EXTENDS_WILDCARD) {
+                    extendsBoundTrees = bounds;
+                } else if (tree.getKind() == Tree.Kind.SUPER_WILDCARD) {
+                    superBoundTrees = bounds;
+                }
+            }
+            List<Type> extendsBoundTypes = extendsBound != null ? parseBounds(context, extendsBound, cu, extendsBoundTrees) : Collections.emptyList();
+            List<Type> superBoundTypes = superBound != null ? parseBounds(context, superBound, cu, superBoundTrees) : Collections.emptyList();
+            return new Type(
+                    context,
+                    "",
+                    "?",
+                    0,
+                    false,
+                    false,
+                    true,
+                    Collections.emptyList(),
+                    null,
+                    extendsBoundTypes,
+                    superBoundTypes,
+                    cu,
+                    tree
+            );
         } else if (type.getKind() == TypeKind.VOID) {
             return null;
-        } else if (type.getKind() == TypeKind.ERROR) {
-            return element != null ? context.extractType(element) : null;
         } else {
             throw new UnsupportedOperationException("Type " + type + " is not supported.");
         }
     }
 
     public TypeMirror getTypeMirror() {
-        if (element != null) {
-            if (element.getKind() == ElementKind.METHOD) {
-                ExecutableElement executableElement = (ExecutableElement) this.element;
-                return executableElement.getReturnType();
-            } else {
-                return element.asType();
-            }
+        if (cu != null && tree != null) {
+            TreePath path = context.trees.getPath(cu, tree);
+            return context.trees.getTypeMirror(path);
         } else if (isPrimate()) {
             Types typeUtils = context.getProcessingEnv().getTypeUtils();
             TypeMirror typeMirror;
@@ -486,6 +603,7 @@ public class Type {
                 null,
                 Collections.emptyList(),
                 Collections.emptyList(),
+                null,
                 null
         );
     }
@@ -674,6 +792,15 @@ public class Type {
                 || simpleName.equals("double"));
     }
 
+    public boolean isType(Class<?> type) {
+        int array = 0;
+        while (type.isArray()) {
+            type = type.getComponentType();
+            ++array;
+        }
+        return this.array == array && getQualifiedName().equals(type.getCanonicalName());
+    }
+
     public void openClass(@NonNull PrintWriter writer, @NonNull Modifier modifier, @NonNull Context context, String indent, int indentNum) {
         Utils.printIndent(writer, indent, indentNum);
         writer.print(modifier);
@@ -823,6 +950,7 @@ public class Type {
 
     @Override
     public int hashCode() {
+        Class<? extends Number> a = Number.class;
         return Objects.hash(packageName, simpleName, array, typeVar, wildcard, parameters, container, upperBounds, lowerBounds);
     }
 

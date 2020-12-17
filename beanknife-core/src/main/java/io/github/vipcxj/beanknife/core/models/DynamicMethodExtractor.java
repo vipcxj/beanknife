@@ -13,14 +13,23 @@ import java.util.List;
 
 public class DynamicMethodExtractor implements Extractor {
 
+    @NonNull
     private final Type container;
+    @NonNull
     private final ExecutableElement executableElement;
+    @NonNull
     private final Type returnType;
 
-    public DynamicMethodExtractor(Context context, Type container, ExecutableElement executableElement) {
+    public DynamicMethodExtractor(@NonNull Context context, @NonNull Type container, @NonNull ExecutableElement executableElement) {
         this.container = container;
         this.executableElement = executableElement;
-        this.returnType = Type.extract(context, executableElement);
+        Type type = Type.extract(context, executableElement, null);
+        if (type == null) {
+            context.error("Failed to resolve the return type of property method" + executableElement.getSimpleName() + ".");
+            this.returnType = Type.extract(context, Object.class);
+        } else {
+            this.returnType = type;
+        }
     }
 
     @Override
@@ -28,10 +37,6 @@ public class DynamicMethodExtractor implements Extractor {
         Name name = executableElement.getSimpleName();
         if (!executableElement.getModifiers().contains(Modifier.STATIC)) {
             context.error("The dynamic property method \"" + name + "\" should be static.");
-            return false;
-        }
-        if (returnType == null) {
-            context.error("The dynamic property method \"" + name + "\" should return a valid type.");
             return false;
         }
         if (property == null || !returnType.equals(property.getType())) {
@@ -66,6 +71,7 @@ public class DynamicMethodExtractor implements Extractor {
     }
 
     @Override
+    @NonNull
     public Type getReturnType() {
         return returnType;
     }
