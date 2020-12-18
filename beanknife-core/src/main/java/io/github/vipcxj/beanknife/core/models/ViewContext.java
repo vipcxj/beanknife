@@ -76,6 +76,13 @@ public class ViewContext extends Context {
         importVariable(this.targetType);
         importVariable(this.configType);
         importVariable(this.generatedType);
+        importVariable(Type.extract(this, List.class));
+        importVariable(Type.extract(this, ArrayList.class));
+        importVariable(Type.extract(this, Set.class));
+        importVariable(Type.extract(this, HashSet.class));
+        importVariable(Type.extract(this, Stack.class));
+        importVariable(Type.extract(this, Map.class));
+        importVariable(Type.extract(this, HashMap.class));
         Elements elementUtils = getProcessingEnv().getElementUtils();
         List<? extends Element> members = elementUtils.getAllMembers(targetElement);
         for (Element member : members) {
@@ -232,7 +239,7 @@ public class ViewContext extends Context {
         if (viewOf != null) {
             return viewOf.getTargetElement();
         }
-        if (type.isType(List.class) || type.isType(Queue.class) || type.isType(Stack.class) || type.isType(Set.class)) {
+        if (type.isType(List.class) || type.isType(Stack.class) || type.isType(Set.class)) {
             return getViewTarget(type.getParameters().get(0));
         } else if (type.isType(Map.class)) {
             return getViewTarget(type.getParameters().get(1));
@@ -483,22 +490,121 @@ public class ViewContext extends Context {
         }
     }
 
+    private String getMapKeyParameter(String parameter) {
+        if (genType.getParameters().stream().anyMatch(p -> p.isTypeVar() && p.getSimpleName().equals(parameter))) {
+            return getMapKeyParameter(parameter + "K");
+        } else {
+            return parameter;
+        }
+    }
+
+    private void printCollectionReader(@NonNull PrintWriter writer, String collectionType, String collectionImpl) {
+        Utils.printIndent(writer, INDENT, 1);
+        Utils.printModifier(writer, Modifier.PUBLIC);
+        writer.print("static ");
+        String keyParameter = getMapKeyParameter("K");
+        if (collectionType.equals("Map")) {
+            writer.print("<");
+            writer.print(keyParameter);
+            if (!genType.getParameters().isEmpty()) {
+                writer.print(", ");
+                genType.printGenericParameters(writer, this, true, false);
+            }
+            writer.print("> ");
+        } else {
+            if (!genType.getParameters().isEmpty()) {
+                genType.printGenericParameters(writer, this, true);
+                writer.print(" ");
+            }
+        }
+        if (collectionType.equals("Array")) {
+            genType.printType(writer, this, true, false);
+            writer.print("[] read(");
+            targetType.printType(writer, this, true, false);
+            writer.println("[] sources) {");
+            Utils.printIndent(writer, INDENT, 2);
+            genType.printType(writer, this, true, false);
+            writer.print("[] results = new ");
+            genType.printType(writer, this, false, false);
+            writer.println("[sources.length];");
+            Utils.printIndent(writer, INDENT, 2);
+            writer.println("for (int i = 0; i < sources.length; ++i) {");
+            Utils.printIndent(writer, INDENT, 3);
+            writer.println("results[i] = read(sources[i]);");
+        } else {
+            writer.print(collectionType);
+            writer.print("<");
+            if (collectionType.equals("Map")) {
+                writer.print(keyParameter);
+                writer.print(", ");
+            }
+            genType.printType(writer, this, true, false);
+            writer.print("> read(");
+            writer.print(collectionType);
+            writer.print("<");
+            if (collectionType.equals("Map")) {
+                writer.print(keyParameter);
+                writer.print(", ");
+            }
+            targetType.printType(writer, this, true, false);
+            writer.println("> sources) {");
+            Utils.printIndent(writer, INDENT, 2);
+            writer.print(collectionType);
+            writer.print("<");
+            if (collectionType.equals("Map")) {
+                writer.print(keyParameter);
+                writer.print(", ");
+            }
+            genType.printType(writer, this, true, false);
+            writer.print("> results = new ");
+            writer.print(collectionImpl);
+            writer.println("<>();");
+            Utils.printIndent(writer, INDENT, 2);
+            writer.print("for (");
+            if (collectionType.equals("Map")) {
+                writer.print("Map.Entry<");
+                writer.print(keyParameter);
+                writer.print(", ");
+                targetType.printType(writer, this, true, false);
+                writer.print(">");
+            } else {
+                targetType.printType(writer, this, true, false);
+            }
+            writer.print(" source : ");
+            if (collectionType.equals("Map")) {
+                writer.print("sources.entrySet()");
+            } else {
+                writer.print("sources");
+            }
+            writer.println(") {");
+            Utils.printIndent(writer, INDENT, 3);
+            if (collectionType.equals("Map")) {
+                writer.println("results.put(source.getKey(), read(source.getValue()));");
+            } else {
+                writer.println("results.add(read(source));");
+            }
+        }
+        Utils.printIndent(writer, INDENT, 2);
+        writer.println("}");
+        Utils.printIndent(writer, INDENT, 2);
+        writer.println("return results;");
+        Utils.printIndent(writer, INDENT, 1);
+        writer.println("}");
+        writer.println();
+    }
+
     private boolean printReader(
             @NonNull PrintWriter writer,
             boolean empty,
             boolean hasEmptyConstructor,
             boolean hasFieldsConstructor
     ) {
-        Modifier modifier = viewOf.getReadMethod();
-        if (modifier == null) {
-            return empty;
-        }
         if (empty) {
             writer.println();
         }
         List<Property> properties = getProperties();
         Utils.printIndent(writer, INDENT, 1);
-        Utils.printModifier(writer, modifier);
+        Utils.printModifier(writer, Modifier.PUBLIC);
         writer.print("static ");
         if (!genType.getParameters().isEmpty()) {
             genType.printGenericParameters(writer, this, true);
@@ -598,6 +704,12 @@ public class ViewContext extends Context {
         Utils.printIndent(writer, INDENT, 1);
         writer.println("}");
         writer.println();
+        printCollectionReader(writer, "Array", "");
+        printCollectionReader(writer, "List", "ArrayList");
+        printCollectionReader(writer, "Set", "HashSet");
+        printCollectionReader(writer, "Stack", "Stack");
+        printCollectionReader(writer, "Map", "HashMap");
+
         return false;
     }
 }

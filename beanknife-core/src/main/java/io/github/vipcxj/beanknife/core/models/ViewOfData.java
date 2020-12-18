@@ -29,7 +29,6 @@ public class ViewOfData {
     private Modifier emptyConstructor;
     private Modifier fieldsConstructor;
     private Modifier copyConstructor;
-    private Modifier readMethod;
     private Access getters;
     private Access setters;
     private boolean errorMethods;
@@ -57,7 +56,6 @@ public class ViewOfData {
         data.emptyConstructor = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "emptyConstructor"));
         data.fieldsConstructor = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "fieldsConstructor"));
         data.copyConstructor = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "copyConstructor"));
-        data.readMethod = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "readMethod"));
         data.getters = getAccess(Utils.getEnumAnnotationValue(viewOf, annValues, "getters"));
         data.setters = getAccess(Utils.getEnumAnnotationValue(viewOf, annValues, "setters"));
         data.errorMethods = Utils.getBooleanAnnotationValue(viewOf, annValues, "errorMethods");
@@ -152,10 +150,6 @@ public class ViewOfData {
 
     public Modifier getCopyConstructor() {
         return copyConstructor;
-    }
-
-    public Modifier getReadMethod() {
-        return readMethod;
     }
 
     public Access getGetters() {
@@ -258,7 +252,6 @@ public class ViewOfData {
         printAccessAnnotationValue(writer, "emptyConstructor", accessType, Utils.accessFromModifier(emptyConstructor), context, indent, indentNum + 1);
         printAccessAnnotationValue(writer, "fieldsConstructor", accessType, Utils.accessFromModifier(fieldsConstructor), context, indent, indentNum + 1);
         printAccessAnnotationValue(writer, "copyConstructor", accessType, Utils.accessFromModifier(copyConstructor), context, indent, indentNum + 1);
-        printAccessAnnotationValue(writer, "readMethod", accessType, Utils.accessFromModifier(readMethod), context, indent, indentNum + 1);
         printAccessAnnotationValue(writer, "getters", accessType, getters, context, indent, indentNum + 1);
         printAccessAnnotationValue(writer, "setters", accessType, setters, context, indent, indentNum + 1);
         Utils.printIndent(writer, indent, indentNum + 1);

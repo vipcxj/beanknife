@@ -20,7 +20,6 @@ public @interface ViewOf {
     Access emptyConstructor() default Access.PUBLIC;
     Access fieldsConstructor() default Access.PUBLIC;
     Access copyConstructor() default Access.PUBLIC;
-    Access readMethod() default Access.PUBLIC;
     Access getters() default Access.PUBLIC;
     Access setters() default Access.NONE;
     boolean errorMethods() default true;

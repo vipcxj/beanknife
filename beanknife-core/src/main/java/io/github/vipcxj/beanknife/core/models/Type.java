@@ -895,10 +895,16 @@ public class Type {
     }
 
     public void printGenericParameters(@NonNull PrintWriter writer, @CheckForNull Context context, boolean withBound) {
+        printGenericParameters(writer, context, withBound, true);
+    }
+
+    public void printGenericParameters(@NonNull PrintWriter writer, @CheckForNull Context context, boolean withBound, boolean withAngleBrackets) {
         if (parameters.isEmpty()) {
             return;
         }
-        writer.print("<");
+        if (withAngleBrackets) {
+            writer.print("<");
+        }
         boolean start = true;
         for (Type parameter : parameters) {
             if (!start) {
@@ -929,7 +935,9 @@ public class Type {
             }
             start = false;
         }
-        writer.print(">");
+        if (withAngleBrackets) {
+            writer.print(">");
+        }
     }
 
     @Override
