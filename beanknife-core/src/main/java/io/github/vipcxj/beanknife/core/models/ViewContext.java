@@ -144,20 +144,16 @@ public class ViewContext extends Context {
                                         .withGetterAccess(Utils.resolveGetterAccess(viewOf, overrideViewProperty.getter()))
                                         .withSetterAccess(Utils.resolveSetterAccess(viewOf, overrideViewProperty.setter()));
                                 TypeElement converter = selectConverter(member, converters, member.asType(), p.getTypeMirror());
-                                TypeElement viewTarget = getViewTarget(newType);
+                                Type viewType = getViewType(newType);
                                 boolean isView = false;
                                 if (!newType.canBeAssignedBy(p.getTypeMirror())  && converter == null) {
-                                    if (viewTarget == null) {
+                                    if (viewType == null) {
                                         error("The property " + p.getName() + " can not be override because type mismatched.");
-                                        return null;
-                                    }
-                                    if (!getProcessingEnv().getTypeUtils().isSameType(viewTarget.asType(), p.getTypeMirror())) {
-                                        error("The property \"" + p.getName() + "\" can not be override, because it is not the view type of " + p.getType().getQualifiedName() + ".");
                                         return null;
                                     }
                                     isView = true;
                                 }
-                                newProperty = newProperty.withType(newType, isView ? viewTarget : null);
+                                newProperty = newProperty.withType(newType, isView ? viewType : null);
                                 return converter != null ? newProperty.withConverter(converter) : newProperty;
                             } else {
                                 return p;
@@ -230,19 +226,18 @@ public class ViewContext extends Context {
         }
     }
 
-    private ViewOfData getViewOf(Type type) {
-        return processorData.getByGenName(type.getQualifiedName());
+    private boolean isViewType(Type type) {
+        return processorData.getByGenName(type.getQualifiedName()) != null;
     }
 
-    private TypeElement getViewTarget(Type type) {
-        ViewOfData viewOf = getViewOf(type);
-        if (viewOf != null) {
-            return viewOf.getTargetElement();
+    private Type getViewType(Type type) {
+        if (isViewType(type)) {
+            return type;
         }
         if (type.isType(List.class) || type.isType(Stack.class) || type.isType(Set.class)) {
-            return getViewTarget(type.getParameters().get(0));
+            return getViewType(type.getParameters().get(0));
         } else if (type.isType(Map.class)) {
-            return getViewTarget(type.getParameters().get(1));
+            return getViewType(type.getParameters().get(1));
         } else {
             return null;
         }
@@ -490,6 +485,17 @@ public class ViewContext extends Context {
         }
     }
 
+    private void printReturnNullWhenInputNull(@NonNull PrintWriter writer, String argName, String indent, int indentNum) {
+        Utils.printIndent(writer, indent, indentNum);
+        writer.print("if (");
+        writer.print(argName);
+        writer.println(" == null) {");
+        Utils.printIndent(writer, indent, indentNum + 1);
+        writer.println("return null;");
+        Utils.printIndent(writer, indent, indentNum);
+        writer.println("}");
+    }
+
     private String getMapKeyParameter(String parameter) {
         if (genType.getParameters().stream().anyMatch(p -> p.isTypeVar() && p.getSimpleName().equals(parameter))) {
             return getMapKeyParameter(parameter + "K");
@@ -522,6 +528,7 @@ public class ViewContext extends Context {
             writer.print("[] read(");
             targetType.printType(writer, this, true, false);
             writer.println("[] sources) {");
+            printReturnNullWhenInputNull(writer, "sources", INDENT, 2);
             Utils.printIndent(writer, INDENT, 2);
             genType.printType(writer, this, true, false);
             writer.print("[] results = new ");
@@ -548,6 +555,7 @@ public class ViewContext extends Context {
             }
             targetType.printType(writer, this, true, false);
             writer.println("> sources) {");
+            printReturnNullWhenInputNull(writer, "sources", INDENT, 2);
             Utils.printIndent(writer, INDENT, 2);
             writer.print(collectionType);
             writer.print("<");
@@ -614,6 +622,7 @@ public class ViewContext extends Context {
         writer.print(" read(");
         targetType.printType(writer, this, true, false);
         writer.println(" source) {");
+        printReturnNullWhenInputNull(writer, "source", INDENT, 2);
         if (hasEmptyConstructor) {
             Utils.printIndent(writer, INDENT, 2);
             genType.printType(writer, this, true, false);
@@ -639,13 +648,13 @@ public class ViewContext extends Context {
                         property.getExtractor().print(writer, this);
                         writer.println(";");
                     } else {
-                        TypeElement viewTarget = property.getViewTarget();
+                        Type viewType = property.getViewType();
                         if (converter != null) {
                             writer.print("new ");
                             converterType.printType(writer, this, false, false);
                             writer.print("().convert(");
-                        } else if (viewTarget != null) {
-                            property.getType().printType(writer, this, false, false);
+                        } else if (viewType != null) {
+                            viewType.printType(writer, this, false, false);
                             writer.print(".read(");
                         }
                         if (property.isMethod()) {
@@ -656,7 +665,7 @@ public class ViewContext extends Context {
                             writer.print("source.");
                             writer.print(property.getName());
                         }
-                        if (converter != null || viewTarget != null) {
+                        if (converter != null || viewType != null) {
                             writer.println(");");
                         } else {
                             writer.println(";");

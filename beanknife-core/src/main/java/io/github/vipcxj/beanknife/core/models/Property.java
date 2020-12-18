@@ -24,7 +24,8 @@ public class Property {
     private final String comment;
     private Extractor extractor;
     private TypeElement converter;
-    private TypeElement viewTarget;
+    @CheckForNull
+    private Type viewType;
 
     public Property(
             String name,
@@ -66,7 +67,7 @@ public class Property {
         this.comment = other.comment != null ? other.comment : commentIfNone;
         this.extractor = other.extractor;
         this.converter = other.converter;
-        this.viewTarget = other.viewTarget;
+        this.viewType = other.viewType;
     }
 
     public Property withGetterAccess(Access access) {
@@ -88,10 +89,10 @@ public class Property {
         return property;
     }
 
-    public Property withType(@NonNull Type type, @CheckForNull TypeElement viewTarget) {
+    public Property withType(@NonNull Type type, @CheckForNull Type viewType) {
         Property property = new Property(this, null);
         property.type = type;
-        property.viewTarget = viewTarget;
+        property.viewType = viewType;
         return property;
     }
 
@@ -167,8 +168,8 @@ public class Property {
     }
 
     @CheckForNull
-    public TypeElement getViewTarget() {
-        return viewTarget;
+    public Type getViewType() {
+        return viewType;
     }
 
     public boolean isDynamic() {
