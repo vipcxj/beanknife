@@ -22,13 +22,13 @@ public class Type {
     private String packageName;
     private String simpleName;
     private int array;
-    private boolean annotation;
-    private boolean typeVar;
-    private boolean wildcard;
+    private final boolean annotation;
+    private final boolean typeVar;
+    private final boolean wildcard;
     private List<Type> parameters;
     private Type container;
-    private List<Type> upperBounds;
-    private List<Type> lowerBounds;
+    private final List<Type> upperBounds;
+    private final List<Type> lowerBounds;
     private CompilationUnitTree cu;
     private Tree tree;
 
@@ -176,6 +176,32 @@ public class Type {
         type.cu = null;
         type.tree = null;
         return type;
+    }
+
+    @NonNull
+    public Type withoutArray() {
+        if (!isArray()) {
+            return this;
+        }
+        Type type = new Type(this);
+        type.array = 0;
+        type.cu = null;
+        type.tree = null;
+        return type;
+    }
+
+    @CheckForNull
+    public Type getComponentType() {
+        Type type = new Type(this);
+        int newArray = type.array - 1;
+        if (newArray >= 0) {
+            type.array = newArray;
+            type.cu = null;
+            type.tree = null;
+            return type;
+        } else {
+            return null;
+        }
     }
 
     public String relativeName(Type type, boolean imported) {
@@ -801,6 +827,63 @@ public class Type {
         return this.array == array && getQualifiedName().equals(type.getCanonicalName());
     }
 
+    public boolean sameType(@NonNull Type type) {
+        if (array != type.array) {
+            return false;
+        }
+        if (!packageName.equals(type.packageName)) {
+            return false;
+        }
+        if (!simpleName.equals(type.simpleName)) {
+            return false;
+        }
+        if (annotation != type.annotation) {
+            return false;
+        }
+        if (typeVar != type.typeVar) {
+            return false;
+        }
+        if (wildcard != type.wildcard) {
+            return false;
+        }
+        if (container == null && type.container != null) {
+            return false;
+        } else if (container != null && !container.sameType(type.container)){
+            return false;
+        }
+        if (parameters.size() != type.parameters.size()) {
+            return false;
+        }
+        for (int i = 0; i < parameters.size(); ++i) {
+            Type parameter = parameters.get(i);
+            Type otherParameter = type.parameters.get(i);
+            if (!parameter.sameType(otherParameter)) {
+                return false;
+            }
+        }
+        if (upperBounds.size() != type.upperBounds.size()) {
+            return false;
+        }
+        for (int i = 0; i < upperBounds.size(); ++i) {
+            Type bound = upperBounds.get(i);
+            Type otherParameter = type.upperBounds.get(i);
+            if (!bound.sameType(otherParameter)) {
+                return false;
+            }
+        }
+        if (lowerBounds.size() != type.lowerBounds.size()) {
+            return false;
+        }
+        for (int i = 0; i < lowerBounds.size(); ++i) {
+            Type bound = lowerBounds.get(i);
+            Type otherParameter = type.lowerBounds.get(i);
+            if (!bound.sameType(otherParameter)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public void openClass(@NonNull PrintWriter writer, @NonNull Modifier modifier, @NonNull Context context, String indent, int indentNum) {
         Utils.printIndent(writer, indent, indentNum);
         writer.print(modifier);
@@ -941,25 +1024,8 @@ public class Type {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Type type = (Type) o;
-        return array == type.array &&
-                typeVar == type.typeVar &&
-                wildcard == type.wildcard &&
-                Objects.equals(packageName, type.packageName) &&
-                Objects.equals(simpleName, type.simpleName) &&
-                Objects.equals(parameters, type.parameters) &&
-                Objects.equals(container, type.container) &&
-                Objects.equals(upperBounds, type.upperBounds) &&
-                Objects.equals(lowerBounds, type.lowerBounds);
-    }
-
-    @Override
     public int hashCode() {
-        Class<? extends Number> a = Number.class;
-        return Objects.hash(packageName, simpleName, array, typeVar, wildcard, parameters, container, upperBounds, lowerBounds);
+        return Objects.hash(context, packageName, simpleName, array, annotation, typeVar, wildcard, parameters, container, upperBounds, lowerBounds, cu, tree);
     }
 
     @Override

@@ -14,7 +14,6 @@ import javax.lang.model.element.Element;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
-import javax.tools.Diagnostic;
 import java.io.PrintWriter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -123,7 +122,7 @@ public class Context {
             if (elementUtils.hides(property.getElement(), p.getElement())) {
                 iterator.remove();
                 if (Utils.isNotObjectProperty(property)) {
-                    iterator.add(new Property(property, p.getComment()));
+                    iterator.add(p.overrideBy(property));
                 }
                 done = true;
                 break;
@@ -134,22 +133,19 @@ public class Context {
                 if (override || (!p.isMethod() && property.isMethod())) {
                     iterator.remove();
                     if (Utils.isNotObjectProperty(property)) {
-                        iterator.add(new Property(property, p.getComment()));
+                        iterator.add(p.overrideBy(property));
                     }
                 } else if (p.isMethod() == property.isMethod()) {
                     Element ownerP = p.getElement().getEnclosingElement();
                     Element ownerProperty = property.getElement().getEnclosingElement();
-                    processingEnv.getMessager().printMessage(
-                            Diagnostic.Kind.ERROR,
-                            "Property conflict: "
-                                    + (ownerP != null
-                                    ? p.getElement().getSimpleName() + " in " + ownerP.getSimpleName()
-                                    : p.getElement().getSimpleName())
-                                    + " / "
-                                    + (ownerProperty != null
-                                    ? property.getElement().getSimpleName() + " in " + ownerProperty.getSimpleName()
-                                    : property.getElement().getSimpleName())
-                    );
+                    error("Property conflict: "
+                            + (ownerP != null
+                            ? p.getElement().getSimpleName() + " in " + ownerP.getSimpleName()
+                            : p.getElement().getSimpleName())
+                            + " / "
+                            + (ownerProperty != null
+                            ? property.getElement().getSimpleName() + " in " + ownerProperty.getSimpleName()
+                            : property.getElement().getSimpleName()));
                 }
                 done = true;
                 break;

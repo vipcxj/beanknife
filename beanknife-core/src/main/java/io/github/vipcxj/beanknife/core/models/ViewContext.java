@@ -144,17 +144,23 @@ public class ViewContext extends Context {
                                         .withGetterAccess(Utils.resolveGetterAccess(viewOf, overrideViewProperty.getter()))
                                         .withSetterAccess(Utils.resolveSetterAccess(viewOf, overrideViewProperty.setter()));
                                 TypeElement converter = selectConverter(member, converters, member.asType(), p.getTypeMirror());
-                                Type viewType = getViewType(newType);
-                                boolean isView = false;
+                                Type converterType = null;
+                                if (converter != null) {
+                                    converterType = Type.extract(this, converter);
+                                    if (converterType == null) {
+                                        error("The converter of the property " + p.getName() + " can not be resolved. So this property is ignored.");
+                                        return null;
+                                    }
+                                }
+                                boolean isView = matchViewType(p.getType(), newType);
                                 if (!newType.canBeAssignedBy(p.getTypeMirror())  && converter == null) {
-                                    if (viewType == null) {
+                                    if (!isView) {
                                         error("The property " + p.getName() + " can not be override because type mismatched.");
                                         return null;
                                     }
-                                    isView = true;
                                 }
-                                newProperty = newProperty.withType(newType, isView ? viewType : null);
-                                return converter != null ? newProperty.withConverter(converter) : newProperty;
+                                newProperty = newProperty.withType(newType, isView);
+                                return converterType != null ? newProperty.withConverter(converterType) : newProperty;
                             } else {
                                 return p;
                             }
@@ -216,30 +222,41 @@ public class ViewContext extends Context {
         }
         for (Property property : getProperties()) {
             importVariable(property.getType());
-            TypeElement converter = property.getConverter();
+            Type converter = property.getConverter();
             if (converter != null) {
-                Type converterType = Type.extract(this, converter);
-                if (converterType != null) {
-                    importVariable(converterType);
-                }
+                importVariable(converter);
             }
         }
     }
 
     private boolean isViewType(Type type) {
-        return processorData.getByGenName(type.getQualifiedName()) != null;
+        return !type.isArray() && getViewData(type) != null;
     }
 
-    private Type getViewType(Type type) {
-        if (isViewType(type)) {
-            return type;
+    private ViewOfData getViewData(Type type) {
+        return processorData.getByGenName(type.getQualifiedName());
+    }
+
+    private boolean matchViewType(Type sourceType, Type targetType) {
+        if (isViewType(targetType)) {
+            ViewOfData viewData = getViewData(targetType);
+            Type type = Type.extract(this, viewData.getTargetElement());
+            if (type == null) {
+                error("Unable to resolve the type: " + viewData.getTargetElement().getQualifiedName() + ".");
+                return false;
+            }
+            return sourceType.sameType(type);
         }
-        if (type.isType(List.class) || type.isType(Stack.class) || type.isType(Set.class)) {
-            return getViewType(type.getParameters().get(0));
-        } else if (type.isType(Map.class)) {
-            return getViewType(type.getParameters().get(1));
+        if ((sourceType.isType(List.class) && targetType.isType(List.class))
+                || (sourceType.isType(Stack.class) && targetType.isType(Stack.class))
+                || (sourceType.isType(Set.class) && targetType.isType(Set.class))) {
+            return matchViewType(sourceType.getParameters().get(0), targetType.getParameters().get(0));
+        } else if (sourceType.isType(Map.class) && targetType.isType(Map.class)) {
+            return matchViewType(sourceType.getParameters().get(1), targetType.getParameters().get(1));
+        } else if (sourceType.isArray() && targetType.isArray()) {
+            return matchViewType(sourceType.getComponentType(), targetType.getComponentType());
         } else {
-            return null;
+            return false;
         }
     }
 
@@ -485,14 +502,14 @@ public class ViewContext extends Context {
         }
     }
 
-    private void printReturnNullWhenInputNull(@NonNull PrintWriter writer, String argName, String indent, int indentNum) {
-        Utils.printIndent(writer, indent, indentNum);
+    private void printReturnNullWhenInputNull(@NonNull PrintWriter writer, String argName) {
+        Utils.printIndent(writer, Context.INDENT, 2);
         writer.print("if (");
         writer.print(argName);
         writer.println(" == null) {");
-        Utils.printIndent(writer, indent, indentNum + 1);
+        Utils.printIndent(writer, Context.INDENT, 2 + 1);
         writer.println("return null;");
-        Utils.printIndent(writer, indent, indentNum);
+        Utils.printIndent(writer, Context.INDENT, 2);
         writer.println("}");
     }
 
@@ -528,7 +545,7 @@ public class ViewContext extends Context {
             writer.print("[] read(");
             targetType.printType(writer, this, true, false);
             writer.println("[] sources) {");
-            printReturnNullWhenInputNull(writer, "sources", INDENT, 2);
+            printReturnNullWhenInputNull(writer, "sources");
             Utils.printIndent(writer, INDENT, 2);
             genType.printType(writer, this, true, false);
             writer.print("[] results = new ");
@@ -555,7 +572,7 @@ public class ViewContext extends Context {
             }
             targetType.printType(writer, this, true, false);
             writer.println("> sources) {");
-            printReturnNullWhenInputNull(writer, "sources", INDENT, 2);
+            printReturnNullWhenInputNull(writer, "sources");
             Utils.printIndent(writer, INDENT, 2);
             writer.print(collectionType);
             writer.print("<");
@@ -601,6 +618,148 @@ public class ViewContext extends Context {
         writer.println();
     }
 
+    private void prepareRead(@NonNull PrintWriter writer, Property property, Map<String, String> varMap) {
+        Type converter = property.getConverter();
+        if (!property.isCustomMethod() && converter == null && property.isView()) {
+            String var = "p" + varMap.size();
+            prepareView(writer, property.getType(), var, Objects.requireNonNull(property.getOverride()).getType(), property.getValueString("source"), 2, 0);
+            varMap.put(property.getName(), var);
+        }
+    }
+
+    private void prepareView(@NonNull PrintWriter writer, Type targetType, String targetVarName, Type sourceType, String sourceVarName, int indentNum, int level) {
+        Utils.printIndent(writer, INDENT, indentNum);
+        targetType.printType(writer, this, true, true);
+        writer.print(" ");
+        writer.print(targetVarName);
+        writer.print(" = ");
+        if (isViewType(targetType)) {
+            targetType.printType(writer, this, true, true);
+            writer.print(".read(");
+            writer.print(sourceVarName);
+            writer.println(");");
+        } else {
+            String collectionImpl;
+            if (targetType.isType(List.class)) {
+                collectionImpl = "ArrayList";
+            } else if (targetType.isType(Set.class)) {
+                collectionImpl = "HashSet";
+            } else if (targetType.isType(Stack.class)) {
+                collectionImpl = "Stack";
+            } else if (targetType.isType(Map.class)) {
+                collectionImpl = "HashMap";
+            } else if (targetType.isArray()) {
+                collectionImpl = null;
+            } else {
+                throw new IllegalArgumentException("Unsupported view collection targetType: " + targetType + ".");
+            }
+            writer.print("new ");
+            if (targetType.isArray()) {
+                targetType.withoutArray().printType(writer, this, false, false);
+                writer.print("[");
+                writer.print(sourceVarName);
+                writer.print(".length]");
+                for (int i = 0; i < targetType.getArray() - 1; ++i) {
+                    writer.print("[]");
+                }
+                writer.println(";");
+            } else {
+                writer.print(collectionImpl);
+                writer.println("<>();");
+            }
+        }
+        if (!isViewType(targetType)) {
+            Utils.printIndent(writer, INDENT, indentNum);
+            Type targetComponentType;
+            Type sourceComponentType;
+            if (targetType.isType(List.class) || targetType.isType(Set.class) || targetType.isType(Stack.class)) {
+                targetComponentType = targetType.getParameters().get(0);
+                sourceComponentType = sourceType.getParameters().get(0);
+            } else if (targetType.isType(Map.class)) {
+                targetComponentType = targetType.getParameters().get(1);
+                sourceComponentType = sourceType.getParameters().get(1);
+            } else if (targetType.isArray()) {
+                targetComponentType = Objects.requireNonNull(targetType.getComponentType());
+                sourceComponentType = Objects.requireNonNull(sourceType.getComponentType());
+            } else {
+                throw new IllegalArgumentException("Unsupported view collection targetType: " + targetType + ".");
+            }
+            String elVar = "el" + level;
+            writer.print("for (");
+            String iVar = "i" + level;
+            if (targetType.isArray()) {
+                writer.print("int ");
+                writer.print(iVar);
+                writer.print(" = 0; ");
+                writer.print(iVar);
+                writer.print(" < ");
+                writer.print(sourceVarName);
+                writer.print(".length; ++");
+                writer.print(iVar);
+            } else {
+                if (targetType.isType(Map.class)) {
+                    writer.print("Map.Entry<");
+                    sourceType.printGenericParameters(writer, this, true, false);
+                    writer.print(">");
+                } else {
+                    sourceComponentType.printType(writer, this, true, true);
+                }
+                writer.print(" ");
+                writer.print(elVar);
+                writer.print(" : ");
+                writer.print(sourceVarName);
+                if (targetType.isType(Map.class)) {
+                    writer.print(".entrySet()");
+                }
+            }
+            writer.println(") {");
+            if (targetType.isArray()) {
+                Utils.printIndent(writer, INDENT, indentNum + 1);
+                sourceComponentType.printType(writer, this, true, true);
+                writer.print(" ");
+                writer.print(elVar);
+                writer.print(" = ");
+                writer.print(sourceVarName);
+                writer.print("[");
+                writer.print(iVar);
+                writer.println("];");
+            }
+            String newTargetVar = "result" + level;
+            prepareView(
+                    writer,
+                    targetComponentType,
+                    newTargetVar,
+                    sourceComponentType,
+                    targetType.isType(Map.class) ? elVar + ".getValue()" : elVar,
+                    indentNum + 1,
+                    level + 1
+            );
+            Utils.printIndent(writer, INDENT, indentNum + 1);
+            if (targetType.isType(List.class) || targetType.isType(Set.class) || targetType.isType(Stack.class)) {
+                writer.print(targetVarName);
+                writer.print(".add(");
+                writer.print(newTargetVar);
+                writer.println(");");
+            } else if (targetType.isType(Map.class)) {
+                writer.print(targetVarName);
+                writer.print(".put(");
+                writer.print(elVar);
+                writer.print(".getKey(), ");
+                writer.print(newTargetVar);
+                writer.println(");");
+            } else if (targetType.isArray()) {
+                writer.print(targetVarName);
+                writer.print("[");
+                writer.print(iVar);
+                writer.print("] = ");
+                writer.print(newTargetVar);
+                writer.println(";");
+            }
+            Utils.printIndent(writer, INDENT, indentNum);
+            writer.println("}");
+        }
+    }
+
     private boolean printReader(
             @NonNull PrintWriter writer,
             boolean empty,
@@ -622,7 +781,11 @@ public class ViewContext extends Context {
         writer.print(" read(");
         targetType.printType(writer, this, true, false);
         writer.println(" source) {");
-        printReturnNullWhenInputNull(writer, "source", INDENT, 2);
+        printReturnNullWhenInputNull(writer, "source");
+        Map<String, String> varMap = new HashMap<>();
+        for (Property property : properties) {
+            prepareRead(writer, property, varMap);
+        }
         if (hasEmptyConstructor) {
             Utils.printIndent(writer, INDENT, 2);
             genType.printType(writer, this, true, false);
@@ -634,12 +797,7 @@ public class ViewContext extends Context {
             writer.println("();");
             for (Property property : properties) {
                 if (!property.isDynamic()) {
-                    TypeElement converter = property.getConverter();
-                    Type converterType = converter != null ? Type.extract(this, converter) : null;
-                    if (converter != null && converterType == null) {
-                        error("Unable to resolve the converter of the property " + property.getName() + ".");
-                        continue;
-                    }
+                    Type converter = property.getConverter();
                     Utils.printIndent(writer, INDENT, 2);
                     writer.print("out.");
                     writer.print(this.getMappedFieldName(property));
@@ -648,26 +806,17 @@ public class ViewContext extends Context {
                         property.getExtractor().print(writer, this);
                         writer.println(";");
                     } else {
-                        Type viewType = property.getViewType();
                         if (converter != null) {
                             writer.print("new ");
-                            converterType.printType(writer, this, false, false);
+                            converter.printType(writer, this, false, false);
                             writer.print("().convert(");
-                        } else if (viewType != null) {
-                            viewType.printType(writer, this, false, false);
-                            writer.print(".read(");
-                        }
-                        if (property.isMethod()) {
-                            writer.print("source.");
-                            writer.print(property.getGetterName());
-                            writer.print("()");
-                        } else {
-                            writer.print("source.");
-                            writer.print(property.getName());
-                        }
-                        if (converter != null || viewType != null) {
+                            writer.print(property.getValueString("source"));
                             writer.println(");");
+                        } else if (property.isView()) {
+                            writer.print(varMap.get(property.getName()));
+                            writer.println(";");
                         } else {
+                            writer.print(property.getValueString("source"));
                             writer.println(";");
                         }
                     }
@@ -686,18 +835,22 @@ public class ViewContext extends Context {
             int i = 0;
             properties = properties.stream().filter(p -> !p.isDynamic()).collect(Collectors.toList());
             for (Property property : properties) {
+                Type converter = property.getConverter();
                 Utils.printIndent(writer, INDENT, 3);
                 if (property.isCustomMethod()) {
                     property.getExtractor().print(writer, this);
                 } else {
-                    if (property.isMethod()) {
-                        writer.print("source.");
-                        writer.print(property.getGetterName());
-                        writer.print("()");
+                    boolean isViewType = property.isView();
+                    if (converter != null) {
+                        writer.print("new ");
+                        converter.printType(writer, this, false, false);
+                        writer.print("().convert(");
+                        writer.print(property.getValueString("source"));
+                        writer.println(")");
+                    } else if (isViewType) {
+                        writer.print(varMap.get(property.getName()));
                     } else {
-                        writer.print("source.");
-                        writer.print(property.getName());
-                        writer.print("");
+                        writer.print(property.getValueString("source"));
                     }
                 }
                 if (i != properties.size() - 1) {

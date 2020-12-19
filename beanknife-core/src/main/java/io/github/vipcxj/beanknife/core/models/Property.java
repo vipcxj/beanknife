@@ -23,9 +23,11 @@ public class Property {
     private final Element element;
     private final String comment;
     private Extractor extractor;
-    private TypeElement converter;
     @CheckForNull
-    private Type viewType;
+    private Type converter;
+    private boolean view;
+    @CheckForNull
+    private Property override;
 
     public Property(
             String name,
@@ -51,6 +53,7 @@ public class Property {
         this.writeable = writeable;
         this.element = element;
         this.comment = comment;
+        this.override = null;
     }
 
     public Property(Property other, String commentIfNone) {
@@ -67,7 +70,8 @@ public class Property {
         this.comment = other.comment != null ? other.comment : commentIfNone;
         this.extractor = other.extractor;
         this.converter = other.converter;
-        this.viewType = other.viewType;
+        this.view = other.view;
+        this.override = other.override;
     }
 
     public Property withGetterAccess(Access access) {
@@ -89,17 +93,23 @@ public class Property {
         return property;
     }
 
-    public Property withType(@NonNull Type type, @CheckForNull Type viewType) {
+    public Property withType(@NonNull Type type, boolean view) {
         Property property = new Property(this, null);
         property.type = type;
-        property.viewType = viewType;
+        property.view = view;
         return property;
     }
 
-    public Property withConverter(TypeElement converter) {
+    public Property withConverter(@CheckForNull Type converter) {
         Property property = new Property(this, null);
         property.converter = converter;
         return property;
+    }
+
+    public Property overrideBy(@NonNull Property property) {
+        Property out = new Property(property, this.comment);
+        out.override = this;
+        return out;
     }
 
     public TypeMirror getTypeMirror() {
@@ -163,13 +173,18 @@ public class Property {
         return extractor;
     }
 
-    public TypeElement getConverter() {
+    @CheckForNull
+    public Type getConverter() {
         return converter;
     }
 
+    public boolean isView() {
+        return view;
+    }
+
     @CheckForNull
-    public Type getViewType() {
-        return viewType;
+    public Property getOverride() {
+        return override;
     }
 
     public boolean isDynamic() {
@@ -178,6 +193,14 @@ public class Property {
 
     public boolean isCustomMethod() {
         return extractor instanceof StaticMethodExtractor;
+    }
+
+    public String getValueString(String sourceVar) {
+        if (isMethod()) {
+            return sourceVar + "." + getGetterName() + "()";
+        } else {
+            return sourceVar + "." + getName();
+        }
     }
 
     public void printType(@NonNull PrintWriter writer, @NonNull Context context, boolean generic, boolean withBound) {
@@ -243,11 +266,19 @@ public class Property {
         return "Property{" +
                 "name='" + name + '\'' +
                 ", modifier=" + modifier +
+                ", getter=" + getter +
+                ", setter=" + setter +
                 ", type=" + type +
                 ", method=" + method +
                 ", getterName='" + getterName + '\'' +
+                ", setterName='" + setterName + '\'' +
+                ", writeable=" + writeable +
                 ", element=" + element +
                 ", comment='" + comment + '\'' +
+                ", extractor=" + extractor +
+                ", converter=" + converter +
+                ", view=" + view +
+                ", override=" + override +
                 '}';
     }
 }
