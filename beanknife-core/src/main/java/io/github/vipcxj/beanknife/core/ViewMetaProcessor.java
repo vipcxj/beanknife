@@ -22,13 +22,11 @@ import java.util.*;
 public class ViewMetaProcessor extends AbstractProcessor {
 
     private Trees trees;
-    private ProcessorData processorData;
 
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
         this.trees = Trees.instance(processingEnv);
-        this.processorData = new ProcessorData();
     }
 
     @Override
@@ -65,7 +63,7 @@ public class ViewMetaProcessor extends AbstractProcessor {
                                 continue;
                             }
                             List<ViewOfData> viewOfDataList = Utils.collectViewOfs(processingEnv, roundEnv, targetElement);
-                            MetaContext context = new MetaContext(trees, processingEnv, processorData, viewMeta, viewOfDataList);
+                            MetaContext context = new MetaContext(trees, processingEnv, viewMeta, viewOfDataList);
                             String genQualifiedName = context.getGenType().getQualifiedName();
                             if (!targetClassNames.contains(genQualifiedName)) {
                                 targetClassNames.add(genQualifiedName);

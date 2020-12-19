@@ -21,8 +21,8 @@ public class MetaContext extends Context {
     private final Type genType;
     private final Type generatedType;
 
-    public MetaContext(@NonNull Trees trees, @NonNull ProcessingEnvironment processingEnv, ProcessorData processorData, @NonNull ViewMetaData viewMeta, @NonNull List<ViewOfData> viewOfDataList) {
-        super(trees, processingEnv, processorData);
+    public MetaContext(@NonNull Trees trees, @NonNull ProcessingEnvironment processingEnv, @NonNull ViewMetaData viewMeta, @NonNull List<ViewOfData> viewOfDataList) {
+        super(trees, processingEnv, null);
         this.viewMeta = viewMeta;
         this.viewOfDataList = viewOfDataList;
         TypeElement targetElement = viewMeta.getOf();

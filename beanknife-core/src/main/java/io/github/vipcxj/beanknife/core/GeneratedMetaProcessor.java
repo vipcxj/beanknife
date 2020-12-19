@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-@SupportedAnnotationTypes({"io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedMeta", "io.github.vipcxj.beanknife.runtime.annotations.ViewOf", "io.github.vipcxj.beanknife.runtime.annotations.ViewOfs"})
+@SupportedAnnotationTypes({"io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedMeta"})
 @AutoService(Processor.class)
 public class GeneratedMetaProcessor extends AbstractProcessor {
 
@@ -36,6 +36,7 @@ public class GeneratedMetaProcessor extends AbstractProcessor {
         try {
             this.processorData.collect(processingEnv, roundEnv);
             for (TypeElement annotation : annotations) {
+                this.processorData.fix(processingEnv);
                 Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
                 for (Element element : elements) {
                     List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(element);

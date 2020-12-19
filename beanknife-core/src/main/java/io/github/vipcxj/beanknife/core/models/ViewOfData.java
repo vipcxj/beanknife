@@ -17,8 +17,10 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class ViewOfData {
+    private AnnotationMirror viewOf;
     private TypeElement targetElement;
     private TypeElement configElement;
+    private TypeElement sourceElement;
     private String genPackage;
     private String genName;
     private Modifier access;
@@ -34,32 +36,42 @@ public class ViewOfData {
     private boolean errorMethods;
 
     public static ViewOfData read(@NonNull ProcessingEnvironment environment, @NonNull AnnotationMirror viewOf, @NonNull TypeElement sourceElement) {
-        Map<? extends ExecutableElement, ? extends AnnotationValue> annValues = environment.getElementUtils().getElementValuesWithDefaults(viewOf);
         ViewOfData data = new ViewOfData();
+        data.load(environment, viewOf, sourceElement);
+        return data;
+    }
+
+    public void load(@NonNull ProcessingEnvironment environment, @NonNull AnnotationMirror viewOf, @NonNull TypeElement sourceElement) {
+        Map<? extends ExecutableElement, ? extends AnnotationValue> annValues = environment.getElementUtils().getElementValuesWithDefaults(viewOf);
+        this.viewOf = viewOf;
+        this.sourceElement = sourceElement;
         DeclaredType value = Utils.getTypeAnnotationValue(viewOf, annValues, "value");
-        data.targetElement = (TypeElement) value.asElement();
-        if (Self.class.getCanonicalName().equals(data.targetElement.getQualifiedName().toString())) {
-            data.targetElement = sourceElement;
+        this.targetElement = (TypeElement) value.asElement();
+        if (Utils.isThisTypeElement(this.targetElement, Self.class)) {
+            this.targetElement = sourceElement;
         }
         DeclaredType config = Utils.getTypeAnnotationValue(viewOf, annValues, "config");
-        data.configElement = (TypeElement) config.asElement();
-        if (Self.class.getCanonicalName().equals(data.configElement.getQualifiedName().toString())) {
-            data.configElement = sourceElement;
+        this.configElement = (TypeElement) config.asElement();
+        if (Utils.isThisTypeElement(this.configElement, Self.class)) {
+            this.configElement = sourceElement;
         }
-        data.genPackage = Utils.getStringAnnotationValue(viewOf, annValues, "genPackage");
-        data.genName = Utils.getStringAnnotationValue(viewOf, annValues, "genName");
-        data.access = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "access"));
-        data.includes = Utils.getStringArrayAnnotationValue(viewOf, annValues, "includes");
-        data.excludes = Utils.getStringArrayAnnotationValue(viewOf, annValues, "excludes");
-        data.includePattern = Utils.getStringAnnotationValue(viewOf, annValues, "includePattern");
-        data.excludePattern = Utils.getStringAnnotationValue(viewOf, annValues, "excludePattern");
-        data.emptyConstructor = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "emptyConstructor"));
-        data.fieldsConstructor = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "fieldsConstructor"));
-        data.copyConstructor = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "copyConstructor"));
-        data.getters = getAccess(Utils.getEnumAnnotationValue(viewOf, annValues, "getters"));
-        data.setters = getAccess(Utils.getEnumAnnotationValue(viewOf, annValues, "setters"));
-        data.errorMethods = Utils.getBooleanAnnotationValue(viewOf, annValues, "errorMethods");
-        return data;
+        this.genPackage = Utils.getStringAnnotationValue(viewOf, annValues, "genPackage");
+        this.genName = Utils.getStringAnnotationValue(viewOf, annValues, "genName");
+        this.access = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "access"));
+        this.includes = Utils.getStringArrayAnnotationValue(viewOf, annValues, "includes");
+        this.excludes = Utils.getStringArrayAnnotationValue(viewOf, annValues, "excludes");
+        this.includePattern = Utils.getStringAnnotationValue(viewOf, annValues, "includePattern");
+        this.excludePattern = Utils.getStringAnnotationValue(viewOf, annValues, "excludePattern");
+        this.emptyConstructor = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "emptyConstructor"));
+        this.fieldsConstructor = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "fieldsConstructor"));
+        this.copyConstructor = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "copyConstructor"));
+        this.getters = getAccess(Utils.getEnumAnnotationValue(viewOf, annValues, "getters"));
+        this.setters = getAccess(Utils.getEnumAnnotationValue(viewOf, annValues, "setters"));
+        this.errorMethods = Utils.getBooleanAnnotationValue(viewOf, annValues, "errorMethods");
+    }
+
+    public void reload(ProcessingEnvironment environment) {
+        load(environment, this.viewOf, this.sourceElement);
     }
 
     private static Modifier getModifier(String modifier) {

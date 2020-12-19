@@ -148,4 +148,10 @@ public class ProcessorData {
             dataByConfigList.add(viewOfData);
         }
     }
+
+    public void fix(ProcessingEnvironment environment) {
+        for (ViewOfData viewOfData : viewOfDataByGenTypeName.values()) {
+            viewOfData.reload(environment);
+        }
+    }
 }

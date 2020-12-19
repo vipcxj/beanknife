@@ -859,31 +859,36 @@ public class Utils {
     }
 
     public static List<ViewOfData> collectViewOfs(ProcessingEnvironment processingEnv, RoundEnvironment roundEnv) {
-        Set<? extends Element> candidates = roundEnv.getElementsAnnotatedWith(ViewOf.class);
-        List<ViewOfData> out = new ArrayList<>();
-        for (Element candidate : candidates) {
-            if (Utils.shouldIgnoredElement(candidate)) {
-                continue;
-            }
-            List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(candidate);
+        Set<? extends Element> proxySources = roundEnv.getElementsAnnotatedWith(GeneratedMeta.class);
+        Map<String, TypeElement> configClasses = new HashMap<>();
+        for (Element proxySource : proxySources) {
+            List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(proxySource);
             for (AnnotationMirror annotationMirror : annotationMirrors) {
-                if (Utils.isThisAnnotation(annotationMirror, ViewOf.class)) {
-                    collectViewOfs(out, processingEnv, (TypeElement) candidate, annotationMirror);
+                if (Utils.isThisAnnotation(annotationMirror, GeneratedMeta.class)) {
+                    Map<? extends ExecutableElement, ? extends AnnotationValue> elementValuesWithDefaults = processingEnv.getElementUtils().getElementValuesWithDefaults(annotationMirror);
+                    DeclaredType[] proxies = Utils.getTypeArrayAnnotationValue(annotationMirror, elementValuesWithDefaults, "proxies");
+                    for (DeclaredType proxy : proxies) {
+                        TypeElement proxyElement = toElement(proxy);
+                        configClasses.put(proxyElement.getQualifiedName().toString(), proxyElement);
+                    }
                 }
             }
         }
-        candidates = roundEnv.getElementsAnnotatedWith(ViewOfs.class);
-        for (Element candidate : candidates) {
-            if (Utils.shouldIgnoredElement(candidate)) {
-                continue;
+        List<ViewOfData> out = new ArrayList<>();
+        for (TypeElement configElement : configClasses.values()) {
+            List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(configElement);
+            for (AnnotationMirror annotationMirror : annotationMirrors) {
+                if (Utils.isThisAnnotation(annotationMirror, ViewOf.class)) {
+                    collectViewOfs(out, processingEnv, configElement, annotationMirror);
+                }
             }
-            List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(candidate);
+            annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(configElement);
             for (AnnotationMirror annotationMirror : annotationMirrors) {
                 if (Utils.isThisAnnotation(annotationMirror, ViewOfs.class)) {
                     Map<? extends ExecutableElement, ? extends AnnotationValue> elementValuesWithDefaults = processingEnv.getElementUtils().getElementValuesWithDefaults(annotationMirror);
                     List<AnnotationMirror> viewOfs = Utils.getAnnotationElement(annotationMirror, elementValuesWithDefaults);
                     for (AnnotationMirror viewOf : viewOfs) {
-                        collectViewOfs(out, processingEnv, (TypeElement) candidate, viewOf);
+                        collectViewOfs(out, processingEnv, configElement, viewOf);
                     }
                 }
             }

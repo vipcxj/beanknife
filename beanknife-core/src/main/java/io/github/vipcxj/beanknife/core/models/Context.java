@@ -209,7 +209,7 @@ public class Context {
     }
 
     private Type fixType(Set<String> imports, String packageName, String typeName) {
-        String fixedTypeName = processorData.fixType(imports, packageName, typeName);
+        String fixedTypeName = processorData != null ? processorData.fixType(imports, packageName, typeName) : null;
         if (fixedTypeName != null) {
             int index = fixedTypeName.lastIndexOf('.');
             if (index != -1) {
