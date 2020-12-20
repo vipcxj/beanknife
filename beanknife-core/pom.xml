@@ -5,10 +5,37 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>io.github.vipcxj.beanknife</groupId>
-        <artifactId>beanknife</artifactId>
+        <artifactId>beanknife-parent</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
     <artifactId>beanknife-core</artifactId>
+    <name>BeanKnife Core</name>
+    <url>https://github.com/vipcxj/beanknife</url>
+    <description>
+        The annotation processor to generate the data transfer object (DTO).
+        This is the processor used in compile time.
+    </description>
+    <licenses>
+        <license>
+            <name>Apache 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+    <scm>
+        <url>https://github.com/vipcxj/beanknife</url>
+        <connection>https://github.com/vipcxj/beanknife.git</connection>
+    </scm>
+    <developers>
+        <developer>
+            <name>XiaoJing Chen</name>
+            <id>vipcxj</id>
+            <email>vipcxj@126.com</email>
+            <roles>
+                <role>Developer</role>
+            </roles>
+            <timezone>+8</timezone>
+        </developer>
+    </developers>
 
     <dependencies>
         <dependency>
