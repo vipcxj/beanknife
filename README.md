@@ -1,6 +1,6 @@
 BeanKnife
 ===============
-A annotation processor library to automatically generate the data transfer objects (DTO).
+An annotation processor library to automatically generate the data transfer objects (DTO).
 
 ## Docs
 * [Introduction](#introduction)
@@ -42,8 +42,8 @@ Of course, directly put the annotation on the target class is also supported.
 3. You can define the new property in the DTO class. 
 It should be configured on the class other than the target class.
 4. Support converter, which convert from one type to another type or a type to itself.
-The runtime library provide some built-in converters. Such as converter a number object to zero when it is null.
-5. You can override the exist property.
+The runtime library provide some built-in converters. Such as converting a number object to zero when it is null.
+5. You can override the existed property.
 It should be configured on the class other than the target class.
 You can change the property type by converter or replace it with the DTO version. 
 Furthermore, you can rewrite the property.
