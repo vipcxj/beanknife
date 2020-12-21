@@ -7,6 +7,9 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * a built-in converter to convert short, long, integer, float, double, byte, BigInteger or BigDecimal value to zero when it is null.
+ */
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.SOURCE)
 @UsePropertyConverter(NullBigDecimalAsZeroConverter.class)
