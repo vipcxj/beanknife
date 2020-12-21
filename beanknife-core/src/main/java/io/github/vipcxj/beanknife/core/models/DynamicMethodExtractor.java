@@ -39,7 +39,7 @@ public class DynamicMethodExtractor implements Extractor {
             context.error("The dynamic property method \"" + name + "\" should be static.");
             return false;
         }
-        if (property == null || !returnType.equals(property.getType())) {
+        if (property != null && !returnType.equals(property.getType())) {
             context.error("The dynamic property method \"" + name + "\" should return a \"" + returnType + "\" type.");
             return false;
         }
@@ -98,7 +98,7 @@ public class DynamicMethodExtractor implements Extractor {
             } else {
                 writer.print("null");
             }
-            if (i != parameters.size() - 1) {
+            if (i++ != parameters.size() - 1) {
                 writer.print(", ");
             }
         }

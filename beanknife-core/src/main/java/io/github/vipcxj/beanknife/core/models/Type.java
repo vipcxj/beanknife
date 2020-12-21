@@ -917,19 +917,18 @@ public class Type {
         }
         openConstructor(writer, modifier, indent, indentNum);
         writer.println();
+        properties = properties.stream().filter(property -> !property.isDynamic()).collect(Collectors.toList());
         int size = properties.size();
         int i = 0;
         for (Property property : properties) {
-            if (!property.isDynamic()) {
-                Utils.printIndent(writer, indent, indentNum + 1);
-                property.printType(writer, context, true, false);
-                writer.print(" ");
-                writer.print(context.getMappedFieldName(property));
-                if (i != size - 1) {
-                    writer.println(",");
-                } else {
-                    writer.println();
-                }
+            Utils.printIndent(writer, indent, indentNum + 1);
+            property.printType(writer, context, true, false);
+            writer.print(" ");
+            writer.print(context.getMappedFieldName(property));
+            if (i != size - 1) {
+                writer.println(",");
+            } else {
+                writer.println();
             }
             ++i;
         }

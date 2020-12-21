@@ -186,7 +186,9 @@ public class ViewContext extends Context {
                         String name = overrideViewProperty.value();
                         getProperties().replaceAll(p -> {
                             if (p.getName().equals(name)) {
-                                extractor.check(this, p);
+                                if (extractor.check(this, p)) {
+                                    return null;
+                                }
                                 return p
                                         .withGetterAccess(Utils.resolveGetterAccess(viewOf, overrideViewProperty.getter()))
                                         .withSetterAccess(Utils.resolveSetterAccess(viewOf, overrideViewProperty.setter()))
@@ -195,8 +197,11 @@ public class ViewContext extends Context {
                                 return p;
                             }
                         });
+                        getProperties().removeIf(Objects::isNull);
                     } else if (newViewProperty != null) {
-                        extractor.check(this, null);
+                        if (!extractor.check(this, null)) {
+                            continue;
+                        }
                         String name = newViewProperty.value();
                         Type type = extractor.getReturnType();
                         Access getterAccess = Utils.resolveGetterAccess(viewOf, newViewProperty.getter());
