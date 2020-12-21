@@ -2,8 +2,8 @@ package io.github.vipcxj.beanknife.core.models;
 
 import com.sun.source.util.Trees;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedMeta;
 import io.github.vipcxj.beanknife.core.utils.Utils;
+import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedMeta;
 import org.apache.commons.text.StringEscapeUtils;
 
 import javax.annotation.processing.ProcessingEnvironment;

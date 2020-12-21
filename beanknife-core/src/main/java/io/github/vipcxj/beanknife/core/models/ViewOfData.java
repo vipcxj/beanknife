@@ -1,10 +1,10 @@
 package io.github.vipcxj.beanknife.core.models;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import io.github.vipcxj.beanknife.core.utils.Utils;
 import io.github.vipcxj.beanknife.runtime.annotations.Access;
 import io.github.vipcxj.beanknife.runtime.annotations.ViewOf;
 import io.github.vipcxj.beanknife.runtime.utils.Self;
-import io.github.vipcxj.beanknife.core.utils.Utils;
 import org.apache.commons.text.StringEscapeUtils;
 
 import javax.annotation.processing.ProcessingEnvironment;

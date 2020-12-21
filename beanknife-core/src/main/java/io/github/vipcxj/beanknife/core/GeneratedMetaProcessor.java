@@ -2,11 +2,11 @@ package io.github.vipcxj.beanknife.core;
 
 import com.google.auto.service.AutoService;
 import com.sun.source.util.Trees;
-import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedMeta;
+import io.github.vipcxj.beanknife.core.models.ProcessorData;
 import io.github.vipcxj.beanknife.core.models.ViewContext;
 import io.github.vipcxj.beanknife.core.models.ViewOfData;
-import io.github.vipcxj.beanknife.core.models.ProcessorData;
 import io.github.vipcxj.beanknife.core.utils.Utils;
+import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedMeta;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;

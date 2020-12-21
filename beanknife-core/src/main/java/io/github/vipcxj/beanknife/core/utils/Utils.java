@@ -2,13 +2,13 @@ package io.github.vipcxj.beanknife.core.utils;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import io.github.vipcxj.beanknife.core.models.*;
 import io.github.vipcxj.beanknife.runtime.annotations.Access;
 import io.github.vipcxj.beanknife.runtime.annotations.ViewOf;
 import io.github.vipcxj.beanknife.runtime.annotations.ViewOfs;
+import io.github.vipcxj.beanknife.runtime.annotations.ViewProperty;
 import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedMeta;
 import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedView;
-import io.github.vipcxj.beanknife.runtime.annotations.ViewProperty;
-import io.github.vipcxj.beanknife.core.models.*;
 import io.github.vipcxj.beanknife.runtime.utils.Self;
 
 import javax.annotation.processing.ProcessingEnvironment;
