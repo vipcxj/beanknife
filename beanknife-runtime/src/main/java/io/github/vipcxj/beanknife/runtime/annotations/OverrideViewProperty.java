@@ -14,8 +14,8 @@ import java.lang.annotation.Target;
  * 3. The field type is the DTO version of the original type.
  * Or the field type is the Array, List, Set, Stack, Map of DTO version of the original type and their composition, and they share the same shape.
  *  For example: BeanDTO vs Bean,
- *  List&lt;BeanDTO> vs List&lt;Bean>,
- *  Map&lt;String, Set&lt;BeanDTO> vs Map&lt;String, Set&lt;Bean>
+ *  List&lt;BeanDTO&gt; vs List&lt;Bean&gt;,
+ *  Map&lt;String, Set&lt;BeanDTO&gt; vs Map&lt;String, Set&lt;Bean&gt;
  *
  * @see NewViewProperty
  */

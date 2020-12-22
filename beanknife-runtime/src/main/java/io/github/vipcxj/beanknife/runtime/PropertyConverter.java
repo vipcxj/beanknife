@@ -5,7 +5,7 @@ package io.github.vipcxj.beanknife.runtime;
  * And the implementation should instantiate the generic parameters.<br/>
  * Such as:<br/><br/>
  * <pre>
- * public class MyConverter implements PropertyConverter&lt;Integer, String> {
+ * public class MyConverter implements PropertyConverter&lt;Integer, String&gt; {
  *     String convert(Integer from) {
  *         ...
  *     }
