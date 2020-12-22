@@ -3,8 +3,8 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
+        <groupId>io.github.vipcxj</groupId>
         <artifactId>beanknife-parent</artifactId>
-        <groupId>io.github.vipcxj.beanknife</groupId>
         <version>1.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
@@ -38,13 +38,13 @@
     </developers>
     <dependencies>
         <dependency>
-            <groupId>io.github.vipcxj.beanknife</groupId>
+            <groupId>io.github.vipcxj</groupId>
             <artifactId>beanknife-core</artifactId>
             <version>${project.version}</version>
             <optional>true</optional>
         </dependency>
         <dependency>
-            <groupId>io.github.vipcxj.beanknife</groupId>
+            <groupId>io.github.vipcxj</groupId>
             <artifactId>beanknife-runtime</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -57,7 +57,7 @@
                 <configuration>
                     <annotationProcessorPaths>
                         <path>
-                            <groupId>io.github.vipcxj.beanknife</groupId>
+                            <groupId>io.github.vipcxj</groupId>
                             <artifactId>beanknife-core</artifactId>
                             <version>${project.version}</version>
                         </path>
