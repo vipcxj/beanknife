@@ -888,12 +888,30 @@ public class Type {
     }
 
     public void openClass(@NonNull PrintWriter writer, @NonNull Modifier modifier, @NonNull Context context, String indent, int indentNum) {
+        openClass(writer, modifier, context, null, Collections.emptyList(), indent, indentNum);
+    }
+
+    public void openClass(@NonNull PrintWriter writer, @NonNull Modifier modifier, @NonNull Context context, @CheckForNull Type extendsType, @NonNull List<Type> implTypes, String indent, int indentNum) {
         Utils.printIndent(writer, indent, indentNum);
         writer.print(modifier);
         writer.print(" ");
         writer.print("class ");
         writer.print(getSimpleName());
         printGenericParameters(writer, context, true);
+        if (extendsType != null) {
+            writer.print(" extends ");
+            extendsType.printType(writer, context, true, false);
+        }
+        if (!implTypes.isEmpty()) {
+            writer.print(" implements ");
+            int i = 0;
+            for (Type implType : implTypes) {
+                implType.printType(writer, context, true, false);
+                if (i++ != implTypes.size() - 1) {
+                    writer.print(", ");
+                }
+            }
+        }
         writer.println(" {");
     }
 

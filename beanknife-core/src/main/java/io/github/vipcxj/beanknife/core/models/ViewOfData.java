@@ -34,6 +34,8 @@ public class ViewOfData {
     private Access getters;
     private Access setters;
     private boolean errorMethods;
+    private boolean serializable;
+    private long serialVersionUID;
 
     public static ViewOfData read(@NonNull ProcessingEnvironment environment, @NonNull AnnotationMirror viewOf, @NonNull TypeElement sourceElement) {
         ViewOfData data = new ViewOfData();
@@ -68,6 +70,8 @@ public class ViewOfData {
         this.getters = getAccess(Utils.getEnumAnnotationValue(viewOf, annValues, "getters"));
         this.setters = getAccess(Utils.getEnumAnnotationValue(viewOf, annValues, "setters"));
         this.errorMethods = Utils.getBooleanAnnotationValue(viewOf, annValues, "errorMethods");
+        this.serializable = Utils.getBooleanAnnotationValue(viewOf, annValues, "serializable");
+        this.serialVersionUID = Utils.getLongAnnotationValue(viewOf, annValues, "serialVersionUID");
     }
 
     public void reload(ProcessingEnvironment environment) {
@@ -174,6 +178,14 @@ public class ViewOfData {
 
     public boolean isErrorMethods() {
         return errorMethods;
+    }
+
+    public boolean isSerializable() {
+        return serializable;
+    }
+
+    public long getSerialVersionUID() {
+        return serialVersionUID;
     }
 
     private static void printStringAnnotationValue(PrintWriter writer, String name, String value, String indent, int indentNum) {

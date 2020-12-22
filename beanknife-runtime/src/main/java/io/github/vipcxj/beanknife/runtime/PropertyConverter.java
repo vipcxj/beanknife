@@ -13,8 +13,8 @@ package io.github.vipcxj.beanknife.runtime;
  * </pre>
  * In other words, the implementation shouldn't has generic parameters.
  * Or the library can't detect what <code>FromType<code/> and <code>ToType<code/> really are.
- * @param <FromType>
- * @param <ToType>
+ * @param <FromType> from type
+ * @param <ToType> to type
  */
 public interface PropertyConverter<FromType, ToType> {
     ToType convert(FromType value);

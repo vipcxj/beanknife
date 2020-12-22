@@ -94,4 +94,16 @@ public @interface ViewOf {
      * @return whether to add the error methods
      */
     boolean errorMethods() default true;
+
+    /**
+     * Whether the generated class should implement {@link java.io.Serializable}. By default false.
+     * @return whether the generated class should implement {@link java.io.Serializable}
+     */
+    boolean serializable() default false;
+
+    /**
+     * Specialize the serialVersionUID value of the {@link java.io.Serializable}. Only valid when {@link ViewOf#serializable()} is <code>true<code/>.
+     * @return the serialVersionUID value of the {@link java.io.Serializable}
+     */
+    long serialVersionUID() default 0L;
 }

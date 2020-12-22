@@ -17,6 +17,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import java.io.PrintWriter;
+import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.util.*;
 import java.util.regex.Pattern;
@@ -83,6 +84,9 @@ public class ViewContext extends Context {
         importVariable(Type.extract(this, Stack.class));
         importVariable(Type.extract(this, Map.class));
         importVariable(Type.extract(this, HashMap.class));
+        if (viewOf.isSerializable()) {
+            importVariable(Type.extract(this, Serializable.class));
+        }
         Elements elementUtils = getProcessingEnv().getElementUtils();
         List<? extends Element> members = elementUtils.getAllMembers(targetElement);
         for (Element member : members) {
@@ -413,7 +417,19 @@ public class ViewContext extends Context {
         List<Property> properties = getProperties();
         boolean empty = true;
         enter(genType);
-        genType.openClass(writer, modifier, this, INDENT, 0);
+        List<Type> implTypes = new ArrayList<>();
+        if (viewOf.isSerializable()) {
+            implTypes.add(Type.extract(this, Serializable.class));
+        }
+        genType.openClass(writer, modifier, this, null, implTypes, INDENT, 0);
+        if (viewOf.isSerializable()) {
+            empty = false;
+            Utils.printIndent(writer, INDENT, 1);
+            writer.print("private static final long serialVersionUID = ");
+            writer.print(viewOf.getSerialVersionUID());
+            writer.println("L;");
+            writer.println();
+        }
         for (Property property : properties) {
             if (!property.isDynamic()) {
                 if (empty) {
