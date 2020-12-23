@@ -37,4 +37,41 @@
             <timezone>+8</timezone>
         </developer>
     </developers>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-compile</id>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                        <configuration>
+                            <jdkToolchain>
+                                <version>11</version>
+                            </jdkToolchain>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>basic-compile</id>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                        <configuration>
+                            <jdkToolchain>
+                                <version>1.8</version>
+                            </jdkToolchain>
+                            <source>1.8</source>
+                            <target>1.8</target>
+                            <excludes>
+                                <exclude>**/module-info.java</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

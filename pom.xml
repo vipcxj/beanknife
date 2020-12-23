@@ -36,16 +36,16 @@
         </developer>
     </developers>
     <modules>
-        <module>beanknife-core</module>
+        <module>beanknife-core-base</module>
+        <module>beanknife-core-module-info</module>
         <module>beanknife-examples</module>
         <module>beanknife-runtime</module>
+        <module>tools-dependency-maven-plugin</module>
     </modules>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
         <auto-service.version>1.0-rc7</auto-service.version>
     </properties>
 

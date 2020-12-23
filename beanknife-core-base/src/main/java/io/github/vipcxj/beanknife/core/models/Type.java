@@ -5,6 +5,7 @@ import com.sun.source.util.TreePath;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
+import io.github.vipcxj.beanknife.core.utils.ObjectsCompatible;
 import io.github.vipcxj.beanknife.core.utils.TreeUtils;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 
@@ -311,7 +312,7 @@ public class Type {
             TypeElement typeElement = (TypeElement) element;
             List<? extends TypeParameterElement> typeParameters = typeElement.getTypeParameters();
             List<Type> parameters;
-            parameters = Objects.requireNonNullElseGet(parameterTypes, () -> typeParameters.stream().map(e -> extract(context, e, null)).collect(Collectors.toList()));
+            parameters = ObjectsCompatible.requireNonNullElseGet(parameterTypes, () -> typeParameters.stream().map(e -> extract(context, e, null)).collect(Collectors.toList()));
             boolean annotation = element.getKind() == ElementKind.ANNOTATION_TYPE;
             Element enclosingElement = element.getEnclosingElement();
             Type parentType = null;

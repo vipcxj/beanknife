@@ -36,6 +36,9 @@
             <timezone>+8</timezone>
         </developer>
     </developers>
+    <properties>
+        <maven.compiler.release>9</maven.compiler.release>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>io.github.vipcxj</groupId>

@@ -8,7 +8,7 @@
         <artifactId>beanknife-parent</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
-    <artifactId>beanknife-core</artifactId>
+    <artifactId>beanknife-core-base</artifactId>
     <name>BeanKnife Core</name>
     <url>https://github.com/vipcxj/beanknife</url>
     <description>
@@ -42,13 +42,11 @@
             <groupId>com.google.auto.service</groupId>
             <artifactId>auto-service-annotations</artifactId>
             <version>${auto-service.version}</version>
-            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs</artifactId>
             <version>4.2.0</version>
-            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>com.google.testing.compile</groupId>
@@ -85,8 +83,53 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-toolchains-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>toolchain</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <toolchains>
+                        <jdk>
+                            <version>1.8</version>
+                        </jdk>
+                    </toolchains>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>io.github.vipcxj</groupId>
+                <artifactId>tools-dependency-maven-plugin</artifactId>
+                <version>${project.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>resolve</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>com.diamondq.maven</groupId>
+                <artifactId>javahome-resolver-maven-plugin</artifactId>
+                <version>1.0.2</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>resolve</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>com.google.auto.service</groupId>
