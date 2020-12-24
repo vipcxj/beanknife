@@ -21,10 +21,6 @@
             <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
         </license>
     </licenses>
-    <scm>
-        <url>https://github.com/vipcxj/beanknife</url>
-        <connection>https://github.com/vipcxj/beanknife.git</connection>
-    </scm>
     <developers>
         <developer>
             <name>XiaoJing Chen</name>

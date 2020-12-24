@@ -8,9 +8,30 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
-
     <artifactId>tools-dependency-maven-plugin</artifactId>
     <packaging>maven-plugin</packaging>
+    <name>Tools Dependency Maven Plugin</name>
+    <url>https://github.com/vipcxj/beanknife/tools-dependency-maven-plugin</url>
+    <description>
+        Add a dependency of tools.jar of jdk. Locate it by toolchains.
+    </description>
+    <licenses>
+        <license>
+            <name>Apache 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+    <developers>
+        <developer>
+            <name>XiaoJing Chen</name>
+            <id>vipcxj</id>
+            <email>vipcxj@126.com</email>
+            <roles>
+                <role>Developer</role>
+            </roles>
+            <timezone>+8</timezone>
+        </developer>
+    </developers>
 
     <dependencies>
         <dependency>

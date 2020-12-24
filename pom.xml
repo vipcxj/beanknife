@@ -22,7 +22,8 @@
     </licenses>
     <scm>
         <url>https://github.com/vipcxj/beanknife</url>
-        <connection>https://github.com/vipcxj/beanknife.git</connection>
+        <connection>scm:git:git://github.com/vipcxj/beanknife.git</connection>
+        <developerConnection>scm:git:https://github.com/vipcxj/beanknife.git</developerConnection>
     </scm>
     <developers>
         <developer>
