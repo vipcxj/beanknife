@@ -19,6 +19,7 @@ import org.apache.maven.toolchain.java.DefaultJavaToolChain;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Set;
 
 @Mojo(name = "resolve", defaultPhase = LifecyclePhase.INITIALIZE, threadSafe = true)
 public class ToolsDependencyMojo extends AbstractMojo {
@@ -79,7 +80,7 @@ public class ToolsDependencyMojo extends AbstractMojo {
         }
     }
 
-    private String findTools(String javaHome) {
+    private File findTools(String javaHome) {
         String normalize = normalize(javaHome);
         if (normalize == null) {
             return null;
@@ -95,16 +96,11 @@ public class ToolsDependencyMojo extends AbstractMojo {
                 return null;
             }
         }
-        try {
-            return toolsFile.getCanonicalPath();
-        } catch (IOException e) {
-            return null;
-        }
+        return toolsFile;
     }
 
-    public void execute() throws MojoExecutionException, MojoFailureException {
-        getLog().error("tools dependency plugin...");
-        String javaHome = null;
+    public void execute() {
+        String javaHome;
         DefaultJavaToolChain tc = getToolchain();
         if (tc != null) {
             getLog().info("Toolchain in javahome-resolver-maven-plugin: " + tc);
@@ -119,22 +115,24 @@ public class ToolsDependencyMojo extends AbstractMojo {
             }
             getLog().error("No toolchain in javahome-resolver-maven-plugin. Using default JDK[" + javaHome + "]");
         }
-        String toolsPath = findTools(javaHome);
-        if (toolsPath != null) {
-            Dependency dependency = new Dependency();
-            dependency.setGroupId("jdk.tools");
-            dependency.setArtifactId("jdk.tools");
-            dependency.setScope("system");
-            dependency.setVersion("1.0.0");
-            dependency.setSystemPath(toolsPath);
-            Artifact artifact = artifactFactory.createArtifact("jdk.tools", "jdk.tools", "1.0.0", "system", "jar");
-            artifact.setFile(new File(toolsPath));
-            artifact.setResolved(true);
-            //noinspection unchecked
-            project.getDependencyArtifacts().add(artifact);
-            //noinspection unchecked
-            project.getDependencies().add(dependency);
-            getLog().info("Success add tools dependency. The tools.jar is at \"" + toolsPath + "\"");
+        File toolsFile = findTools(javaHome);
+        if (toolsFile != null) {
+            addOptionJarDependency("jdk.tools", "jdk.tools", "1.0.0", toolsFile);
+            getLog().info("Success add tools dependency. The tools.jar is at \"" + toolsFile.getAbsolutePath() + "\"");
         }
+    }
+
+    private void addOptionJarDependency(String groupId, String artifactId, String version, File file) {
+        //noinspection unchecked
+        Set<Artifact> artifacts = project.getDependencyArtifacts();
+        for (Artifact artifact : artifacts) {
+            if (artifact.getGroupId().equals(groupId) && artifact.getArtifactId().equals(artifactId)) {
+                return;
+            }
+        }
+        Artifact artifact = artifactFactory.createArtifact(groupId, artifactId, version, "system", "jar");
+        artifact.setFile(file);
+        artifact.setOptional(true);
+        artifacts.add(artifact);
     }
 }

@@ -10,4 +10,5 @@ public class FieldBean {
     private String a;
     long b;
     protected Date c;
+    public Number[] d;
 }

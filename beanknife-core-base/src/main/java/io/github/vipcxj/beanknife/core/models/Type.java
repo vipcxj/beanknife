@@ -15,14 +15,13 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class Type {
+    private static final Set<Modifier> DEFAULT_MODIFIERS = new TreeSet<>(Collections.singletonList(Modifier.PUBLIC));
     private final Context context;
+    private final Set<Modifier> modifiers;
     private String packageName;
     private String simpleName;
     private int array;
@@ -48,6 +47,7 @@ public class Type {
      */
     public Type(
             @NonNull Context context,
+            @NonNull Set<Modifier> modifiers,
             @NonNull String packageName,
             @NonNull String simpleName,
             int array,
@@ -62,6 +62,7 @@ public class Type {
             @CheckForNull Tree tree
     ) {
         this.context = context;
+        this.modifiers = modifiers;
         this.packageName = packageName;
         this.simpleName = simpleName;
         this.array = array;
@@ -78,6 +79,7 @@ public class Type {
 
     private Type(@NonNull Type other) {
         this.context = other.context;
+        this.modifiers = other.modifiers;
         this.packageName = other.packageName;
         this.simpleName = other.simpleName;
         this.array = other.array;
@@ -148,6 +150,16 @@ public class Type {
         return type;
     }
 
+    public boolean isStatic() {
+        if (container == null) {
+            return true;
+        }
+        if (!container.isStatic()) {
+            return false;
+        }
+        return modifiers.contains(Modifier.STATIC);
+    }
+
     @NonNull
     public Type flatten() {
         if (container == null) {
@@ -155,6 +167,14 @@ public class Type {
         }
         Type type = new Type(this);
         type.simpleName = getEnclosedFlatSimpleName();
+        if (!isStatic()) {
+            type.parameters = new ArrayList<>(type.parameters);
+            Type parent = container;
+            while (parent != null) {
+                type.parameters.addAll(0, parent.getParameters());
+                parent = parent.container;
+            }
+        }
         type.container = null;
         type.cu = null;
         type.tree = null;
@@ -230,6 +250,7 @@ public class Type {
     public static Type create(Context context, String packageName, String typeName, int array, boolean annotation) {
         return new Type(
                 context,
+                DEFAULT_MODIFIERS,
                 packageName,
                 typeName,
                 array,
@@ -253,6 +274,7 @@ public class Type {
     public static Type createWildcard(Context context, @NonNull List<Type> extendsBounds, @NonNull List<Type> supperBounds) {
         return new Type(
                 context,
+                Collections.emptySet(),
                 "",
                 "?",
                 0,
@@ -286,6 +308,7 @@ public class Type {
     public static Type createTypeParameter(Context context, @NonNull String name, @NonNull List<Type> bounds, @CheckForNull CompilationUnitTree cu, @CheckForNull Tree tree) {
         return new Type(
                 context,
+                Collections.emptySet(),
                 "",
                 name,
                 0,
@@ -329,6 +352,7 @@ public class Type {
             }
             return new Type(
                     context,
+                    typeElement.getModifiers(),
                     packageName,
                     element.getSimpleName().toString(),
                     0,
@@ -422,6 +446,7 @@ public class Type {
         } else if (type.getKind().isPrimitive()) {
             return new Type(
                     context,
+                    Collections.emptySet(),
                     "",
                     type.toString(),
                     0,
@@ -515,6 +540,7 @@ public class Type {
             List<Type> superBoundTypes = superBound != null ? parseBounds(context, superBound, cu, superBoundTrees) : Collections.emptyList();
             return new Type(
                     context,
+                    Collections.emptySet(),
                     "",
                     "?",
                     0,
@@ -623,6 +649,7 @@ public class Type {
     public static Type fromPackage(Context context, String packageName) {
         return new Type(
                 context,
+                Collections.emptySet(),
                 packageName,
                 "",
                 0,
@@ -989,8 +1016,18 @@ public class Type {
     }
 
     public void printType(@NonNull PrintWriter writer, @CheckForNull Context context, boolean generic, boolean withBound) {
-        writer.print(context != null ? context.relativeName(this) : getQualifiedName());
-        if (generic) {
+        if (isStatic() || !generic) {
+            writer.print(context != null ? context.relativeName(this) : getQualifiedName());
+            if (generic) {
+                printGenericParameters(writer, context, withBound);
+            }
+        } else {
+            if (container == null) {
+                throw new IllegalStateException("This is impossible!");
+            }
+            container.printType(writer, context, true, withBound);
+            writer.print(".");
+            writer.print(simpleName);
             printGenericParameters(writer, context, withBound);
         }
         for (int i = 0; i < array; ++i) {

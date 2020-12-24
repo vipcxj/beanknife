@@ -22,11 +22,17 @@ public class ViewOfProcessorTest {
     }
 
     @Test
-    public void testGeneric1() {
+    public void testNestGenericBean() {
         testViewCase(
                 Arrays.asList(new ViewOfProcessor(), new ViewMetaProcessor(), new GeneratedMetaProcessor()),
-                "io.github.vipcxj.beanknife.tests.beans.GenericTestBean1",
-                null,
+                "io.github.vipcxj.beanknife.cases.beans.NestedGenericBean",
+                new String[] {
+                        "io.github.vipcxj.beanknife.cases.beans.NestedGenericBeanView",
+                        "io.github.vipcxj.beanknife.cases.beans.NestedGenericBean$StaticChildBeanMeta",
+                        "io.github.vipcxj.beanknife.cases.beans.NestedGenericBean$StaticChildBeanView",
+                        "io.github.vipcxj.beanknife.cases.beans.NestedGenericBean$DynamicChildBeanMeta",
+                        "io.github.vipcxj.beanknife.cases.beans.NestedGenericBean$DynamicChildBeanView"
+                },
                 "View"
         );
     }

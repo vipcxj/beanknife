@@ -492,6 +492,7 @@ public class Utils {
 
     public static void logError(ProcessingEnvironment env, String message) {
         env.getMessager().printMessage(Diagnostic.Kind.ERROR, message != null ? message : "");
+        System.err.println(message);
     }
 
     public static void logError(ProcessingEnvironment env, Throwable t) {
@@ -499,6 +500,7 @@ public class Utils {
         PrintWriter writer = new PrintWriter(stringWriter);
         t.printStackTrace(writer);
         env.getMessager().printMessage(Diagnostic.Kind.ERROR, stringWriter.toString());
+        System.err.println(stringWriter.toString());
     }
 
     public static void printIndent(@NonNull PrintWriter writer, String indent, int num) {

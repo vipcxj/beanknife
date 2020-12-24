@@ -50,8 +50,9 @@
                         </goals>
                         <configuration>
                             <jdkToolchain>
-                                <version>11</version>
+                                <version>[9, )</version>
                             </jdkToolchain>
+                            <release>9</release>
                         </configuration>
                     </execution>
                     <execution>
@@ -71,6 +72,18 @@
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <failOnError>false</failOnError>
+                    <jdkToolchain>
+                        <version>[9, )</version>
+                    </jdkToolchain>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-source-plugin</artifactId>
             </plugin>
         </plugins>
     </build>
