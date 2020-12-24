@@ -73,6 +73,7 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <configuration>
                     <failOnError>false</failOnError>
+                    <quiet>true</quiet>
                     <jdkToolchain>
                         <version>[9, )</version>
                     </jdkToolchain>
