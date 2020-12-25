@@ -200,6 +200,16 @@ public class Context {
         return properties;
     }
 
+    @CheckForNull
+    public Property getProperty(String name) {
+        for (Property property : properties) {
+            if (property.getName().equals(name)) {
+                return property;
+            }
+        }
+        return null;
+    }
+
     public ProcessingEnvironment getProcessingEnv() {
         return processingEnv;
     }
@@ -311,5 +321,13 @@ public class Context {
     public void error(@NonNull String message) {
         errors.add(message);
         Utils.logWarn(getProcessingEnv(), message);
+    }
+
+    public boolean isViewType(Type type) {
+        return !type.isArray() && getViewData(type) != null;
+    }
+
+    public ViewOfData getViewData(Type type) {
+        return processorData.getByGenName(type.getQualifiedName());
     }
 }

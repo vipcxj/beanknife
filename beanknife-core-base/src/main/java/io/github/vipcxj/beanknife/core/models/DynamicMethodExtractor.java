@@ -1,8 +1,8 @@
 package io.github.vipcxj.beanknife.core.models;
 
-import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.github.vipcxj.beanknife.runtime.annotations.InjectProperty;
+import io.github.vipcxj.beanknife.runtime.annotations.InjectSelf;
 
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
@@ -16,12 +16,15 @@ public class DynamicMethodExtractor implements Extractor {
     @NonNull
     private final Type container;
     @NonNull
+    private final Type viewType;
+    @NonNull
     private final ExecutableElement executableElement;
     @NonNull
     private final Type returnType;
 
-    public DynamicMethodExtractor(@NonNull Context context, @NonNull Type container, @NonNull ExecutableElement executableElement) {
+    public DynamicMethodExtractor(@NonNull Context context, @NonNull Type container, @NonNull ExecutableElement executableElement, @NonNull Type viewType) {
         this.container = container;
+        this.viewType = viewType;
         this.executableElement = executableElement;
         Type type = Type.extract(context, executableElement, null);
         if (type == null) {
@@ -33,38 +36,43 @@ public class DynamicMethodExtractor implements Extractor {
     }
 
     @Override
-    public boolean check(@NonNull ViewContext context, @CheckForNull Property property) {
+    public boolean check(@NonNull ViewContext context) {
         Name name = executableElement.getSimpleName();
         if (!executableElement.getModifiers().contains(Modifier.STATIC)) {
             context.error("The dynamic property method \"" + name + "\" should be static.");
             return false;
         }
-        if (property != null && !returnType.equals(property.getType())) {
-            context.error("The dynamic property method \"" + name + "\" should return a \"" + returnType + "\" type.");
-            return false;
-        }
         List<? extends VariableElement> parameters = executableElement.getParameters();
         for (VariableElement parameter : parameters) {
+            InjectSelf injectSelf = parameter.getAnnotation(InjectSelf.class);
             InjectProperty injectProperty = parameter.getAnnotation(InjectProperty.class);
-            if (injectProperty == null) {
-                context.error("All parameters of the dynamic property method \"" + name + "\" should annotated with the annotation @InjectProperty.");
+            if (injectSelf == null && injectProperty == null) {
+                context.error("All parameters of the dynamic property method \"" + name + "\" should annotated with the annotation @InjectSelf or @InjectProperty.");
                 return false;
             }
-            String propertyName = !injectProperty.value().isEmpty() ? injectProperty.value() : parameter.getSimpleName().toString();
-            Property ip = context.getProperties().stream().filter(p -> p.getName().equals(propertyName)).findAny().orElse(null);
-            if (ip == null) {
-                context.error("Unable to inject the property " +
-                        propertyName + " to the dynamic property method \""
-                        + name + "\"." +
-                        " The property does not exists.");
-                return false;
-            }
-            if (!context.getProcessingEnv().getTypeUtils().isAssignable(ip.getTypeMirror(), parameter.asType())) {
-                context.error("Unable to inject the property " +
-                        propertyName + " to the dynamic property method \""
-                        + name + "\"." +
-                        " The property type mismatched.");
-                return false;
+            if (injectSelf != null) {
+                if (!viewType.canAssignTo(Type.extract(context, parameter))) {
+                    context.error("Unable to inject this object to the dynamic property method \""
+                            + name + "\".");
+                    return false;
+                }
+            } else {
+                String propertyName = !injectProperty.value().isEmpty() ? injectProperty.value() : parameter.getSimpleName().toString();
+                Property ip = context.getProperty(propertyName);
+                if (ip == null) {
+                    context.error("Unable to inject the property " +
+                            propertyName + " to the dynamic property method \""
+                            + name + "\"." +
+                            " The property does not exists.");
+                    return false;
+                }
+                if (!ip.getType().canAssignTo(Type.extract(context, parameter))) {
+                    context.error("Unable to inject the property " +
+                            propertyName + " to the dynamic property method \""
+                            + name + "\"." +
+                            " The property type mismatched.");
+                    return false;
+                }
             }
         }
         return true;
@@ -90,11 +98,21 @@ public class DynamicMethodExtractor implements Extractor {
         int i = 0;
         List<? extends VariableElement> parameters = executableElement.getParameters();
         for (VariableElement parameter : parameters) {
+            InjectSelf injectSelf = parameter.getAnnotation(InjectSelf.class);
             InjectProperty injectProperty = parameter.getAnnotation(InjectProperty.class);
-            if (injectProperty != null) {
+            if (injectSelf != null) {
+                writer.print("this");
+            } else if (injectProperty != null){
                 String propertyName = !injectProperty.value().isEmpty() ? injectProperty.value() : parameter.getSimpleName().toString();
+                Property property = context.getProperty(propertyName);
+                assert property != null;
                 writer.print("this.");
-                writer.print(context.getMappedFieldName(propertyName));
+                if (property.isDynamic()) {
+                    writer.print(property.getGetterName());
+                    writer.print("()");
+                } else {
+                    writer.print(context.getMappedFieldName(propertyName));
+                }
             } else {
                 writer.print("null");
             }

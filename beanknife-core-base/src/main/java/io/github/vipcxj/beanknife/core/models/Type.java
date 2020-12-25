@@ -328,9 +328,31 @@ public class Type {
         return extract(context, element, null);
     }
 
+    private static Tree parseTree(@NonNull Context context, @NonNull Element element) {
+        Tree tree = context.trees.getTree(element);
+        if (tree != null) {
+            return tree;
+        }
+        if (element.getKind() == ElementKind.PARAMETER) {
+            VariableElement variableElement = (VariableElement) element;
+            ExecutableElement method = (ExecutableElement) variableElement.getEnclosingElement();
+            MethodTree methodTree = context.trees.getTree(method);
+            if (methodTree == null) {
+                return null;
+            }
+            for (VariableTree parameter : methodTree.getParameters()) {
+                if (parameter.getName().toString().equals(element.getSimpleName().toString())) {
+                    return parameter;
+                }
+            }
+        }
+        // todo support other element type.
+        return null;
+    }
+
     public static Type extract(@NonNull Context context, @NonNull Element element, @Nullable List<Type> parameterTypes) {
         CompilationUnitTree cu = TreeUtils.getCompilationUnit(context, element);
-        Tree tree = context.trees.getTree(element);
+        Tree tree = parseTree(context, element);
         if (element.getKind().isClass() || element.getKind().isInterface()) {
             TypeElement typeElement = (TypeElement) element;
             List<? extends TypeParameterElement> typeParameters = typeElement.getTypeParameters();
@@ -632,7 +654,7 @@ public class Type {
             Types typeUtils = context.getProcessingEnv().getTypeUtils();
             return typeUtils.isAssignable(typeMirror, targetTypeMirror);
         } else {
-            return !targetType.isNotObjectType();
+            return sameType(targetType) || !targetType.isNotObjectType();
         }
     }
 
@@ -856,6 +878,10 @@ public class Type {
             ++array;
         }
         return this.array == array && getQualifiedName().equals(type.getCanonicalName());
+    }
+
+    public boolean isView() {
+        return context.isViewType(this);
     }
 
     public boolean sameType(@NonNull Type type) {

@@ -172,6 +172,7 @@ public class Property {
         return comment;
     }
 
+    @CheckForNull
     public Extractor getExtractor() {
         return extractor;
     }

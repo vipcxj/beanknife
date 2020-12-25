@@ -1,11 +1,53 @@
 BeanKnife
 ===============
+
+[![Maven Release][maven-shield]][maven-link]
+
 An annotation processor library to automatically generate the data transfer objects (DTO).
 
 ## Docs
+* [Requirement](#requirement)
+* [Quick Start](#quick-start)
 * [Introduction](#introduction)
 * [Basics](#basics)
 * [Advanced Usage](#advanced-usage)
+
+### Requirement
+Jdk 1.8+ (include jdk 1.8)
+
+### Quick Start
+This library is an annotation processor. Just use it like any other annotation processor.
+
+You will need beanknife-runtime-${version}.jar in your runtime classpath, 
+and you will need beanknife-core-${version}.jar in your annotation-processor classpath.
+In fact, only The `PropertyConverter` interface in the beanknife-runtime-${version}.jar need be in runtime classpath, 
+all others just need in compile classpath. In the future, I may split them.
+
+In Maven, you can write:
+```xml
+<dependencies>
+  <dependency>
+    <groupId>io.github.vipcxj</groupId>
+    <artifactId>beanknife-runtime</artifactId>
+    <version>${beanknife.version}</version>
+  </dependency>
+</dependencies>
+...
+<plugins>
+  <plugin>
+    <artifactId>maven-compiler-plugin</artifactId>
+    <configuration>
+      <annotationProcessorPaths>
+        <path>
+          <groupId>io.github.vipcxj</groupId>
+          <artifactId>beanknife-core</artifactId>
+          <version>${beanknife.version}</version>
+        </path>
+      </annotationProcessorPaths>
+    </configuration>
+  </plugin>
+</plugins>
+```
 
 ### Introduction
 What's the problem?
@@ -464,3 +506,6 @@ public class BeanBView {
 
 ### Advanced Usage
 WIP.
+
+[maven-shield]: https://img.shields.io/maven-central/v/io.github.vipcxj/beanknife-core.png
+[maven-link]: https://search.maven.org/artifact/io.github.vipcxj/beanknife-core

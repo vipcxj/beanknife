@@ -6,7 +6,9 @@ import com.google.testing.compile.Compiler;
 import com.google.testing.compile.JavaFileObjects;
 
 import javax.annotation.processing.Processor;
+import javax.tools.JavaFileObject;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class Utils {
 
@@ -14,25 +16,19 @@ public class Utils {
         return qualifiedClassName.replaceAll("\\.", "/") + ".java";
     }
 
-    public static void testViewCase(List<Processor> processors, String qualifiedClassName, String[] targetQualifiedClassNames, String postfix) {
-        String sourcePath = toSourcePath(qualifiedClassName);
+    public static void testViewCase(List<Processor> processors, List<String> qualifiedClassNames, List<String> targetQualifiedClassNames) {
+        List<JavaFileObject> sourceFiles = qualifiedClassNames.stream()
+                .map(Utils::toSourcePath)
+                .map(JavaFileObjects::forResource)
+                .collect(Collectors.toList());
         Compilation compilation = Compiler.javac()
                 .withProcessors(processors.toArray(new Processor[0]))
-                .compile(JavaFileObjects.forResource(sourcePath));
-        if (targetQualifiedClassNames == null) {
-            String genClassName = qualifiedClassName + postfix;
-            String genClassPath = toSourcePath(genClassName);
+                .compile(sourceFiles);
+        for (String targetQualifiedClassName : targetQualifiedClassNames) {
+            String genClassPath = toSourcePath(targetQualifiedClassName);
             CompilationSubject.assertThat(compilation)
-                    .generatedSourceFile(genClassName)
+                    .generatedSourceFile(targetQualifiedClassName)
                     .hasSourceEquivalentTo(JavaFileObjects.forResource(genClassPath));
-        } else {
-            for (String targetQualifiedClassName : targetQualifiedClassNames) {
-                String genClassName = targetQualifiedClassName == null ? qualifiedClassName + postfix : targetQualifiedClassName;
-                String genClassPath = toSourcePath(genClassName);
-                CompilationSubject.assertThat(compilation)
-                        .generatedSourceFile(genClassName)
-                        .hasSourceEquivalentTo(JavaFileObjects.forResource(genClassPath));
-            }
         }
     }
 }

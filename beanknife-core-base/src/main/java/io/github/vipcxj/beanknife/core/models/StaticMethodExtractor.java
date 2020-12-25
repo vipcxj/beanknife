@@ -1,6 +1,5 @@
 package io.github.vipcxj.beanknife.core.models;
 
-import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import javax.lang.model.element.ExecutableElement;
@@ -8,6 +7,7 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.VariableElement;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.List;
 
 public class StaticMethodExtractor implements Extractor {
@@ -32,18 +32,14 @@ public class StaticMethodExtractor implements Extractor {
     }
 
     @Override
-    public boolean check(@NonNull ViewContext context, @CheckForNull Property property) {
+    public boolean check(@NonNull ViewContext context) {
         Name name = executableElement.getSimpleName();
         if (!executableElement.getModifiers().contains(Modifier.STATIC)) {
             context.error("The static property method \"" + name + "\" should be static.");
             return false;
         }
-        if (property != null && !returnType.equals(property.getType())) {
-            context.error("The static property method \"" + name + "\" should return a \"" + returnType + "\" type.");
-            return false;
-        }
         List<? extends VariableElement> parameters = executableElement.getParameters();
-        String sign = "\"public static " + returnType + " " + name + "()\" or \"public static " + returnType + " " + name + "(" + context.getTargetType() + " source)\"";
+        String sign = "\"public static " + returnType + " " + name + "()\" or \"public static <S extends " + context.getTargetType() + "> " + returnType + " " + name + "(S " + " source)\"";
         if (parameters.size() > 1) {
             context.error("The static property method \"" +
                     name +
@@ -55,7 +51,16 @@ public class StaticMethodExtractor implements Extractor {
         }
         if (parameters.size() == 1) {
             Type paramType = Type.extract(context, parameters.get(0));
-            if (!context.getTargetType().sameType(paramType)) {
+            List<Type> testTypes = new ArrayList<>();
+            if (paramType.isTypeVar()) {
+                testTypes.addAll(paramType.getUpperBounds());
+                if (testTypes.isEmpty()) {
+                    testTypes.add(Type.extract(context, Object.class));
+                }
+            } else {
+                testTypes.add(paramType);
+            }
+            if (testTypes.stream().anyMatch(testType -> !context.getTargetType().canAssignTo(testType))) {
                 context.error("The static property method \"" +
                         name +
                         "\" has wrong parameter. " +
@@ -84,6 +89,10 @@ public class StaticMethodExtractor implements Extractor {
         container.printType(writer, context, false, false);
         writer.print(".");
         writer.print(executableElement.getSimpleName());
-        writer.print("(source)");
+        if (executableElement.getParameters().isEmpty()) {
+            writer.print("()");
+        } else {
+            writer.print("(source)");
+        }
     }
 }

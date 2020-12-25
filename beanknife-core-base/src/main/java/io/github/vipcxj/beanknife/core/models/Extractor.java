@@ -7,7 +7,7 @@ import java.io.PrintWriter;
 
 public interface Extractor {
 
-    boolean check(@NonNull ViewContext context, @CheckForNull Property property);
+    boolean check(@NonNull ViewContext context);
     @NonNull
     Type getReturnType();
     void print(PrintWriter writer, Context context);

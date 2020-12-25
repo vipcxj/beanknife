@@ -182,7 +182,7 @@ public class ViewContext extends Context {
                     }
                     Dynamic dynamic = member.getAnnotation(Dynamic.class);
                     if (dynamic != null) {
-                        extractor = new DynamicMethodExtractor(this, containerType, (ExecutableElement) member);
+                        extractor = new DynamicMethodExtractor(this, containerType, (ExecutableElement) member, genType);
                     } else {
                         extractor = new StaticMethodExtractor(this, containerType, (ExecutableElement) member);
                     }
@@ -190,9 +190,6 @@ public class ViewContext extends Context {
                         String name = overrideViewProperty.value();
                         getProperties().replaceAll(p -> {
                             if (p.getName().equals(name)) {
-                                if (extractor.check(this, p)) {
-                                    return null;
-                                }
                                 return p
                                         .withGetterAccess(Utils.resolveGetterAccess(viewOf, overrideViewProperty.getter()))
                                         .withSetterAccess(Utils.resolveSetterAccess(viewOf, overrideViewProperty.setter()))
@@ -201,11 +198,7 @@ public class ViewContext extends Context {
                                 return p;
                             }
                         });
-                        getProperties().removeIf(Objects::isNull);
                     } else if (newViewProperty != null) {
-                        if (!extractor.check(this, null)) {
-                            continue;
-                        }
                         String name = newViewProperty.value();
                         Type type = extractor.getReturnType();
                         Access getterAccess = Utils.resolveGetterAccess(viewOf, newViewProperty.getter());
@@ -229,6 +222,10 @@ public class ViewContext extends Context {
                 }
             }
         }
+        getProperties().removeIf(property -> {
+            Extractor extractor = property.getExtractor();
+            return extractor != null && !extractor.check(this);
+        });
         for (Property property : getProperties()) {
             importVariable(property.getType());
             Type converter = property.getConverter();
@@ -236,14 +233,6 @@ public class ViewContext extends Context {
                 importVariable(converter);
             }
         }
-    }
-
-    private boolean isViewType(Type type) {
-        return !type.isArray() && getViewData(type) != null;
-    }
-
-    private ViewOfData getViewData(Type type) {
-        return processorData.getByGenName(type.getQualifiedName());
     }
 
     private boolean matchViewType(Type sourceType, Type targetType) {
