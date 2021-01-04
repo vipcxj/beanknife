@@ -468,7 +468,7 @@ public class ViewContext extends Context {
                 writer.println();
             }
             Utils.printIndent(writer, INDENT, 1);
-            writer.print("private ");
+            writer.print("private transient ");
             configType.printType(writer, this, true, false);
             writer.print(" ");
             writer.print(getConfigureBeanFieldVar());

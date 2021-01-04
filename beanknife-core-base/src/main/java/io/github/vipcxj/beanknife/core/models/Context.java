@@ -178,7 +178,8 @@ public class Context {
             throw new IllegalStateException("Already locked!");
         }
         configureBeanFieldVar = calcNewVar("cachedConfigureBean");
-        configureBeanGetterVar = calcNewGetter("getCachedConfigureBean");
+        // should not be serialized, so should not named start with get.
+        configureBeanGetterVar = calcNewMethod("gottenCachedConfigureBean");
         locked = true;
     }
 
@@ -197,18 +198,18 @@ public class Context {
         return varName;
     }
 
-    private String calcNewGetter(String getterName, String... otherGetters) {
+    private String calcNewMethod(String methodName, String... otherMethods) {
         for (Property property : properties) {
-            if (Objects.equals(property.getGetterName(), getterName)) {
-                return calcNewGetter(getterName + "_", otherGetters);
+            if (Objects.equals(property.getGetterName(), methodName)) {
+                return calcNewMethod(methodName + "_", otherMethods);
             }
         }
-        for (String otherGetter : otherGetters) {
-            if (Objects.equals(otherGetter, getterName)) {
-                return calcNewGetter(getterName + "_", otherGetters);
+        for (String otherGetter : otherMethods) {
+            if (Objects.equals(otherGetter, methodName)) {
+                return calcNewMethod(methodName + "_", otherMethods);
             }
         }
-        return getterName;
+        return methodName;
     }
 
     public String relativeName(Type name) {
