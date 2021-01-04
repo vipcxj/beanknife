@@ -4,6 +4,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 import io.github.vipcxj.beanknife.runtime.annotations.Access;
 import io.github.vipcxj.beanknife.runtime.annotations.ViewOf;
+import io.github.vipcxj.beanknife.runtime.utils.CacheType;
 import io.github.vipcxj.beanknife.runtime.utils.Self;
 import org.apache.commons.text.StringEscapeUtils;
 
@@ -36,6 +37,8 @@ public class ViewOfData {
     private boolean errorMethods;
     private boolean serializable;
     private long serialVersionUID;
+    private boolean useDefaultBeanProvider;
+    private CacheType configureBeanCacheType;
 
     public static ViewOfData read(@NonNull ProcessingEnvironment environment, @NonNull AnnotationMirror viewOf, @NonNull TypeElement sourceElement) {
         ViewOfData data = new ViewOfData();
@@ -72,6 +75,8 @@ public class ViewOfData {
         this.errorMethods = Utils.getBooleanAnnotationValue(viewOf, annValues, "errorMethods");
         this.serializable = Utils.getBooleanAnnotationValue(viewOf, annValues, "serializable");
         this.serialVersionUID = Utils.getLongAnnotationValue(viewOf, annValues, "serialVersionUID");
+        this.useDefaultBeanProvider = Utils.getBooleanAnnotationValue(viewOf, annValues, "useDefaultBeanProvider");
+        this.configureBeanCacheType = getCacheType(Utils.getEnumAnnotationValue(viewOf, annValues, "configureBeanCacheType"));
     }
 
     public void reload(ProcessingEnvironment environment) {
@@ -109,6 +114,16 @@ public class ViewOfData {
             return Access.UNKNOWN;
         } else {
             throw new IllegalArgumentException("This is impossible!");
+        }
+    }
+
+    public static CacheType getCacheType(String qName) {
+        if ("io.github.vipcxj.beanknife.runtime.utils.CacheType.NONE".equals(qName)) {
+            return CacheType.NONE;
+        } else if ("io.github.vipcxj.beanknife.runtime.utils.CacheType.LOCAL".equals(qName)) {
+            return CacheType.LOCAL;
+        } else {
+            return CacheType.GLOBAL;
         }
     }
 
@@ -188,6 +203,14 @@ public class ViewOfData {
         return serialVersionUID;
     }
 
+    public boolean isUseDefaultBeanProvider() {
+        return useDefaultBeanProvider;
+    }
+
+    public CacheType getConfigureBeanCacheType() {
+        return configureBeanCacheType;
+    }
+
     private static void printStringAnnotationValue(PrintWriter writer, String name, String value, String indent, int indentNum) {
         if (!value.isEmpty()) {
             Utils.printIndent(writer, indent, indentNum);
@@ -195,6 +218,16 @@ public class ViewOfData {
             writer.print(" = \"");
             writer.print(StringEscapeUtils.escapeJava(value));
             writer.println("\",");
+        }
+    }
+
+    private static void printAnnotationValue(PrintWriter writer, String name, Object value, String indent, int indentNum) {
+        Utils.printIndent(writer, indent, indentNum);
+        writer.print(name);
+        writer.print(" = ");
+        writer.print(value);
+        if (!false) {
+            writer.println(",");
         }
     }
 
@@ -231,14 +264,20 @@ public class ViewOfData {
         }
     }
 
-    public static void printAccessAnnotationValue(PrintWriter writer, String name, Type accessType, Access access, Context context, String indent, int indentNum) {
+    public static void printEnumAnnotationValue(PrintWriter writer, String name, Type enumType, Enum<?> enumValue, Context context, String indent, int indentNum) {
+        printEnumAnnotationValue(writer, name, enumType, enumValue, context, indent, indentNum, false);
+    }
+
+    public static void printEnumAnnotationValue(PrintWriter writer, String name, Type enumType, Enum<?> enumValue, Context context, String indent, int indentNum, boolean end) {
         Utils.printIndent(writer, indent, indentNum);
         writer.print(name);
         writer.print(" = ");
-        accessType.printType(writer, context, false, false);
+        enumType.printType(writer, context, false, false);
         writer.print(".");
-        writer.print(access.name());
-        writer.println(",");
+        writer.print(enumValue.name());
+        if (!end) {
+            writer.println(",");
+        }
     }
 
     private void printElement(@NonNull PrintWriter writer, @NonNull Context context, @NonNull Element element) {
@@ -255,8 +294,8 @@ public class ViewOfData {
         writer.print("@");
         Type viewOfType = Type.extract(context, ViewOf.class);
         viewOfType.printType(writer, context, false, false);
-        TypeElement access = context.getProcessingEnv().getElementUtils().getTypeElement(Access.class.getCanonicalName());
-        Type accessType = Objects.requireNonNull(Type.extract(context, access));
+        Type accessType = Objects.requireNonNull(Type.extract(context, Access.class));
+        Type cacheTypeType = Objects.requireNonNull(Type.extract(context, CacheType.class));
         writer.println("(");
         Utils.printIndent(writer, indent, indentNum + 1);
         writer.print("value = ");
@@ -268,19 +307,21 @@ public class ViewOfData {
         writer.println(".class,");
         printStringAnnotationValue(writer, "genPackage", genPackage, indent, indentNum + 1);
         printStringAnnotationValue(writer, "genName", genName, indent, indentNum + 1);
-        printAccessAnnotationValue(writer, "access", accessType, Utils.accessFromModifier(this.access), context, indent, indentNum + 1);
+        printEnumAnnotationValue(writer, "access", accessType, Utils.accessFromModifier(this.access), context, indent, indentNum + 1);
         printStringArrayAnnotationValue(writer, "includes", includes, indent, indentNum + 1);
         printStringArrayAnnotationValue(writer, "excludes", excludes, indent, indentNum + 1);
         printStringAnnotationValue(writer, "includePattern", includePattern, indent, indentNum + 1);
         printStringAnnotationValue(writer, "excludePattern", excludePattern, indent, indentNum + 1);
-        printAccessAnnotationValue(writer, "emptyConstructor", accessType, Utils.accessFromModifier(emptyConstructor), context, indent, indentNum + 1);
-        printAccessAnnotationValue(writer, "fieldsConstructor", accessType, Utils.accessFromModifier(fieldsConstructor), context, indent, indentNum + 1);
-        printAccessAnnotationValue(writer, "copyConstructor", accessType, Utils.accessFromModifier(copyConstructor), context, indent, indentNum + 1);
-        printAccessAnnotationValue(writer, "getters", accessType, getters, context, indent, indentNum + 1);
-        printAccessAnnotationValue(writer, "setters", accessType, setters, context, indent, indentNum + 1);
-        Utils.printIndent(writer, indent, indentNum + 1);
-        writer.print("errorMethods = ");
-        writer.println(errorMethods);
+        printEnumAnnotationValue(writer, "emptyConstructor", accessType, Utils.accessFromModifier(emptyConstructor), context, indent, indentNum + 1);
+        printEnumAnnotationValue(writer, "fieldsConstructor", accessType, Utils.accessFromModifier(fieldsConstructor), context, indent, indentNum + 1);
+        printEnumAnnotationValue(writer, "copyConstructor", accessType, Utils.accessFromModifier(copyConstructor), context, indent, indentNum + 1);
+        printEnumAnnotationValue(writer, "getters", accessType, getters, context, indent, indentNum + 1);
+        printEnumAnnotationValue(writer, "setters", accessType, setters, context, indent, indentNum + 1);
+        printAnnotationValue(writer, "errorMethods", errorMethods, indent, indentNum + 1);
+        printAnnotationValue(writer, "serializable", serializable, indent, indentNum + 1);
+        printAnnotationValue(writer, "serialVersionUID", serialVersionUID, indent, indentNum + 1);
+        printAnnotationValue(writer, "useDefaultBeanProvider", useDefaultBeanProvider, indent, indentNum + 1);
+        printEnumAnnotationValue(writer, "configureBeanCacheType", cacheTypeType, configureBeanCacheType, context, indent, indentNum + 1, true);
         writer.print(")");
     }
 }

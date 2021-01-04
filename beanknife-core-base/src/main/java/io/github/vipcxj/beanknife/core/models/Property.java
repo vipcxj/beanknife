@@ -222,7 +222,7 @@ public class Property {
 
     public void printGetter(@NonNull PrintWriter writer, @NonNull Context context, String indent, int indentNum) {
         if (!hasGetter()) return;
-        Utils.printComment(writer, comment, indent, indentNum);
+        Utils.printComment(writer, comment, true, indent, indentNum);
         Utils.printIndent(writer, indent, indentNum);
         Utils.printAccess(writer, getter);
         printType(writer, context, true, false);
@@ -233,7 +233,7 @@ public class Property {
         writer.print(indent);
         writer.print("return ");
         if (isDynamic()) {
-            extractor.print(writer, context);
+            extractor.print(writer);
         } else {
             writer.print("this.");
             writer.print(context.getMappedFieldName(this));

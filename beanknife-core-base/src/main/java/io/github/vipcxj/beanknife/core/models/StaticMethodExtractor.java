@@ -1,9 +1,9 @@
 package io.github.vipcxj.beanknife.core.models;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.VariableElement;
 import java.io.PrintWriter;
@@ -13,14 +13,17 @@ import java.util.List;
 public class StaticMethodExtractor implements Extractor {
 
     @NonNull
+    private ViewContext context;
+    @CheckForNull
     private final Type container;
     @NonNull
     private final ExecutableElement executableElement;
     @NonNull
     private final Type returnType;
 
-    public StaticMethodExtractor(@NonNull Context context, @NonNull Type container, @NonNull ExecutableElement executableElement) {
-        this.container = container;
+    public StaticMethodExtractor(@NonNull ViewContext context, @NonNull ExecutableElement executableElement) {
+        this.context = context;
+        this.container = Type.extract(context, context.getViewOf().getConfigElement());
         this.executableElement = executableElement;
         Type type = Type.extract(context, executableElement);
         if (type == null) {
@@ -32,12 +35,16 @@ public class StaticMethodExtractor implements Extractor {
     }
 
     @Override
-    public boolean check(@NonNull ViewContext context) {
-        Name name = executableElement.getSimpleName();
-        if (!executableElement.getModifiers().contains(Modifier.STATIC)) {
-            context.error("The static property method \"" + name + "\" should be static.");
+    public boolean check() {
+        if (container == null) {
+            context.error("Unable to resolve the type config element: " + context.getViewOf().getConfigElement().getQualifiedName());
             return false;
         }
+        Name name = executableElement.getSimpleName();
+/*        if (!executableElement.getModifiers().contains(Modifier.STATIC)) {
+            context.error("The static property method \"" + name + "\" should be static.");
+            return false;
+        }*/
         List<? extends VariableElement> parameters = executableElement.getParameters();
         String sign = "\"public static " + returnType + " " + name + "()\" or \"public static <S extends " + context.getTargetType() + "> " + returnType + " " + name + "(S " + " source)\"";
         if (parameters.size() > 1) {
@@ -75,6 +82,24 @@ public class StaticMethodExtractor implements Extractor {
 
     @Override
     @NonNull
+    public ViewContext getContext() {
+        return context;
+    }
+
+    @Override
+    @CheckForNull
+    public Type getContainer() {
+        return container;
+    }
+
+    @Override
+    @NonNull
+    public ExecutableElement getExecutableElement() {
+        return executableElement;
+    }
+
+    @Override
+    @NonNull
     public Type getReturnType() {
         return returnType;
     }
@@ -85,8 +110,8 @@ public class StaticMethodExtractor implements Extractor {
     }
 
     @Override
-    public void print(PrintWriter writer, Context context) {
-        container.printType(writer, context, false, false);
+    public void print(PrintWriter writer) {
+        printConfigBean(writer, "source");
         writer.print(".");
         writer.print(executableElement.getSimpleName());
         if (executableElement.getParameters().isEmpty()) {

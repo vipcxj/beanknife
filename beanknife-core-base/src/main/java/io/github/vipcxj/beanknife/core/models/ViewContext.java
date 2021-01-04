@@ -3,9 +3,12 @@ package io.github.vipcxj.beanknife.core.models;
 import com.sun.source.util.Trees;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.github.vipcxj.beanknife.core.utils.Utils;
+import io.github.vipcxj.beanknife.runtime.BeanProviders;
 import io.github.vipcxj.beanknife.runtime.PropertyConverter;
 import io.github.vipcxj.beanknife.runtime.annotations.*;
 import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedView;
+import io.github.vipcxj.beanknife.runtime.utils.BeanUsage;
+import io.github.vipcxj.beanknife.runtime.utils.CacheType;
 import org.apache.commons.text.StringEscapeUtils;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -84,6 +87,10 @@ public class ViewContext extends Context {
         importVariable(Type.extract(this, Stack.class));
         importVariable(Type.extract(this, Map.class));
         importVariable(Type.extract(this, HashMap.class));
+        if (viewOf.getConfigureBeanCacheType() == CacheType.LOCAL) {
+            importVariable(Type.extract(this, BeanProviders.class));
+            importVariable(Type.extract(this, BeanUsage.class));
+        }
         if (viewOf.isSerializable()) {
             importVariable(Type.extract(this, Serializable.class));
         }
@@ -182,9 +189,9 @@ public class ViewContext extends Context {
                     }
                     Dynamic dynamic = member.getAnnotation(Dynamic.class);
                     if (dynamic != null) {
-                        extractor = new DynamicMethodExtractor(this, containerType, (ExecutableElement) member, genType);
+                        extractor = new DynamicMethodExtractor(this, (ExecutableElement) member, genType);
                     } else {
-                        extractor = new StaticMethodExtractor(this, containerType, (ExecutableElement) member);
+                        extractor = new StaticMethodExtractor(this, (ExecutableElement) member);
                     }
                     if (overrideViewProperty != null) {
                         String name = overrideViewProperty.value();
@@ -224,15 +231,21 @@ public class ViewContext extends Context {
         }
         getProperties().removeIf(property -> {
             Extractor extractor = property.getExtractor();
-            return extractor != null && !extractor.check(this);
+            return extractor != null && !extractor.check();
         });
         for (Property property : getProperties()) {
             importVariable(property.getType());
+            Extractor extractor = property.getExtractor();
+            if (extractor != null && extractor.useBeanProvider()) {
+                importVariable(Type.extract(this, BeanProviders.class));
+                importVariable(Type.extract(this, BeanUsage.class));
+            }
             Type converter = property.getConverter();
             if (converter != null) {
                 importVariable(converter);
             }
         }
+        lock();
     }
 
     private boolean matchViewType(Type sourceType, Type targetType) {
@@ -387,6 +400,25 @@ public class ViewContext extends Context {
         }
     }
 
+    public void printInitConfigureBean(@NonNull PrintWriter writer, @NonNull String requester) {
+        boolean useDefaultBeanProvider = viewOf.isUseDefaultBeanProvider();
+        CacheType cacheType = viewOf.getConfigureBeanCacheType();
+        writer.print(BeanProviders.class.getSimpleName());
+        writer.print(".INSTANCE.get(");
+        configType.printType(writer, this, false, false);
+        writer.print(".class, ");
+        writer.print(BeanUsage.class.getSimpleName());
+        writer.print(".");
+        writer.print(BeanUsage.CONFIGURE.name());
+        writer.print(", ");
+        writer.print(requester);
+        writer.print(", ");
+        writer.print(useDefaultBeanProvider);
+        writer.print(", ");
+        writer.print(cacheType == CacheType.GLOBAL);
+        writer.print(")");
+    }
+
     @Override
     public boolean print(@NonNull PrintWriter writer) {
         Modifier modifier = viewOf.getAccess();
@@ -429,6 +461,20 @@ public class ViewContext extends Context {
                 writer.println();
             }
         }
+        CacheType configureBeanCacheType = getViewOf().getConfigureBeanCacheType();
+        if (configureBeanCacheType == CacheType.LOCAL) {
+            if (empty) {
+                empty = false;
+                writer.println();
+            }
+            Utils.printIndent(writer, INDENT, 1);
+            writer.print("private ");
+            configType.printType(writer, this, true, false);
+            writer.print(" ");
+            writer.print(getConfigureBeanFieldVar());
+            writer.println(";");
+            writer.println();
+        }
         boolean hasEmptyConstructor = false;
         boolean hasFieldsConstructor = false;
         modifier = viewOf.getEmptyConstructor();
@@ -470,6 +516,37 @@ public class ViewContext extends Context {
                 property.printGetter(writer, this, INDENT, 1);
                 writer.println();
             }
+        }
+        if (configureBeanCacheType == CacheType.LOCAL) {
+            if (empty) {
+                empty = false;
+                writer.println();
+            }
+            Utils.printIndent(writer, INDENT, 1);
+            writer.print("public ");
+            configType.printType(writer, this, true, false);
+            writer.print(" ");
+            writer.print(getConfigureBeanGetterVar());
+            writer.println("() {");
+            Utils.printIndent(writer, INDENT, 2);
+            writer.print("if (");
+            writer.print(getConfigureBeanFieldVar());
+            writer.println(" == null) {");
+            Utils.printIndent(writer, INDENT, 3);
+            writer.print("this.");
+            writer.print(getConfigureBeanFieldVar());
+            writer.print(" = ");
+            printInitConfigureBean(writer, "this");
+            writer.println(";");
+            Utils.printIndent(writer, INDENT, 2);
+            writer.println("}");
+            Utils.printIndent(writer, INDENT, 2);
+            writer.print("return this.");
+            writer.print(getConfigureBeanFieldVar());
+            writer.println(";");
+            Utils.printIndent(writer, INDENT, 1);
+            writer.println("}");
+            writer.println();
         }
         for (Property property : properties) {
             if (!property.isDynamic() && property.hasSetter()) {
@@ -812,8 +889,8 @@ public class ViewContext extends Context {
                     writer.print("out.");
                     writer.print(this.getMappedFieldName(property));
                     writer.print(" = ");
-                    if (property.isCustomMethod()) {
-                        property.getExtractor().print(writer, this);
+                    if (property.isCustomMethod() && property.getExtractor() != null) {
+                        property.getExtractor().print(writer);
                         writer.println(";");
                     } else {
                         if (converter != null) {
@@ -847,8 +924,8 @@ public class ViewContext extends Context {
             for (Property property : properties) {
                 Type converter = property.getConverter();
                 Utils.printIndent(writer, INDENT, 3);
-                if (property.isCustomMethod()) {
-                    property.getExtractor().print(writer, this);
+                if (property.isCustomMethod() && property.getExtractor() != null) {
+                    property.getExtractor().print(writer);
                 } else {
                     boolean isViewType = property.isView();
                     if (converter != null) {

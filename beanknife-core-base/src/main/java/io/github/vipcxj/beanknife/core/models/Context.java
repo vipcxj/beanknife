@@ -24,7 +24,7 @@ public class Context {
 
     private final List<String> imports;
     private final Set<String> symbols;
-    private final Stack<Map<String, String>> fieldsStack;
+    private final Map<String, String> fields;
     protected final Trees trees;
     protected final ProcessingEnvironment processingEnv;
     protected final ProcessorData processorData;
@@ -32,17 +32,21 @@ public class Context {
     private final List<Property> properties;
     protected final Stack<Type> containers;
     protected final List<String> errors;
+    private String configureBeanFieldVar;
+    private String configureBeanGetterVar;
+    private boolean locked;
 
     public Context(@NonNull Trees trees, @NonNull ProcessingEnvironment processingEnv, ProcessorData processorData) {
         this.imports = new ArrayList<>();
         this.symbols = new HashSet<>();
-        this.fieldsStack = new Stack<>();
+        this.fields = new HashMap<>();
         this.trees = trees;
         this.processingEnv = processingEnv;
         this.processorData = processorData;
         this.properties = new LinkedList<>();
         this.containers = new Stack<>();
         this.errors = new ArrayList<>();
+        this.locked = false;
     }
 
     public void enter(Type type) {
@@ -50,11 +54,9 @@ public class Context {
             throw new IllegalArgumentException("Package must be " + type.getPackageName() + ".");
         }
         containers.push(type);
-        fieldsStack.push(new HashMap<>());
     }
 
     public void exit() {
-        fieldsStack.pop();
         containers.pop();
     }
 
@@ -63,7 +65,7 @@ public class Context {
     }
 
     public Map<String, String> getFields() {
-        return fieldsStack.peek();
+        return fields;
     }
 
     public String getMappedFieldName(@NonNull String property) {
@@ -114,6 +116,9 @@ public class Context {
     }
 
     public void addProperty(Property property, boolean override) {
+        if (locked) {
+            throw new IllegalStateException("Locked! Add property is not allowed.");
+        }
         Elements elementUtils = processingEnv.getElementUtils();
         boolean done = false;
         ListIterator<Property> iterator = properties.listIterator();
@@ -154,6 +159,56 @@ public class Context {
         if (!done && Utils.isNotObjectProperty(property)) {
             properties.add(property);
         }
+    }
+
+    public String getConfigureBeanFieldVar() {
+        return configureBeanFieldVar;
+    }
+
+    public String getConfigureBeanGetterVar() {
+        return configureBeanGetterVar;
+    }
+
+    public boolean isLocked() {
+        return locked;
+    }
+
+    public void lock() {
+        if (locked) {
+            throw new IllegalStateException("Already locked!");
+        }
+        configureBeanFieldVar = calcNewVar("cachedConfigureBean");
+        configureBeanGetterVar = calcNewGetter("getCachedConfigureBean");
+        locked = true;
+    }
+
+    private String calcNewVar(String varName, String... otherVars) {
+        for (Property property : properties) {
+            String fieldName = getMappedFieldName(property);
+            if (Objects.equals(fieldName, varName)) {
+                return calcNewVar(varName + "_", otherVars);
+            }
+        }
+        for (String otherVar : otherVars) {
+            if (Objects.equals(otherVar, varName)) {
+                return calcNewVar(varName + "_", otherVars);
+            }
+        }
+        return varName;
+    }
+
+    private String calcNewGetter(String getterName, String... otherGetters) {
+        for (Property property : properties) {
+            if (Objects.equals(property.getGetterName(), getterName)) {
+                return calcNewGetter(getterName + "_", otherGetters);
+            }
+        }
+        for (String otherGetter : otherGetters) {
+            if (Objects.equals(otherGetter, getterName)) {
+                return calcNewGetter(getterName + "_", otherGetters);
+            }
+        }
+        return getterName;
     }
 
     public String relativeName(Type name) {

@@ -11,6 +11,12 @@ An annotation processor library to automatically generate the data transfer obje
 * [Introduction](#introduction)
 * [Basics](#basics)
 * [Advanced Usage](#advanced-usage)
+  * [change the generated class name or package](#change-the-generated-class-name)
+  * [filter the property](#filter-the-property)
+  * [generate the setter method](#generate-the-setter-method)
+  * [use non-static method to define new properties](#use-non-static-method-to-define-new-properties)
+  * [spring support](#spring-support)
+  * [serializable support](#serializable-support)
 
 ### Requirement
 Jdk 1.8+ (include jdk 1.8)
@@ -32,7 +38,8 @@ In Maven, you can write:
     <version>${beanknife.version}</version>
   </dependency>
 </dependencies>
-...
+```
+```xml
 <plugins>
   <plugin>
     <artifactId>maven-compiler-plugin</artifactId>
@@ -505,7 +512,112 @@ public class BeanBView {
 ```
 
 ### Advanced Usage
-WIP.
+
+#### change the generated class name
+By default, the dto class is generated with the same package of the original class 
+and the same name with a postfix 'View'. 
+For example, the class a.b.c.Bean will generate a dto class a.b.c.BeanView.
+With the same package, the DTO class can access the properties with protected or default access modifier.
+However, if you really need to change the package or name of the generated class, you can configure like this:
+```java
+@ViewOf(value=a.b.c.Bean.class, genName="BeanDTO", packageName="a.b.c.dto")
+public class ConfigureBean {}
+``` 
+Then the generated dto class will be a.b.c.dto.BeanDTO.
+
+---
+**NOTE**
+
+If the packageName is set to different from the package of the original class, 
+none of properties with protected or default modifier can be included in the generated DTO class.
+
+---
+
+#### filter the property
+WIP
+
+#### generate the setter method
+```java
+@ViewOf(setters=Access.PUBLIC)
+public class ConfigureBean {}
+```
+By default, no setter methods is generated, it means `setters=Access.NONE`.
+If only special property need setter method, 
+`@ViewProperty`, `@NewViewProperty`, `@OverrideViewProperty` all have a attribute `setter`.
+```java
+public class OriginalBean {
+    @ViewProperty(setter=Access.PUBLIC)
+    private int a;
+    private String b;
+}
+
+@ViewOf(OriginalBean.class)
+public class ConfigureBean {
+    @OverrideViewProperty(value="b", setter=Access.PUBLIC)
+    private String b;
+    @NewViewProperty(value="c", setter=Access.PUBLIC)
+    public static boolean c() {
+        return true;
+    }
+}
+```
+
+#### use non-static method to define new properties
+By default, to define a new property in the configure bean, you need write a static method. 
+As a result, the configure bean is stateless in the generated class.
+Sometimes, you really need configure bean hold some state, you can use a non-static method to add the property.
+Then the library runtime will scan the classpath to find a suitable implementation of service interface BeanProvider.
+If it is found, the runtime will use the bean provider to get a configure bean instance and proxy the property method.
+By default, there is no default bean provider. So an error will be thrown at runtime if you using a non-static method.
+However, you can activate a default bean provider by following configure:
+```java
+@ViewOf(value=OriginalBean.class, useDefaultBeanProvider=true)
+public class ConfigureBean {
+    @NewViewProperty(value="c", setter=Access.PUBLIC)
+    public boolean c() {
+        return true;
+    }
+}
+```
+The default bean provider will use the empty constructor to instantiate the configure bean.
+ So if there is no empty constructor or the empty constructor can't be accessed, a exception will be thrown at runtime.
+ 
+ #### spring support
+ In most cases, using non-static methods to configure new properties is not a good practice. 
+ If you really need some state binding to the configure class, you can make the configure as a spring component.
+ Then add the spring support dependency to the class path
+ ```xml
+<dependency>
+    <groupId>io.github.vipcxj</groupId>
+    <artifactId>beanknife-spring</artifactId>
+    <version>${beanknife.version}</version>
+</dependency>
+```
+This plugin provide a bean provider which lookup the bean in the spring application context. So with it, 
+you can use a spring component to configure the DTO generation.
+---
+**NOTE**
+
+To make it work, you need a spring boot environment.
+
+---
+
+#### serializable support
+```java
+@ViewOf(value=OriginalBean.class, serializable=true, serialVersionUID=12345L)
+public class ConfigureBean {
+    @OverrideViewProperty(value="b", setter=Access.PUBLIC)
+    private String b;
+    @NewViewProperty(value="c", setter=Access.PUBLIC)
+    public static boolean c() {
+        return true;
+    }
+}
+```
+By default, the generated class does not implement any interface. 
+Set serializable to true make the generated class to implement the `Serializable` interface,
+and add a static final long field `serialVersionUID` with 0L as initial value.
+You can change its initial value by `ViewOf.serialVersionUID` attribute.
 
 [maven-shield]: https://img.shields.io/maven-central/v/io.github.vipcxj/beanknife-core.png
 [maven-link]: https://search.maven.org/artifact/io.github.vipcxj/beanknife-core

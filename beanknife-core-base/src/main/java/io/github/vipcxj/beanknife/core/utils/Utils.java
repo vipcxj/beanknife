@@ -692,7 +692,7 @@ public class Utils {
         }
     }
 
-    public static void printComment(@NonNull PrintWriter writer, String comment, String indent, int indentNum) {
+    public static void printComment(@NonNull PrintWriter writer, String comment, boolean getter, String indent, int indentNum) {
         if (comment == null || comment.isEmpty()) {
             return;
         }
@@ -703,6 +703,9 @@ public class Utils {
         Utils.printIndent(writer, indent, indentNum);
         writer.println("/**");
         for (String line : lines) {
+            if (getter && line.trim().startsWith("@param ")) {
+                continue;
+            }
             Utils.printIndent(writer, indent, indentNum);
             writer.print(" * ");
             writer.println(line);

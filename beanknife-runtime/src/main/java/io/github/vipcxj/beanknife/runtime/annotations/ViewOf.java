@@ -1,5 +1,7 @@
 package io.github.vipcxj.beanknife.runtime.annotations;
 
+import io.github.vipcxj.beanknife.runtime.utils.BeanUsage;
+import io.github.vipcxj.beanknife.runtime.utils.CacheType;
 import io.github.vipcxj.beanknife.runtime.utils.Self;
 
 import java.lang.annotation.*;
@@ -106,4 +108,21 @@ public @interface ViewOf {
      * @return the serialVersionUID value of the {@link java.io.Serializable}
      */
     long serialVersionUID() default 0L;
+
+    /**
+     * When initialize the configure bean instance, whether to use the default bean provider.
+     * The default bean provider use the empty constructor to initialize the bean.
+     * @see io.github.vipcxj.beanknife.runtime.spi.BeanProvider
+     * @return whether to use default bean provider
+     */
+    boolean useDefaultBeanProvider() default false;
+
+    /**
+     * The cache type of the configure bean instance achieved from {@link io.github.vipcxj.beanknife.runtime.spi.BeanProvider}.
+     * By default, {@link CacheType#LOCAL} is used. it means the configure bean instance is cached as a private field in the generated class.
+     * {@link CacheType#NONE} means no cache, call {@link io.github.vipcxj.beanknife.runtime.spi.BeanProvider#get(Class, BeanUsage, Object)} every time.
+     * {@link CacheType#GLOBAL} means cached only once in the whole application context.
+     * @return The cache type of the configure bean instance
+     */
+    CacheType configureBeanCacheType() default CacheType.LOCAL;
 }

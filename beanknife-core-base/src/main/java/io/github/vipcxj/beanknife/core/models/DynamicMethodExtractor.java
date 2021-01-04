@@ -1,11 +1,11 @@
 package io.github.vipcxj.beanknife.core.models;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.github.vipcxj.beanknife.runtime.annotations.InjectProperty;
 import io.github.vipcxj.beanknife.runtime.annotations.InjectSelf;
 
 import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.VariableElement;
 import java.io.PrintWriter;
@@ -14,6 +14,8 @@ import java.util.List;
 public class DynamicMethodExtractor implements Extractor {
 
     @NonNull
+    private ViewContext context;
+    @CheckForNull
     private final Type container;
     @NonNull
     private final Type viewType;
@@ -22,8 +24,9 @@ public class DynamicMethodExtractor implements Extractor {
     @NonNull
     private final Type returnType;
 
-    public DynamicMethodExtractor(@NonNull Context context, @NonNull Type container, @NonNull ExecutableElement executableElement, @NonNull Type viewType) {
-        this.container = container;
+    public DynamicMethodExtractor(@NonNull ViewContext context, @NonNull ExecutableElement executableElement, @NonNull Type viewType) {
+        this.context = context;
+        this.container = Type.extract(context, context.getViewOf().getConfigElement());
         this.viewType = viewType;
         this.executableElement = executableElement;
         Type type = Type.extract(context, executableElement, null);
@@ -36,12 +39,16 @@ public class DynamicMethodExtractor implements Extractor {
     }
 
     @Override
-    public boolean check(@NonNull ViewContext context) {
-        Name name = executableElement.getSimpleName();
-        if (!executableElement.getModifiers().contains(Modifier.STATIC)) {
-            context.error("The dynamic property method \"" + name + "\" should be static.");
+    public boolean check() {
+        if (container == null) {
+            context.error("Unable to resolve the type config element: " + context.getViewOf().getConfigElement().getQualifiedName());
             return false;
         }
+        Name name = executableElement.getSimpleName();
+/*        if (!executableElement.getModifiers().contains(Modifier.STATIC)) {
+            context.error("The dynamic property method \"" + name + "\" should be static.");
+            return false;
+        }*/
         List<? extends VariableElement> parameters = executableElement.getParameters();
         for (VariableElement parameter : parameters) {
             InjectSelf injectSelf = parameter.getAnnotation(InjectSelf.class);
@@ -80,8 +87,26 @@ public class DynamicMethodExtractor implements Extractor {
 
     @Override
     @NonNull
+    public ViewContext getContext() {
+        return context;
+    }
+
+    @Override
+    @NonNull
     public Type getReturnType() {
         return returnType;
+    }
+
+    @Override
+    @CheckForNull
+    public Type getContainer() {
+        return container;
+    }
+
+    @Override
+    @NonNull
+    public ExecutableElement getExecutableElement() {
+        return executableElement;
     }
 
     @Override
@@ -90,8 +115,8 @@ public class DynamicMethodExtractor implements Extractor {
     }
 
     @Override
-    public void print(PrintWriter writer, Context context) {
-        container.printType(writer, context, false, false);
+    public void print(PrintWriter writer) {
+        printConfigBean(writer, "this");
         writer.print(".");
         writer.print(executableElement.getSimpleName());
         writer.print("(");
