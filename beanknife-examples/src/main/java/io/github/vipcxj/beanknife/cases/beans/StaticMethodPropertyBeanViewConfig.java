@@ -29,13 +29,12 @@ public class StaticMethodPropertyBeanViewConfig {
      * test non static method as a static method property.
      * Though the source can be compiled,
      * this will cause a exception in the runtime. Because {@link ViewOf#useDefaultBeanProvider()} is false here.
-     * So no bean provider is used. Then the configure class {@link DynamicMethodPropertyBeanViewConfig} can not be initialized.
-     * @param self the view instance.
+     * So no bean provider is used. Then the configure class {@link StaticMethodPropertyBeanViewConfig} can not be initialized.
+     * @param source the original instance.
      * @return the property value
      */
     @NewViewProperty("e")
-    @Dynamic
-    public String getABCD(@InjectSelf DynamicMethodPropertyBeanView self) {
-        return self.getA() + self.getB() + self.getC() + self.getD();
+    public String getABC(SimpleBean source) {
+        return source.getA() + source.getB() + source.getC();
     }
 }

@@ -46,17 +46,22 @@ public class GenericBeanView<T1 extends CharSequence & Set<? extends Character>,
         this.e = source.e;
     }
 
+    public GenericBeanView(GenericBean<T1, T2> source) {
+        if (source == null) {
+            throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.GenericBeanView should not be null.");
+        }
+        this.a = source.getA();
+        this.b = source.getB();
+        this.c = source.getC();
+        this.d = source.getD();
+        this.e = source.getE();
+    }
+
     public static <T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> GenericBeanView<T1, T2> read(GenericBean<T1, T2> source) {
         if (source == null) {
             return null;
         }
-        GenericBeanView<T1, T2> out = new GenericBeanView<>();
-        out.a = source.getA();
-        out.b = source.getB();
-        out.c = source.getC();
-        out.d = source.getD();
-        out.e = source.getE();
-        return out;
+        return new GenericBeanView<>(source);
     }
 
     public static <T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> GenericBeanView<T1, T2>[] read(GenericBean<T1, T2>[] sources) {

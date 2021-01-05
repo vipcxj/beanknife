@@ -6,7 +6,8 @@ import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedMeta;
     targetClass = BeanA.class,
     configClass = BeanA.class,
     proxies = {
-        ConfigBeanA.class
+        ConfigBeanA.class,
+        InheritedConfigBeanAViewConfig.class
     }
 )
 public class BeanAMeta {
@@ -17,5 +18,6 @@ public class BeanAMeta {
 
     public static class Views {
         public static final String io_github_vipcxj_beanknife_cases_beans_BeanAView = "io.github.vipcxj.beanknife.cases.beans.BeanAView";
+        public static final String io_github_vipcxj_beanknife_cases_beans_BeanAViewWithInheritedConfig = "io.github.vipcxj.beanknife.cases.beans.BeanAViewWithInheritedConfig";
     }
 }

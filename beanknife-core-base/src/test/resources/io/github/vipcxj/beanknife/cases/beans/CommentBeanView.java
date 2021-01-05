@@ -36,15 +36,20 @@ public class CommentBeanView {
         this.c = source.c;
     }
 
+    public CommentBeanView(CommentBean source) {
+        if (source == null) {
+            throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.CommentBeanView should not be null.");
+        }
+        this.a = source.getA();
+        this.b = source.getB();
+        this.c = source.getC();
+    }
+
     public static CommentBeanView read(CommentBean source) {
         if (source == null) {
             return null;
         }
-        CommentBeanView out = new CommentBeanView();
-        out.a = source.getA();
-        out.b = source.getB();
-        out.c = source.getC();
-        return out;
+        return new CommentBeanView(source);
     }
 
     public static CommentBeanView[] read(CommentBean[] sources) {

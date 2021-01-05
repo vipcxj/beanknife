@@ -26,13 +26,18 @@ public class NestedGenericBean$StaticChildBeanView<T1 extends String> {
         this.a = source.a;
     }
 
+    public NestedGenericBean$StaticChildBeanView(NestedGenericBean.StaticChildBean<T1> source) {
+        if (source == null) {
+            throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.NestedGenericBean$StaticChildBeanView should not be null.");
+        }
+        this.a = source.getA();
+    }
+
     public static <T1 extends String> NestedGenericBean$StaticChildBeanView<T1> read(NestedGenericBean.StaticChildBean<T1> source) {
         if (source == null) {
             return null;
         }
-        NestedGenericBean$StaticChildBeanView<T1> out = new NestedGenericBean$StaticChildBeanView<>();
-        out.a = source.getA();
-        return out;
+        return new NestedGenericBean$StaticChildBeanView<>(source);
     }
 
     public static <T1 extends String> NestedGenericBean$StaticChildBeanView<T1>[] read(NestedGenericBean.StaticChildBean<T1>[] sources) {

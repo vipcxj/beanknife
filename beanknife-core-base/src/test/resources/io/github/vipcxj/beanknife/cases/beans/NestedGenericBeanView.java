@@ -31,14 +31,19 @@ public class NestedGenericBeanView<T1 extends CharSequence & Set<? extends Chara
         this.b = source.b;
     }
 
+    public NestedGenericBeanView(NestedGenericBean<T1, T2> source) {
+        if (source == null) {
+            throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.NestedGenericBeanView should not be null.");
+        }
+        this.a = source.getA();
+        this.b = source.getB();
+    }
+
     public static <T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> NestedGenericBeanView<T1, T2> read(NestedGenericBean<T1, T2> source) {
         if (source == null) {
             return null;
         }
-        NestedGenericBeanView<T1, T2> out = new NestedGenericBeanView<>();
-        out.a = source.getA();
-        out.b = source.getB();
-        return out;
+        return new NestedGenericBeanView<>(source);
     }
 
     public static <T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> NestedGenericBeanView<T1, T2>[] read(NestedGenericBean<T1, T2>[] sources) {

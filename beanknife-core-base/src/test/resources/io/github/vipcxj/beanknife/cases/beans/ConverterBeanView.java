@@ -33,14 +33,19 @@ public class ConverterBeanView {
         this.b = source.b;
     }
 
+    public ConverterBeanView(ConverterBean source) {
+        if (source == null) {
+            throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.ConverterBeanView should not be null.");
+        }
+        this.a = new NullLongAsZeroConverter().convert(source.getA());
+        this.b = new NullIntegerAsZeroConverter().convert(source.getB());
+    }
+
     public static ConverterBeanView read(ConverterBean source) {
         if (source == null) {
             return null;
         }
-        ConverterBeanView out = new ConverterBeanView();
-        out.a = new NullLongAsZeroConverter().convert(source.getA());
-        out.b = new NullIntegerAsZeroConverter().convert(source.getB());
-        return out;
+        return new ConverterBeanView(source);
     }
 
     public static ConverterBeanView[] read(ConverterBean[] sources) {

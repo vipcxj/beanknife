@@ -36,15 +36,20 @@ public class NestedGenericBean$DynamicChildBeanView<T1 extends CharSequence & Se
         this.c = source.c;
     }
 
+    public NestedGenericBean$DynamicChildBeanView(NestedGenericBean<T1, T2>.DynamicChildBean<T3> source) {
+        if (source == null) {
+            throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.NestedGenericBean$DynamicChildBeanView should not be null.");
+        }
+        this.a = source.getA();
+        this.b = source.getB();
+        this.c = source.getC();
+    }
+
     public static <T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>, T3> NestedGenericBean$DynamicChildBeanView<T1, T2, T3> read(NestedGenericBean<T1, T2>.DynamicChildBean<T3> source) {
         if (source == null) {
             return null;
         }
-        NestedGenericBean$DynamicChildBeanView<T1, T2, T3> out = new NestedGenericBean$DynamicChildBeanView<>();
-        out.a = source.getA();
-        out.b = source.getB();
-        out.c = source.getC();
-        return out;
+        return new NestedGenericBean$DynamicChildBeanView<>(source);
     }
 
     public static <T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>, T3> NestedGenericBean$DynamicChildBeanView<T1, T2, T3>[] read(NestedGenericBean<T1, T2>.DynamicChildBean<T3>[] sources) {

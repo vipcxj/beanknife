@@ -37,15 +37,20 @@ public class FieldBeanView {
         this.d = source.d;
     }
 
+    public FieldBeanView(FieldBean source) {
+        if (source == null) {
+            throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.FieldBeanView should not be null.");
+        }
+        this.b = source.b;
+        this.c = source.c;
+        this.d = source.d;
+    }
+
     public static FieldBeanView read(FieldBean source) {
         if (source == null) {
             return null;
         }
-        FieldBeanView out = new FieldBeanView();
-        out.b = source.b;
-        out.c = source.c;
-        out.d = source.d;
-        return out;
+        return new FieldBeanView(source);
     }
 
     public static FieldBeanView[] read(FieldBean[] sources) {

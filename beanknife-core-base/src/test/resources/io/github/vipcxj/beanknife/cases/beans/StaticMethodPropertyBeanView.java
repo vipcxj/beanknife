@@ -1,7 +1,8 @@
 package io.github.vipcxj.beanknife.cases.beans;
 
+import io.github.vipcxj.beanknife.runtime.BeanProviders;
 import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedView;
-
+import io.github.vipcxj.beanknife.runtime.utils.BeanUsage;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -9,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
-
 
 @GeneratedView(targetClass = SimpleBean.class, configClass = StaticMethodPropertyBeanViewConfig.class)
 public class StaticMethodPropertyBeanView {
@@ -24,6 +24,8 @@ public class StaticMethodPropertyBeanView {
 
     private Integer d;
 
+    private String e;
+
     public StaticMethodPropertyBeanView() { }
 
     public StaticMethodPropertyBeanView(
@@ -31,13 +33,15 @@ public class StaticMethodPropertyBeanView {
         Object b,
         int one,
         Integer c,
-        Integer d
+        Integer d,
+        String e
     ) {
         this.a = a;
         this.b = b;
         this.one = one;
         this.c = c;
         this.d = d;
+        this.e = e;
     }
 
     public StaticMethodPropertyBeanView(StaticMethodPropertyBeanView source) {
@@ -46,19 +50,27 @@ public class StaticMethodPropertyBeanView {
         this.one = source.one;
         this.c = source.c;
         this.d = source.d;
+        this.e = source.e;
+    }
+
+    public StaticMethodPropertyBeanView(SimpleBean source) {
+        if (source == null) {
+            throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.StaticMethodPropertyBeanView should not be null.");
+        }
+        StaticMethodPropertyBeanViewConfig configureBean = BeanProviders.INSTANCE.get(StaticMethodPropertyBeanViewConfig.class, BeanUsage.CONFIGURE, source, false, false);
+        this.a = source.getA();
+        this.b = StaticMethodPropertyBeanViewConfig.getB();
+        this.one = StaticMethodPropertyBeanViewConfig.getOne();
+        this.c = StaticMethodPropertyBeanViewConfig.getC(source);
+        this.d = StaticMethodPropertyBeanViewConfig.getD(source);
+        this.e = configureBean.getABC(source);
     }
 
     public static StaticMethodPropertyBeanView read(SimpleBean source) {
         if (source == null) {
             return null;
         }
-        StaticMethodPropertyBeanView out = new StaticMethodPropertyBeanView();
-        out.a = source.getA();
-        out.b = StaticMethodPropertyBeanViewConfig.getB();
-        out.one = StaticMethodPropertyBeanViewConfig.getOne();
-        out.c = StaticMethodPropertyBeanViewConfig.getC(source);
-        out.d = StaticMethodPropertyBeanViewConfig.getD(source);
-        return out;
+        return new StaticMethodPropertyBeanView(source);
     }
 
     public static StaticMethodPropertyBeanView[] read(SimpleBean[] sources) {
@@ -134,6 +146,17 @@ public class StaticMethodPropertyBeanView {
 
     public Integer getD() {
         return this.d;
+    }
+
+    /**
+     *  test non static method as a static method property.
+     *  Though the source can be compiled,
+     *  this will cause a exception in the runtime. Because {@link ViewOf#useDefaultBeanProvider()} is false here.
+     *  So no bean provider is used. Then the configure class {@link StaticMethodPropertyBeanViewConfig} can not be initialized.
+     *  @return the property value
+     */
+    public String getE() {
+        return this.e;
     }
 
 }

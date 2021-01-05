@@ -1,7 +1,6 @@
 package io.github.vipcxj.beanknife.cases.beans;
 
 import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedView;
-
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -43,16 +42,21 @@ public class BeanBViewWithInheritedConfig {
         this.timestamp = source.timestamp;
     }
 
+    public BeanBViewWithInheritedConfig(BeanB source) {
+        if (source == null) {
+            throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.BeanBViewWithInheritedConfig should not be null.");
+        }
+        this.a = source.getA();
+        this.beanA = source.getBeanA();
+        this.type = InheritedConfigBeanBViewConfig.type(source);
+        this.timestamp = InheritedConfigBeanBViewConfig.timestamp();
+    }
+
     public static BeanBViewWithInheritedConfig read(BeanB source) {
         if (source == null) {
             return null;
         }
-        BeanBViewWithInheritedConfig out = new BeanBViewWithInheritedConfig();
-        out.a = source.getA();
-        out.beanA = source.getBeanA();
-        out.type = InheritedConfigBeanBViewConfig.type(source);
-        out.timestamp = InheritedConfigBeanBViewConfig.timestamp();
-        return out;
+        return new BeanBViewWithInheritedConfig(source);
     }
 
     public static BeanBViewWithInheritedConfig[] read(BeanB[] sources) {

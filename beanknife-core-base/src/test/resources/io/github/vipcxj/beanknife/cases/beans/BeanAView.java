@@ -47,9 +47,9 @@ public class BeanAView {
         this.d = source.d;
     }
 
-    public static BeanAView read(BeanA source) {
+    public BeanAView(BeanA source) {
         if (source == null) {
-            return null;
+            throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.BeanAView should not be null.");
         }
         Map<String, List<BeanBView>> p0 = new HashMap<>();
         for (Map.Entry<String, List<BeanB>> el0 : source.getBeanBMap().entrySet()) {
@@ -60,13 +60,18 @@ public class BeanAView {
             }
             p0.put(el0.getKey(), result0);
         }
-        BeanAView out = new BeanAView();
-        out.a = source.a;
-        out.b = source.b;
-        out.c = source.getC();
-        out.beanBMap = p0;
-        out.d = ConfigBeanA.d(source);
-        return out;
+        this.a = source.a;
+        this.b = source.b;
+        this.c = source.getC();
+        this.beanBMap = p0;
+        this.d = ConfigBeanA.d(source);
+    }
+
+    public static BeanAView read(BeanA source) {
+        if (source == null) {
+            return null;
+        }
+        return new BeanAView(source);
     }
 
     public static BeanAView[] read(BeanA[] sources) {

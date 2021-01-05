@@ -31,14 +31,19 @@ public class ViewOfDirectOnBeanView {
         this.b = source.b;
     }
 
+    public ViewOfDirectOnBeanView(ViewOfDirectOnBean source) {
+        if (source == null) {
+            throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.ViewOfDirectOnBeanView should not be null.");
+        }
+        this.a = source.getA();
+        this.b = source.getB();
+    }
+
     public static ViewOfDirectOnBeanView read(ViewOfDirectOnBean source) {
         if (source == null) {
             return null;
         }
-        ViewOfDirectOnBeanView out = new ViewOfDirectOnBeanView();
-        out.a = source.getA();
-        out.b = source.getB();
-        return out;
+        return new ViewOfDirectOnBeanView(source);
     }
 
     public static ViewOfDirectOnBeanView[] read(ViewOfDirectOnBean[] sources) {

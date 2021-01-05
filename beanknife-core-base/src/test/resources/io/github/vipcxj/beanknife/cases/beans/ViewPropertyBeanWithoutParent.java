@@ -36,15 +36,20 @@ public class ViewPropertyBeanWithoutParent {
         this.parent = source.parent;
     }
 
+    public ViewPropertyBeanWithoutParent(ViewPropertyBean source) {
+        if (source == null) {
+            throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.ViewPropertyBeanWithoutParent should not be null.");
+        }
+        this.a = source.getA();
+        this.b = source.getB();
+        this.parent = source.getParent();
+    }
+
     public static ViewPropertyBeanWithoutParent read(ViewPropertyBean source) {
         if (source == null) {
             return null;
         }
-        ViewPropertyBeanWithoutParent out = new ViewPropertyBeanWithoutParent();
-        out.a = source.getA();
-        out.b = source.getB();
-        out.parent = source.getParent();
-        return out;
+        return new ViewPropertyBeanWithoutParent(source);
     }
 
     public static ViewPropertyBeanWithoutParent[] read(ViewPropertyBean[] sources) {

@@ -33,14 +33,19 @@ public class SerializableBeanView implements Serializable {
         this.b = source.b;
     }
 
+    public SerializableBeanView(SerializableBean source) {
+        if (source == null) {
+            throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.SerializableBeanView should not be null.");
+        }
+        this.a = source.getA();
+        this.b = source.getB();
+    }
+
     public static SerializableBeanView read(SerializableBean source) {
         if (source == null) {
             return null;
         }
-        SerializableBeanView out = new SerializableBeanView();
-        out.a = source.getA();
-        out.b = source.getB();
-        return out;
+        return new SerializableBeanView(source);
     }
 
     public static SerializableBeanView[] read(SerializableBean[] sources) {

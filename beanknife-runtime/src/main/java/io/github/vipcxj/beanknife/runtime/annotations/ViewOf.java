@@ -79,6 +79,12 @@ public @interface ViewOf {
      */
     Access copyConstructor() default Access.PUBLIC;
     /**
+     * The access type of the read constructor. By default, public is used.
+     * This constructor accept the original class instance as the only argument.
+     * @return the access type of the read constructor
+     */
+    Access readConstructor() default Access.PUBLIC;
+    /**
      * The access type of the getter methods. By default, public is used.
      * It can be override by the {@link ViewProperty}, {@link OverrideViewProperty} and {@link NewViewProperty}.
      * @return the access type of the getter methods

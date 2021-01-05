@@ -36,7 +36,7 @@ public class GeneratedMetaProcessor extends AbstractProcessor {
         try {
             this.processorData.collect(processingEnv, roundEnv);
             for (TypeElement annotation : annotations) {
-                this.processorData.fix(processingEnv);
+                // this.processorData.fix(processingEnv);
                 Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
                 for (Element element : elements) {
                     List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(element);

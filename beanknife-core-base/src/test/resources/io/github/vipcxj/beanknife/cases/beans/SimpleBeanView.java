@@ -36,15 +36,20 @@ public class SimpleBeanView {
         this.c = source.c;
     }
 
+    public SimpleBeanView(SimpleBean source) {
+        if (source == null) {
+            throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.SimpleBeanView should not be null.");
+        }
+        this.a = source.getA();
+        this.b = source.getB();
+        this.c = source.getC();
+    }
+
     public static SimpleBeanView read(SimpleBean source) {
         if (source == null) {
             return null;
         }
-        SimpleBeanView out = new SimpleBeanView();
-        out.a = source.getA();
-        out.b = source.getB();
-        out.c = source.getC();
-        return out;
+        return new SimpleBeanView(source);
     }
 
     public static SimpleBeanView[] read(SimpleBean[] sources) {

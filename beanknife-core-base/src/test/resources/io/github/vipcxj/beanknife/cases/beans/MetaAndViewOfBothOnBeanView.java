@@ -37,15 +37,20 @@ public class MetaAndViewOfBothOnBeanView {
         this.e = source.e;
     }
 
+    public MetaAndViewOfBothOnBeanView(MetaAndViewOfBothOnBean source) {
+        if (source == null) {
+            throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.MetaAndViewOfBothOnBeanView should not be null.");
+        }
+        this.a = source.getA();
+        this.c = source.getC();
+        this.e = source.getE();
+    }
+
     public static MetaAndViewOfBothOnBeanView read(MetaAndViewOfBothOnBean source) {
         if (source == null) {
             return null;
         }
-        MetaAndViewOfBothOnBeanView out = new MetaAndViewOfBothOnBeanView();
-        out.a = source.getA();
-        out.c = source.getC();
-        out.e = source.getE();
-        return out;
+        return new MetaAndViewOfBothOnBeanView(source);
     }
 
     public static MetaAndViewOfBothOnBeanView[] read(MetaAndViewOfBothOnBean[] sources) {

@@ -76,9 +76,9 @@ public class ViewPropertyContainerBeanView {
         this.viewStackMapListMapArrayArrayArray = source.viewStackMapListMapArrayArrayArray;
     }
 
-    public static ViewPropertyContainerBeanView read(ViewPropertyContainerBean source) {
+    public ViewPropertyContainerBeanView(ViewPropertyContainerBean source) {
         if (source == null) {
-            return null;
+            throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.ViewPropertyContainerBeanView should not be null.");
         }
         ViewPropertyBeanWithoutParent p0 = ViewPropertyBeanWithoutParent.read(source.getView());
         ViewPropertyBeanWithoutParent[] p1 = new ViewPropertyBeanWithoutParent[source.getViewArray().length];
@@ -169,19 +169,24 @@ public class ViewPropertyContainerBeanView {
             }
             p8[i0] = result0;
         }
-        ViewPropertyContainerBeanView out = new ViewPropertyContainerBeanView();
-        out.a = source.getA();
-        out.b = source.getB();
-        out.view = p0;
-        out.viewArray = p1;
-        out.viewList = p2;
-        out.viewSet = p3;
-        out.viewMap = p4;
-        out.viewMapList = p5;
-        out.viewListMap = p6;
-        out.viewStackMapListMap = p7;
-        out.viewStackMapListMapArrayArrayArray = p8;
-        return out;
+        this.a = source.getA();
+        this.b = source.getB();
+        this.view = p0;
+        this.viewArray = p1;
+        this.viewList = p2;
+        this.viewSet = p3;
+        this.viewMap = p4;
+        this.viewMapList = p5;
+        this.viewListMap = p6;
+        this.viewStackMapListMap = p7;
+        this.viewStackMapListMapArrayArrayArray = p8;
+    }
+
+    public static ViewPropertyContainerBeanView read(ViewPropertyContainerBean source) {
+        if (source == null) {
+            return null;
+        }
+        return new ViewPropertyContainerBeanView(source);
     }
 
     public static ViewPropertyContainerBeanView[] read(ViewPropertyContainerBean[] sources) {

@@ -17,12 +17,17 @@ public class ViewOfInNestBean$Bean2$Bean1$Bean3View {
     public ViewOfInNestBean$Bean2$Bean1$Bean3View(ViewOfInNestBean$Bean2$Bean1$Bean3View source) {
     }
 
+    public ViewOfInNestBean$Bean2$Bean1$Bean3View(ViewOfInNestBean.Bean2.Bean1.Bean3 source) {
+        if (source == null) {
+            throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.ViewOfInNestBean$Bean2$Bean1$Bean3View should not be null.");
+        }
+    }
+
     public static ViewOfInNestBean$Bean2$Bean1$Bean3View read(ViewOfInNestBean.Bean2.Bean1.Bean3 source) {
         if (source == null) {
             return null;
         }
-        ViewOfInNestBean$Bean2$Bean1$Bean3View out = new ViewOfInNestBean$Bean2$Bean1$Bean3View();
-        return out;
+        return new ViewOfInNestBean$Bean2$Bean1$Bean3View(source);
     }
 
     public static ViewOfInNestBean$Bean2$Bean1$Bean3View[] read(ViewOfInNestBean.Bean2.Bean1.Bean3[] sources) {

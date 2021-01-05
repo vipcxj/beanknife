@@ -32,6 +32,7 @@ public class ViewOfData {
     private Modifier emptyConstructor;
     private Modifier fieldsConstructor;
     private Modifier copyConstructor;
+    private Modifier readConstructor;
     private Access getters;
     private Access setters;
     private boolean errorMethods;
@@ -70,6 +71,7 @@ public class ViewOfData {
         this.emptyConstructor = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "emptyConstructor"));
         this.fieldsConstructor = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "fieldsConstructor"));
         this.copyConstructor = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "copyConstructor"));
+        this.readConstructor = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "readConstructor"));
         this.getters = getAccess(Utils.getEnumAnnotationValue(viewOf, annValues, "getters"));
         this.setters = getAccess(Utils.getEnumAnnotationValue(viewOf, annValues, "setters"));
         this.errorMethods = Utils.getBooleanAnnotationValue(viewOf, annValues, "errorMethods");
@@ -183,6 +185,10 @@ public class ViewOfData {
         return copyConstructor;
     }
 
+    public Modifier getReadConstructor() {
+        return readConstructor;
+    }
+
     public Access getGetters() {
         return getters;
     }
@@ -226,9 +232,7 @@ public class ViewOfData {
         writer.print(name);
         writer.print(" = ");
         writer.print(value);
-        if (!false) {
-            writer.println(",");
-        }
+        writer.println(",");
     }
 
     private static void printStringArrayAnnotationValue(PrintWriter writer, String name, String[] values, String indent, int indentNum) {
@@ -315,6 +319,7 @@ public class ViewOfData {
         printEnumAnnotationValue(writer, "emptyConstructor", accessType, Utils.accessFromModifier(emptyConstructor), context, indent, indentNum + 1);
         printEnumAnnotationValue(writer, "fieldsConstructor", accessType, Utils.accessFromModifier(fieldsConstructor), context, indent, indentNum + 1);
         printEnumAnnotationValue(writer, "copyConstructor", accessType, Utils.accessFromModifier(copyConstructor), context, indent, indentNum + 1);
+        printEnumAnnotationValue(writer, "readConstructor", accessType, Utils.accessFromModifier(readConstructor), context, indent, indentNum + 1);
         printEnumAnnotationValue(writer, "getters", accessType, getters, context, indent, indentNum + 1);
         printEnumAnnotationValue(writer, "setters", accessType, setters, context, indent, indentNum + 1);
         printAnnotationValue(writer, "errorMethods", errorMethods, indent, indentNum + 1);

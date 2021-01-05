@@ -26,13 +26,18 @@ public class BeanBView {
         this.a = source.a;
     }
 
+    public BeanBView(BeanB source) {
+        if (source == null) {
+            throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.BeanBView should not be null.");
+        }
+        this.a = source.getA();
+    }
+
     public static BeanBView read(BeanB source) {
         if (source == null) {
             return null;
         }
-        BeanBView out = new BeanBView();
-        out.a = source.getA();
-        return out;
+        return new BeanBView(source);
     }
 
     public static BeanBView[] read(BeanB[] sources) {

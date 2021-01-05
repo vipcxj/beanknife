@@ -31,14 +31,19 @@ public class MetaAndViewOfOnDiffBean3View {
         this.pb = source.pb;
     }
 
+    public MetaAndViewOfOnDiffBean3View(MetaAndViewOfOnDiffBean3 source) {
+        if (source == null) {
+            throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.MetaAndViewOfOnDiffBean3View should not be null.");
+        }
+        this.pa = source.getPa();
+        this.pb = source.getPb();
+    }
+
     public static MetaAndViewOfOnDiffBean3View read(MetaAndViewOfOnDiffBean3 source) {
         if (source == null) {
             return null;
         }
-        MetaAndViewOfOnDiffBean3View out = new MetaAndViewOfOnDiffBean3View();
-        out.pa = source.getPa();
-        out.pb = source.getPb();
-        return out;
+        return new MetaAndViewOfOnDiffBean3View(source);
     }
 
     public static MetaAndViewOfOnDiffBean3View[] read(MetaAndViewOfOnDiffBean3[] sources) {

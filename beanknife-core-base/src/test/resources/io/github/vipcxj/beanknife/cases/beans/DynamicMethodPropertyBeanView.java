@@ -1,7 +1,8 @@
 package io.github.vipcxj.beanknife.cases.beans;
 
+import io.github.vipcxj.beanknife.runtime.BeanProviders;
 import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedView;
-
+import io.github.vipcxj.beanknife.runtime.utils.BeanUsage;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -10,11 +11,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 
-
 @GeneratedView(targetClass = SimpleBean.class, configClass = DynamicMethodPropertyBeanViewConfig.class)
 public class DynamicMethodPropertyBeanView {
 
     private String a;
+
+    private transient DynamicMethodPropertyBeanViewConfig cachedConfigureBean;
 
     public DynamicMethodPropertyBeanView() { }
 
@@ -28,13 +30,18 @@ public class DynamicMethodPropertyBeanView {
         this.a = source.a;
     }
 
+    public DynamicMethodPropertyBeanView(SimpleBean source) {
+        if (source == null) {
+            throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.DynamicMethodPropertyBeanView should not be null.");
+        }
+        this.a = source.getA();
+    }
+
     public static DynamicMethodPropertyBeanView read(SimpleBean source) {
         if (source == null) {
             return null;
         }
-        DynamicMethodPropertyBeanView out = new DynamicMethodPropertyBeanView();
-        out.a = source.getA();
-        return out;
+        return new DynamicMethodPropertyBeanView(source);
     }
 
     public static DynamicMethodPropertyBeanView[] read(SimpleBean[] sources) {
@@ -106,6 +113,24 @@ public class DynamicMethodPropertyBeanView {
 
     public String getD() {
         return DynamicMethodPropertyBeanViewConfig.getABC(this.a, this.getB(), this.getC());
+    }
+
+    /**
+     *  test non static method as a dynamic method property.
+     *  Though the source can be compiled,
+     *  this will cause a exception in the runtime. Because {@link ViewOf#useDefaultBeanProvider()} is false here.
+     *  So no bean provider is used. Then the configure class {@link DynamicMethodPropertyBeanViewConfig} can not be initialized.
+     *  @return the property value
+     */
+    public String getE() {
+        return this.gottenCachedConfigureBean().getABCD(this);
+    }
+
+    public DynamicMethodPropertyBeanViewConfig gottenCachedConfigureBean() {
+        if (cachedConfigureBean == null) {
+            this.cachedConfigureBean = BeanProviders.INSTANCE.get(DynamicMethodPropertyBeanViewConfig.class, BeanUsage.CONFIGURE, this, false, false);
+        }
+        return this.cachedConfigureBean;
     }
 
 }

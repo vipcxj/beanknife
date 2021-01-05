@@ -32,12 +32,16 @@ public interface Extractor {
             getContainer().printType(writer, getContext(), false, false);
         } else {
             CacheType cacheType = getContext().getViewOf().getConfigureBeanCacheType();
-            if (cacheType == CacheType.LOCAL && isDynamic()) {
-                writer.print("this.");
-                writer.print(getContext().getConfigureBeanGetterVar());
-                writer.print("()");
+            if (isDynamic()) {
+                if (cacheType == CacheType.LOCAL) {
+                    writer.print("this.");
+                    writer.print(getContext().getConfigureBeanGetterVar());
+                    writer.print("()");
+                } else {
+                    getContext().printInitConfigureBean(writer, requester, false);
+                }
             } else {
-                getContext().printInitConfigureBean(writer, requester);
+                getContext().printInitConfigureBean(writer, requester, true);
             }
         }
     }

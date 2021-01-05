@@ -31,14 +31,19 @@ public class MetaAndViewOfOnDiffBean4$NestedBeanView {
         this.pb = source.pb;
     }
 
+    public MetaAndViewOfOnDiffBean4$NestedBeanView(MetaAndViewOfOnDiffBean4.NestedBean source) {
+        if (source == null) {
+            throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.MetaAndViewOfOnDiffBean4$NestedBeanView should not be null.");
+        }
+        this.pa = source.getPa();
+        this.pb = source.getPb();
+    }
+
     public static MetaAndViewOfOnDiffBean4$NestedBeanView read(MetaAndViewOfOnDiffBean4.NestedBean source) {
         if (source == null) {
             return null;
         }
-        MetaAndViewOfOnDiffBean4$NestedBeanView out = new MetaAndViewOfOnDiffBean4$NestedBeanView();
-        out.pa = source.getPa();
-        out.pb = source.getPb();
-        return out;
+        return new MetaAndViewOfOnDiffBean4$NestedBeanView(source);
     }
 
     public static MetaAndViewOfOnDiffBean4$NestedBeanView[] read(MetaAndViewOfOnDiffBean4.NestedBean[] sources) {

@@ -10,6 +10,7 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.*;
 import javax.lang.model.util.Elements;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -95,13 +96,23 @@ public class MetaContext extends Context {
             writer.println(".class,");
             Utils.printIndent(writer, INDENT, 1);
             writer.println("proxies = {");
-            int i = 0;
+            Set<String> configTypeNames = new HashSet<>();
+            List<Type> configTypes = new ArrayList<>();
             for (ViewOfData viewOfData : viewOfDataList) {
-                Utils.printIndent(writer, INDENT, 2);
                 Type configType = Type.extract(this, viewOfData.getConfigElement());
+                String configTypeName = configType.getQualifiedName();
+                if (!configTypeNames.contains(configTypeName)) {
+                    configTypeNames.add(configTypeName);
+                    configTypes.add(configType);
+                }
+            }
+            int i = 0;
+            int configNum = configTypes.size();
+            for (Type configType : configTypes) {
+                Utils.printIndent(writer, INDENT, 2);
                 configType.printType(writer, this, false, false);
                 writer.print(".class");
-                if (i++ != viewOfNum - 1) {
+                if (i++ != configNum - 1) {
                     writer.println(",");
                 } else {
                     writer.println();
