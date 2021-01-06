@@ -36,9 +36,6 @@
             <timezone>+8</timezone>
         </developer>
     </developers>
-    <properties>
-        <maven.compiler.release>9</maven.compiler.release>
-    </properties>
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -98,6 +95,9 @@
             <activation>
                 <activeByDefault>true</activeByDefault>
             </activation>
+            <properties>
+                <maven.compiler.release>9</maven.compiler.release>
+            </properties>
             <build>
                 <plugins>
                     <plugin>
