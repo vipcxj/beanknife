@@ -6,6 +6,7 @@ BeanKnife
 An annotation processor library to automatically generate the data transfer objects (DTO).
 
 ## Docs
+* [Quick Look](#quick-look)
 * [Requirement](#requirement)
 * [Quick Start](#quick-start)
 * [Introduction](#introduction)
@@ -17,6 +18,43 @@ An annotation processor library to automatically generate the data transfer obje
   * [use non-static method to define new properties](#use-non-static-method-to-define-new-properties)
   * [spring support](#spring-support)
   * [serializable support](#serializable-support)
+  
+### Quick Look
+Base on
+```java
+class Pojo1 {
+   private int a;
+   private List<Pojo2> pojo2List;
+}
+
+class Pojo2 {
+    private String b;
+    private Pojo1 pojo1;
+}
+```
+Beanknife is able to generate
+```java
+class Pojo1View1 {
+   private int a;
+   private List<Pojo2View1> pojo2List;
+}
+
+class Pojo2View1 {
+    private String b;
+}
+```
+Or
+```java
+class Pojo2View2 {
+    private String b;
+    private Pojo1View2 pojo1;
+}
+
+class Pojo1View2 {
+   private int a;
+}
+
+```
 
 ### Requirement
 Jdk 1.8+ (include jdk 1.8)
@@ -593,6 +631,7 @@ The default bean provider will use the empty constructor to instantiate the conf
     <version>${beanknife.version}</version>
 </dependency>
 ```
+
 This plugin provide a bean provider which lookup the bean in the spring application context. So with it, 
 you can use a spring component to configure the DTO generation.
 ---
