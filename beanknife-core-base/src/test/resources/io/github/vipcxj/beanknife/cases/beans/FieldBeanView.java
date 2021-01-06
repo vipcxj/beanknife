@@ -13,11 +13,11 @@ import java.util.Stack;
 @GeneratedView(targetClass = FieldBean.class, configClass = FieldBeanViewConfig.class)
 public class FieldBeanView {
 
-    private long b;
+        private long b;
 
-    private Date c;
+        private Date c;
 
-    private Number[] d;
+        private Number[] d;
 
     public FieldBeanView() { }
 
@@ -108,15 +108,15 @@ public class FieldBeanView {
         return results;
     }
 
-    public long getB() {
+        public long getB() {
         return this.b;
     }
 
-    public Date getC() {
+        public Date getC() {
         return this.c;
     }
 
-    public Number[] getD() {
+        public Number[] getD() {
         return this.d;
     }
 

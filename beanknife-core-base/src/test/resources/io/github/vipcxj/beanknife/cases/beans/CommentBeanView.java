@@ -12,11 +12,11 @@ import java.util.Stack;
 @GeneratedView(targetClass = CommentBean.class, configClass = CommentBean.class)
 public class CommentBeanView {
 
-    private String a;
+        private String a;
 
-    private String b;
+        private String b;
 
-    private long c;
+        private long c;
 
     public CommentBeanView() { }
 
@@ -107,7 +107,7 @@ public class CommentBeanView {
         return results;
     }
 
-    /**
+        /**
      *  this is a.
      *  this is the second line.
      *  {@link Object} this is some doc annotation.
@@ -116,7 +116,7 @@ public class CommentBeanView {
         return this.a;
     }
 
-    /**
+        /**
      *  this is b.
      *  this is the second line.
      *  {@link Object} this is some doc annotation.
@@ -125,7 +125,7 @@ public class CommentBeanView {
         return this.b;
     }
 
-    /**
+        /**
      *  this is c
      *  this comment is on the method.
      *  this is the second line.

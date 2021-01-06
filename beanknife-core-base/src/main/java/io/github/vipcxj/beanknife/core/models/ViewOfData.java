@@ -1,9 +1,10 @@
 package io.github.vipcxj.beanknife.core.models;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.github.vipcxj.beanknife.core.utils.Utils;
-import io.github.vipcxj.beanknife.runtime.annotations.Access;
-import io.github.vipcxj.beanknife.runtime.annotations.ViewOf;
+import io.github.vipcxj.beanknife.runtime.annotations.*;
+import io.github.vipcxj.beanknife.runtime.utils.AnnotationPos;
 import io.github.vipcxj.beanknife.runtime.utils.CacheType;
 import io.github.vipcxj.beanknife.runtime.utils.Self;
 import org.apache.commons.text.StringEscapeUtils;
@@ -12,9 +13,7 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
 import java.io.PrintWriter;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class ViewOfData {
@@ -40,6 +39,9 @@ public class ViewOfData {
     private long serialVersionUID;
     private boolean useDefaultBeanProvider;
     private CacheType configureBeanCacheType;
+    private List<String> extraExcludes;
+    private Map<String, AnnotationUsage> useAnnotations;
+    private List<AnnotationMirror> annotationMirrors;
 
     public static ViewOfData read(@NonNull ProcessingEnvironment environment, @NonNull AnnotationMirror viewOf, @NonNull TypeElement sourceElement) {
         ViewOfData data = new ViewOfData();
@@ -79,6 +81,43 @@ public class ViewOfData {
         this.serialVersionUID = Utils.getLongAnnotationValue(viewOf, annValues, "serialVersionUID");
         this.useDefaultBeanProvider = Utils.getBooleanAnnotationValue(viewOf, annValues, "useDefaultBeanProvider");
         this.configureBeanCacheType = getCacheType(Utils.getEnumAnnotationValue(viewOf, annValues, "configureBeanCacheType"));
+        this.extraExcludes = new ArrayList<>();
+        List<AnnotationMirror> removeViewProperties = Utils.getAnnotationsOn(environment, configElement, RemoveViewProperty.class, RemoveViewProperties.class);
+        for (AnnotationMirror removeViewProperty : removeViewProperties) {
+            Map<? extends ExecutableElement, ? extends AnnotationValue> values = environment.getElementUtils().getElementValuesWithDefaults(removeViewProperty);
+            String exclude = Utils.getStringAnnotationValue(removeViewProperty, values, "value");
+            this.extraExcludes.add(exclude);
+        }
+        this.useAnnotations = new HashMap<>();
+        List<AnnotationMirror> useAnnotations = Utils.getAnnotationsOn(environment, configElement, UseAnnotation.class, UseAnnotations.class);
+        for (AnnotationMirror useAnnotation : useAnnotations) {
+            AnnotationUsage annotationUsage = AnnotationUsage.from(environment, useAnnotation);
+            Map<? extends ExecutableElement, ? extends AnnotationValue> values = environment.getElementUtils().getElementValuesWithDefaults(useAnnotation);
+            DeclaredType[] types = Utils.getTypeArrayAnnotationValue(useAnnotation, values, "value");
+            for (DeclaredType type : types) {
+                String key = Utils.toElement(type).getQualifiedName().toString();
+                this.useAnnotations.put(key, annotationUsage);
+            }
+        }
+        collectAnnotations(environment);
+    }
+
+    private void collectAnnotations(ProcessingEnvironment environment) {
+        this.annotationMirrors = new ArrayList<>();
+        List<? extends AnnotationMirror> annotationMirrors = environment.getElementUtils().getAllAnnotationMirrors(this.targetElement);
+        for (AnnotationMirror annotationMirror : annotationMirrors) {
+            AnnotationPos dest = getAnnotationDest(annotationMirror, true);
+            if (dest != null) {
+                this.annotationMirrors.add(annotationMirror);
+            }
+        }
+        annotationMirrors = environment.getElementUtils().getAllAnnotationMirrors(this.configElement);
+        for (AnnotationMirror annotationMirror : annotationMirrors) {
+            AnnotationPos dest = getAnnotationDest(annotationMirror, false);
+            if (dest != null) {
+                this.annotationMirrors.add(annotationMirror);
+            }
+        }
     }
 
     public void reload(ProcessingEnvironment environment) {
@@ -215,6 +254,30 @@ public class ViewOfData {
 
     public CacheType getConfigureBeanCacheType() {
         return configureBeanCacheType;
+    }
+
+    public List<String> getExtraExcludes() {
+        return extraExcludes;
+    }
+
+    public List<AnnotationMirror> getAnnotationMirrors() {
+        return annotationMirrors;
+    }
+
+    @CheckForNull
+    public AnnotationPos getAnnotationDest(AnnotationMirror annotation, boolean fromTarget) {
+        String name = Utils.getAnnotationName(annotation);
+        AnnotationUsage annotationUsage = useAnnotations.get(name);
+        if (annotationUsage == null) {
+            return null;
+        }
+        if (fromTarget && !annotationUsage.isUseFromTarget()) {
+            return null;
+        }
+        if (!fromTarget && !annotationUsage.isUseFromConfig()) {
+            return null;
+        }
+        return annotationUsage.getDest();
     }
 
     private static void printStringAnnotationValue(PrintWriter writer, String name, String value, String indent, int indentNum) {

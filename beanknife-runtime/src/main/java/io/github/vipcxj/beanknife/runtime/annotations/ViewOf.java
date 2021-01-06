@@ -131,4 +131,14 @@ public @interface ViewOf {
      * @return The cache type of the configure bean instance
      */
     CacheType configureBeanCacheType() default CacheType.LOCAL;
+
+    Class<? extends Annotation>[] typeAnnotationIncludes() default {};
+
+    Class<? extends Annotation>[] propertyAnnotationIncludes() default {};
+
+    Class<? extends Annotation>[] propertyAnnotationPutOnField() default {};
+
+    Class<? extends Annotation>[] propertyAnnotationPutOnGetter() default {};
+
+    Class<? extends Annotation>[] propertyAnnotationPutOnSetter() default {};
 }

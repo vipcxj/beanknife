@@ -12,28 +12,23 @@ import java.util.Stack;
 @GeneratedView(targetClass = ViewPropertyBean.class, configClass = ViewPropertyBeanViewConfig.class)
 public class ViewPropertyBeanWithoutParent {
 
-    private int a;
+        private int a;
 
-    private String b;
-
-    private ViewPropertyContainerBean parent;
+        private String b;
 
     public ViewPropertyBeanWithoutParent() { }
 
     public ViewPropertyBeanWithoutParent(
         int a,
-        String b,
-        ViewPropertyContainerBean parent
+        String b
     ) {
         this.a = a;
         this.b = b;
-        this.parent = parent;
     }
 
     public ViewPropertyBeanWithoutParent(ViewPropertyBeanWithoutParent source) {
         this.a = source.a;
         this.b = source.b;
-        this.parent = source.parent;
     }
 
     public ViewPropertyBeanWithoutParent(ViewPropertyBean source) {
@@ -42,7 +37,6 @@ public class ViewPropertyBeanWithoutParent {
         }
         this.a = source.getA();
         this.b = source.getB();
-        this.parent = source.getParent();
     }
 
     public static ViewPropertyBeanWithoutParent read(ViewPropertyBean source) {
@@ -107,16 +101,12 @@ public class ViewPropertyBeanWithoutParent {
         return results;
     }
 
-    public int getA() {
+        public int getA() {
         return this.a;
     }
 
-    public String getB() {
+        public String getB() {
         return this.b;
-    }
-
-    public ViewPropertyContainerBean getParent() {
-        return this.parent;
     }
 
 }

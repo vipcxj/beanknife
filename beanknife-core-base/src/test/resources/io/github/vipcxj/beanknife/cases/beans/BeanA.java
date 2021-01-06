@@ -10,6 +10,7 @@ public class BeanA {
     public String c; // (3)
     private boolean d; // (4)
     private Map<String, List<BeanB>> beanBMap;
+    private String shouldBeRemoved;
 
     public Date getC() { // (3)
         return new Date();
@@ -18,5 +19,9 @@ public class BeanA {
     // (5)
     public Map<String, List<BeanB>> getBeanBMap() {
         return beanBMap;
+    }
+
+    public String getShouldBeRemoved() {
+        return shouldBeRemoved;
     }
 }

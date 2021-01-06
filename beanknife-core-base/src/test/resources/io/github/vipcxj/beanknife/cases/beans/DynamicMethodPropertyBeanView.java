@@ -14,7 +14,7 @@ import java.util.Stack;
 @GeneratedView(targetClass = SimpleBean.class, configClass = DynamicMethodPropertyBeanViewConfig.class)
 public class DynamicMethodPropertyBeanView {
 
-    private String a;
+        private String a;
 
     private transient DynamicMethodPropertyBeanViewConfig cachedConfigureBean;
 
@@ -99,23 +99,23 @@ public class DynamicMethodPropertyBeanView {
         return results;
     }
 
-    public String getA() {
+        public String getA() {
         return this.a;
     }
 
-    public String getB() {
+        public String getB() {
         return DynamicMethodPropertyBeanViewConfig.getB(this);
     }
 
-    public String getC() {
+        public String getC() {
         return DynamicMethodPropertyBeanViewConfig.getC(this);
     }
 
-    public String getD() {
+        public String getD() {
         return DynamicMethodPropertyBeanViewConfig.getABC(this.a, this.getB(), this.getC());
     }
 
-    /**
+        /**
      *  test non static method as a dynamic method property.
      *  Though the source can be compiled,
      *  this will cause a exception in the runtime. Because {@link ViewOf#useDefaultBeanProvider()} is false here.

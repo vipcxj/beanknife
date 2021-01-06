@@ -14,9 +14,9 @@ import java.util.Stack;
 public class SerializableBeanView implements Serializable {
     private static final long serialVersionUID = 4L;
 
-    private String a;
+        private String a;
 
-    private long b;
+        private long b;
 
     public SerializableBeanView() { }
 
@@ -103,11 +103,11 @@ public class SerializableBeanView implements Serializable {
         return results;
     }
 
-    public String getA() {
+        public String getA() {
         return this.a;
     }
 
-    public long getB() {
+        public long getB() {
         return this.b;
     }
 

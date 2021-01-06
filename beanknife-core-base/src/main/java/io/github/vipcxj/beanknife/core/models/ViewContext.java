@@ -7,6 +7,7 @@ import io.github.vipcxj.beanknife.runtime.BeanProviders;
 import io.github.vipcxj.beanknife.runtime.PropertyConverter;
 import io.github.vipcxj.beanknife.runtime.annotations.*;
 import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedView;
+import io.github.vipcxj.beanknife.runtime.utils.AnnotationPos;
 import io.github.vipcxj.beanknife.runtime.utils.BeanUsage;
 import io.github.vipcxj.beanknife.runtime.utils.CacheType;
 import org.apache.commons.text.StringEscapeUtils;
@@ -96,6 +97,9 @@ public class ViewContext extends Context {
         if (viewOf.isSerializable()) {
             importVariable(Type.extract(this, Serializable.class));
         }
+        for (AnnotationMirror annotationMirror : viewOf.getAnnotationMirrors()) {
+            Utils.importAnnotation(this, annotationMirror);
+        }
         Elements elementUtils = getProcessingEnv().getElementUtils();
         List<? extends Element> members = elementUtils.getAllMembers(targetElement);
         for (Element member : members) {
@@ -140,7 +144,8 @@ public class ViewContext extends Context {
                 || (includePatterns.stream().noneMatch(pattern -> pattern.matcher(property.getName()).matches())
                 && Arrays.stream(viewOf.getIncludes()).noneMatch(include -> include.equals(property.getName())))
                 || excludePatterns.stream().anyMatch(pattern -> pattern.matcher(property.getName()).matches())
-                || Arrays.stream(viewOf.getExcludes()).anyMatch(exclude -> exclude.equals(property.getName())));
+                || Arrays.stream(viewOf.getExcludes()).anyMatch(exclude -> exclude.equals(property.getName()))
+                || viewOf.getExtraExcludes().contains(property.getName()));
         List<Property> baseProperties = new ArrayList<>(getProperties());
         if (configElement != targetElement) {
             members = elementUtils.getAllMembers(configElement);
@@ -178,7 +183,7 @@ public class ViewContext extends Context {
                         }
                         getProperties().replaceAll(p -> {
                             if (p.getName().equals(name)) {
-                                Property newProperty = p
+                                Property newProperty = p.extend(member)
                                         .withGetterAccess(Utils.resolveGetterAccess(viewOf, overrideViewProperty.getter()))
                                         .withSetterAccess(Utils.resolveSetterAccess(viewOf, overrideViewProperty.setter()));
                                 TypeElement converter = selectConverter(member, converters, member.asType(), p.getTypeMirror());
@@ -224,7 +229,7 @@ public class ViewContext extends Context {
                         String name = overrideViewProperty.value();
                         getProperties().replaceAll(p -> {
                             if (p.getName().equals(name)) {
-                                return p
+                                return p.extend(member)
                                         .withGetterAccess(Utils.resolveGetterAccess(viewOf, overrideViewProperty.getter()))
                                         .withSetterAccess(Utils.resolveSetterAccess(viewOf, overrideViewProperty.setter()))
                                         .withExtractor(extractor);
@@ -240,6 +245,7 @@ public class ViewContext extends Context {
                         Modifier modifier = Utils.accessToModifier(getterAccess);
                         Property property = new Property(
                                 newViewProperty.value(),
+                                false,
                                 modifier,
                                 getterAccess,
                                 setterAccess,
@@ -277,6 +283,18 @@ public class ViewContext extends Context {
             if (converter != null) {
                 importVariable(converter);
             }
+            List<AnnotationMirror> annotationMirrors = property.collectionAnnotations(this, AnnotationPos.FIELD, false);
+            for (AnnotationMirror annotationMirror : annotationMirrors) {
+                Utils.importAnnotation(this, annotationMirror);
+            }
+            annotationMirrors = property.collectionAnnotations(this, AnnotationPos.GETTER, false);
+            for (AnnotationMirror annotationMirror : annotationMirrors) {
+                Utils.importAnnotation(this, annotationMirror);
+            }
+            annotationMirrors = property.collectionAnnotations(this, AnnotationPos.SETTER, false);
+            for (AnnotationMirror annotationMirror : annotationMirrors) {
+                Utils.importAnnotation(this, annotationMirror);
+            }
         }
         lock();
     }
@@ -305,7 +323,7 @@ public class ViewContext extends Context {
     }
 
     private List<DeclaredType> getConverters(Element element) {
-        return Utils.getAnnotationsOn(this, element, UsePropertyConverter.class, UsePropertyConverters.class)
+        return Utils.getAnnotationsOn(getProcessingEnv(), element, UsePropertyConverter.class, UsePropertyConverters.class)
                 .stream().map(annotation -> {
                     Map<? extends ExecutableElement, ? extends AnnotationValue> attributes = getProcessingEnv().getElementUtils().getElementValuesWithDefaults(annotation);
                     return Utils.getTypeAnnotationValue(annotation, attributes, "value");
@@ -472,6 +490,10 @@ public class ViewContext extends Context {
         writer.print(".class, configClass = ");
         configType.printType(writer, this, false, false);
         writer.println(".class)");
+        for (AnnotationMirror annotationMirror : viewOf.getAnnotationMirrors()) {
+            Utils.printAnnotation(writer, annotationMirror, this, INDENT, 0);
+            writer.println();
+        }
         List<Property> properties = getProperties();
         boolean empty = true;
         enter(genType);
@@ -492,6 +514,11 @@ public class ViewContext extends Context {
             if (!property.isDynamic()) {
                 if (empty) {
                     empty = false;
+                    writer.println();
+                }
+                Utils.printIndent(writer, INDENT, 1);
+                for (AnnotationMirror annotationMirror : property.collectionAnnotations(this, AnnotationPos.FIELD, true)) {
+                    Utils.printAnnotation(writer, annotationMirror, this, INDENT, 1);
                     writer.println();
                 }
                 property.printField(writer, this, INDENT, 1);
@@ -550,6 +577,11 @@ public class ViewContext extends Context {
                     empty = false;
                     writer.println();
                 }
+                Utils.printIndent(writer, INDENT, 1);
+                for (AnnotationMirror annotationMirror : property.collectionAnnotations(this, AnnotationPos.GETTER, true)) {
+                    Utils.printAnnotation(writer, annotationMirror, this, INDENT, 1);
+                    writer.println();
+                }
                 property.printGetter(writer, this, INDENT, 1);
                 writer.println();
             }
@@ -589,6 +621,11 @@ public class ViewContext extends Context {
             if (!property.isDynamic() && property.hasSetter()) {
                 if (empty) {
                     empty = false;
+                    writer.println();
+                }
+                Utils.printIndent(writer, INDENT, 1);
+                for (AnnotationMirror annotationMirror : property.collectionAnnotations(this, AnnotationPos.SETTER, true)) {
+                    Utils.printAnnotation(writer, annotationMirror, this, INDENT, 1);
                     writer.println();
                 }
                 property.printSetter(writer, this, INDENT, 1);

@@ -12,9 +12,9 @@ import java.util.Stack;
 @GeneratedView(targetClass = MetaAndViewOfOnDiffBean4.NestedBean.class, configClass = MetaAndViewOfOnDiffBean4.NestedBean.class)
 public class MetaAndViewOfOnDiffBean4$NestedBeanView {
 
-    private String pa;
+        private String pa;
 
-    private int pb;
+        private int pb;
 
     public MetaAndViewOfOnDiffBean4$NestedBeanView() { }
 
@@ -101,11 +101,11 @@ public class MetaAndViewOfOnDiffBean4$NestedBeanView {
         return results;
     }
 
-    public String getPa() {
+        public String getPa() {
         return this.pa;
     }
 
-    public int getPb() {
+        public int getPb() {
         return this.pb;
     }
 

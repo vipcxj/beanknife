@@ -4,17 +4,20 @@ import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 import io.github.vipcxj.beanknife.runtime.annotations.Access;
+import io.github.vipcxj.beanknife.runtime.utils.AnnotationPos;
 
-import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.*;
 import javax.lang.model.type.TypeMirror;
 import java.io.PrintWriter;
+import java.lang.annotation.ElementType;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Property {
 
     private final String name;
+    private boolean base;
     private final Modifier modifier;
     private Access getter;
     private Access setter;
@@ -23,7 +26,7 @@ public class Property {
     private final String getterName;
     private final String setterName;
     private final boolean writeable;
-    private final Element element;
+    private Element element;
     private final String comment;
     private Extractor extractor;
     @CheckForNull
@@ -34,6 +37,7 @@ public class Property {
 
     public Property(
             String name,
+            boolean base,
             Modifier modifier,
             Access getter,
             Access setter,
@@ -46,6 +50,7 @@ public class Property {
             String comment
     ) {
         this.name = name;
+        this.base = base;
         this.modifier = modifier;
         this.getter = getter;
         this.setter = setter;
@@ -61,6 +66,7 @@ public class Property {
 
     public Property(Property other, String commentIfNone) {
         this.name = other.name;
+        this.base = other.base;
         this.modifier = other.modifier;
         this.getter = other.getter;
         this.setter = other.setter;
@@ -75,6 +81,26 @@ public class Property {
         this.converter = other.converter;
         this.view = other.view;
         this.override = other.override;
+    }
+
+    @NonNull
+    public Property extend(@NonNull Element element) {
+        Property property = new Property(this, null);
+        property.base = false;
+        property.element = element;
+        property.override = this;
+        return property;
+    }
+
+    @CheckForNull
+    public Property getBase() {
+        if (base) {
+            return this;
+        } else if (override != null) {
+            return override.getBase();
+        } else {
+            return null;
+        }
     }
 
     public Property withGetterAccess(Access access) {
@@ -197,6 +223,42 @@ public class Property {
 
     public boolean isCustomMethod() {
         return extractor instanceof StaticMethodExtractor;
+    }
+
+    public List<? extends AnnotationMirror> getAnnotations() {
+        return element.getAnnotationMirrors();
+    }
+
+    public List<AnnotationMirror> collectionAnnotations(@NonNull ViewContext context, @NonNull AnnotationPos pos, boolean silence) {
+        if (pos == AnnotationPos.SAME) {
+            throw new IllegalArgumentException("The annotation pos should not be SAME here.");
+        }
+        List<AnnotationMirror> results = new ArrayList<>();
+        if (!base) {
+            Property baseProperty = getBase();
+            if (baseProperty != null) {
+                results.addAll(baseProperty.collectionAnnotations(context, pos, silence));
+            }
+        }
+        AnnotationPos propertyPos = element.getKind() == ElementKind.FIELD ? AnnotationPos.FIELD : AnnotationPos.GETTER;
+        ProcessingEnvironment environment = context.getProcessingEnv();
+        for (AnnotationMirror annotation : getAnnotations()) {
+            String name = Utils.getAnnotationName(annotation);
+            AnnotationPos dest = context.getViewOf().getAnnotationDest(annotation, base);
+            if (dest != null) {
+                if (dest == pos || (dest == AnnotationPos.SAME && propertyPos == pos)) {
+                    ElementType elementType = pos == AnnotationPos.FIELD ? ElementType.FIELD : ElementType.METHOD;
+                    if (!Utils.annotationCanPutOn(environment, annotation, elementType)) {
+                        if (!silence) {
+                            context.error("Annotation " + name + " can not be put on the " + pos.name().toLowerCase() + ". So it is ignored.");
+                        }
+                    } else {
+                        results.add(annotation);
+                    }
+                }
+            }
+        }
+        return results;
     }
 
     public String getValueString(String sourceVar) {

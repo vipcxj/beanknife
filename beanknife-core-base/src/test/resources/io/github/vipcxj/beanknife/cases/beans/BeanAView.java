@@ -13,15 +13,15 @@ import java.util.Stack;
 @GeneratedView(targetClass = BeanA.class, configClass = ConfigBeanA.class)
 public class BeanAView {
 
-    private int a;
+        private int a;
 
-    private long b;
+        private long b;
 
-    private Date c;
+        private Date c;
 
-    private Map<String, List<BeanBView>> beanBMap;
+        private Map<String, List<BeanBView>> beanBMap;
 
-    private boolean d;
+        private boolean d;
 
     public BeanAView() { }
 
@@ -129,27 +129,27 @@ public class BeanAView {
         return results;
     }
 
-    public int getA() {
+        public int getA() {
         return this.a;
     }
 
-    public long getB() {
+        public long getB() {
         return this.b;
     }
 
-    public Date getC() {
+        public Date getC() {
         return this.c;
     }
 
-    public Map<String, List<BeanBView>> getBeanBMap() {
+        public Map<String, List<BeanBView>> getBeanBMap() {
         return this.beanBMap;
     }
 
-    public boolean isD() {
+        public boolean isD() {
         return this.d;
     }
 
-    public String getE() {
+        public String getE() {
         return ConfigBeanA.e(this.a, this.b);
     }
 

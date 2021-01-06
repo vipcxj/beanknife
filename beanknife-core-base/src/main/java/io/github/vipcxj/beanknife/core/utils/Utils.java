@@ -10,6 +10,7 @@ import io.github.vipcxj.beanknife.runtime.annotations.ViewProperty;
 import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedMeta;
 import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedView;
 import io.github.vipcxj.beanknife.runtime.utils.Self;
+import org.apache.commons.text.StringEscapeUtils;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
@@ -26,6 +27,9 @@ import javax.tools.JavaFileObject;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Target;
+import java.lang.reflect.Array;
 import java.util.*;
 
 public class Utils {
@@ -168,6 +172,7 @@ public class Utils {
         boolean writeable = isWriteable(setterName, type, members, samePackage);
         return new Property(
                 name,
+                true,
                 modifier,
                 resolveGetterAccess(viewOf, getter),
                 resolveSetterAccess(viewOf, setter),
@@ -208,6 +213,7 @@ public class Utils {
         boolean writeable = isWriteable(setterName, type, members, samePackage);
         return new Property(
                 name,
+                true,
                 getPropertyModifier(e),
                 resolveGetterAccess(viewOf, viewProperty != null ? viewProperty.getter() : Access.UNKNOWN),
                 resolveSetterAccess(viewOf, viewProperty != null ? viewProperty.setter() : Access.UNKNOWN),
@@ -248,8 +254,7 @@ public class Utils {
 
     @NonNull
     public static String getAnnotationName(@NonNull AnnotationMirror mirror) {
-        return ((TypeElement) mirror.getAnnotationType().asElement())
-                .getQualifiedName().toString();
+        return toElement(mirror.getAnnotationType()).getQualifiedName().toString();
     }
 
     @NonNull
@@ -292,7 +297,7 @@ public class Utils {
     public enum AnnotationValueKind {
         BOXED, STRING, TYPE, ENUM, ANNOTATION, ARRAY
     }
-    private static AnnotationValueKind getAnnotationValueType(AnnotationValue value) {
+    private static AnnotationValueKind getAnnotationValueType(@NonNull AnnotationValue value) {
         Object v = value.getValue();
         if (v instanceof Boolean
                 || v instanceof Integer
@@ -391,6 +396,23 @@ public class Utils {
         throw new IllegalArgumentException("This is impossible.");
     }
 
+    @NonNull
+    public static <T extends Enum<T>> T getEnumAnnotationValue(@NonNull AnnotationMirror annotation, @NonNull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues, @NonNull String name, @NonNull Class<T> enumType) {
+        String qName = getEnumAnnotationValue(annotation, annotationValues, name);
+        return Objects.requireNonNull(getEnum(qName, enumType));
+    }
+
+    @CheckForNull
+    private static <T extends Enum<T>> T getEnum(String qName, Class<T> type) {
+        String typeName = type.getName();
+        for (T constant : type.getEnumConstants()) {
+            if (Objects.equals(qName, typeName + "." + constant.name())) {
+                return constant;
+            }
+        }
+        return null;
+    }
+
     public static List<? extends AnnotationValue> getArrayAnnotationValue(@NonNull AnnotationMirror annotation, @NonNull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues, @NonNull String name) {
         AnnotationValue annotationValue = getAnnotationValue(annotation, annotationValues, name);
         AnnotationValueKind kind = getAnnotationValueType(annotationValue);
@@ -418,6 +440,17 @@ public class Utils {
         int i = 0;
         for (AnnotationValue annValue : annValues) {
             values[i++] = (DeclaredType) annValue.getValue();
+        }
+        return values;
+    }
+
+    public static <T extends Enum<T>> T[] getEnumArrayAnnotationValue(@NonNull AnnotationMirror annotation, @NonNull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues, @NonNull String name, @NonNull Class<T> enumType) {
+        List<? extends AnnotationValue> annValues = getArrayAnnotationValue(annotation, annotationValues, name);
+        //noinspection unchecked
+        T[] values = (T[]) Array.newInstance(enumType, annValues.size());
+        int i = 0;
+        for (AnnotationValue annValue : annValues) {
+            values[i++] = getEnum((String) annValue.getValue(), enumType);
         }
         return values;
     }
@@ -526,7 +559,70 @@ public class Utils {
         }
     }
 
-/*    public static void printAnnotationValue(@NonNull PrintWriter writer, @NonNull AnnotationValue annValue, @NonNull Context context, String indent, int indentNum) {
+    private static int calcArrayLevel(TypeMirror typeMirror) {
+        if (typeMirror.getKind() != TypeKind.ARRAY) {
+            return 0;
+        }
+        ArrayType arrayType = (ArrayType) typeMirror;
+        return 1 + calcArrayLevel(arrayType.getComponentType());
+    }
+
+    private static TypeMirror getFinalComponentType(TypeMirror typeMirror) {
+        if (typeMirror.getKind() != TypeKind.ARRAY) {
+            return typeMirror;
+        }
+        ArrayType arrayType = (ArrayType) typeMirror;
+        return getFinalComponentType(arrayType.getComponentType());
+    }
+
+    private static void printTypeAnnotationValue(@NonNull PrintWriter writer, @NonNull Context context, @NonNull TypeMirror typeMirror, boolean hasDotClass) {
+        if (typeMirror.getKind() == TypeKind.DECLARED) {
+            DeclaredType declaredType = (DeclaredType) typeMirror;
+            TypeElement typeElement = Utils.toElement(declaredType);
+            Type type = Type.extract(context, typeElement);
+            if (type == null) {
+                context.error("Unable to resolve type: " + typeElement.getQualifiedName() + ".");
+                writer.print("error");
+                return;
+            } else {
+                type.printType(writer, context, false, false);
+            }
+        } else if (typeMirror.getKind() == TypeKind.ARRAY) {
+            int arrayLevel = calcArrayLevel(typeMirror);
+            TypeMirror componentType = getFinalComponentType(typeMirror);
+            printTypeAnnotationValue(writer, context, componentType, false);
+            for (int i = 0; i < arrayLevel; ++i) {
+                writer.print("[]");
+            }
+        } else if (typeMirror.getKind() == TypeKind.INT) {
+            writer.print("int");
+        } else if (typeMirror.getKind() == TypeKind.BOOLEAN) {
+            writer.print("boolean");
+        } else if (typeMirror.getKind() == TypeKind.VOID) {
+            writer.print("void");
+        } else if (typeMirror.getKind() == TypeKind.BYTE) {
+            writer.print("byte");
+        } else if (typeMirror.getKind() == TypeKind.CHAR) {
+            writer.print("char");
+        } else if (typeMirror.getKind() == TypeKind.DOUBLE) {
+            writer.print("double");
+        } else if (typeMirror.getKind() == TypeKind.FLOAT) {
+            writer.print("float");
+        } else if (typeMirror.getKind() == TypeKind.LONG) {
+            writer.print("long");
+        } else if (typeMirror.getKind() == TypeKind.SHORT) {
+            writer.print("short");
+        } else {
+            context.error("Unable to resolve type: " + typeMirror + ".");
+            writer.print("error");
+            return;
+        }
+        if (hasDotClass) {
+            writer.print(".class");
+        }
+    }
+
+    public static void printAnnotationValue(@NonNull PrintWriter writer, @NonNull AnnotationValue annValue, @NonNull Context context, String indent, int indentNum) {
         Object value = annValue.getValue();
         AnnotationValueKind valueType = getAnnotationValueType(annValue);
         switch (valueType) {
@@ -536,11 +632,12 @@ public class Utils {
                 Type enumClassType = Type.extract(context, enumClass);
                 if (enumClassType == null) {
                     context.error("Unable to resolve type: " + enumClass.getQualifiedName() + ".");
-                    return;
+                    writer.print("error");
+                } else {
+                    enumClassType.printType(writer, context, false, false);
+                    writer.print(".");
+                    writer.print(enumValue.getSimpleName());
                 }
-                enumClassType.printType(writer, context, false, false);
-                writer.print(".");
-                writer.print(enumValue.getSimpleName());
                 break;
             }
             case BOXED: {
@@ -560,9 +657,8 @@ public class Utils {
                 break;
             }
             case TYPE: {
-                Type type = Type.extract(context, (TypeMirror) value);
-                type.printType(writer, context, false, false);
-                writer.print(".class");
+                TypeMirror typeMirror = (TypeMirror) value;
+                printTypeAnnotationValue(writer, context, typeMirror, true);
                 break;
             }
             case STRING: {
@@ -593,6 +689,7 @@ public class Utils {
                         }
                         ++i;
                     }
+                    Utils.printIndent(writer, indent, indentNum);
                     writer.print("}");
                 }
                 break;
@@ -611,7 +708,7 @@ public class Utils {
         writer.print("@");
         Type type = Type.extract(context, annotation.getAnnotationType().asElement());
         type.printType(writer, context, false, false);
-        Map<? extends ExecutableElement, ? extends AnnotationValue> attributes = context.getProcessingEnv().getElementUtils().getElementValuesWithDefaults(annotation);
+        Map<? extends ExecutableElement, ? extends AnnotationValue> attributes = annotation.getElementValues();
         boolean shouldBreakLine = shouldBreakLineForPrintingAnnotation(attributes.values());
         boolean useValue = attributes.size() == 1 && attributes.keySet().iterator().next().getSimpleName().toString().equals("value");
         if (attributes.isEmpty()) {
@@ -649,8 +746,9 @@ public class Utils {
                 }
                 ++i;
             }
+            writer.print(")");
         }
-    }*/
+    }
 
     public static boolean shouldIgnoredElement(Element element) {
         GeneratedMeta generatedMeta = element.getAnnotation(GeneratedMeta.class);
@@ -750,17 +848,25 @@ public class Utils {
         return element.getQualifiedName().toString().equals(type.getCanonicalName());
     }
 
-    public static List<AnnotationMirror> getAnnotationsOn(@NonNull Context context, @NonNull Element element, @NonNull Class<?> type, @CheckForNull Class<?> repeatContainerType) {
-        return getAnnotationsOn(context, element, type, repeatContainerType, new HashSet<>());
+    public static List<AnnotationMirror> getAnnotationsOn(@NonNull ProcessingEnvironment environment, @NonNull Element element, @NonNull Class<?> type, @CheckForNull Class<?> repeatContainerType) {
+        return getAnnotationsOn(environment, element, type, repeatContainerType, new HashSet<>());
     }
 
-    private static List<AnnotationMirror> getAnnotationsOn(@NonNull Context context, @NonNull Element element, @NonNull Class<?> type, @CheckForNull Class<?> repeatContainerType, @NonNull Set<Element> visited) {
+    public static List<AnnotationMirror> getAnnotationsOn(@NonNull ProcessingEnvironment environment, @NonNull Element element, @NonNull Class<?> type, @CheckForNull Class<?> repeatContainerType, boolean recursive) {
+        return getAnnotationsOn(environment, element, type, repeatContainerType, new HashSet<>(), recursive);
+    }
+
+    private static List<AnnotationMirror> getAnnotationsOn(@NonNull ProcessingEnvironment environment, @NonNull Element element, @NonNull Class<?> type, @CheckForNull Class<?> repeatContainerType, @NonNull Set<Element> visited) {
+        return getAnnotationsOn(environment, element, type, repeatContainerType, visited, true);
+    }
+
+    private static List<AnnotationMirror> getAnnotationsOn(@NonNull ProcessingEnvironment environment, @NonNull Element element, @NonNull Class<?> type, @CheckForNull Class<?> repeatContainerType, @NonNull Set<Element> visited, boolean recursive) {
         if (visited.contains(element)) {
             return Collections.emptyList();
         }
         visited.add(element);
         List<AnnotationMirror> result = new ArrayList<>();
-        Elements elementUtils = context.getProcessingEnv().getElementUtils();
+        Elements elementUtils = environment.getElementUtils();
         List<? extends AnnotationMirror> allAnnotations = elementUtils.getAllAnnotationMirrors(element);
         for (AnnotationMirror annotation : allAnnotations) {
             if (isThisAnnotation(annotation, type)) {
@@ -769,8 +875,8 @@ public class Utils {
                 Map<? extends ExecutableElement, ? extends AnnotationValue> attributes = elementUtils.getElementValuesWithDefaults(annotation);
                 List<AnnotationMirror> annotations = getAnnotationElement(annotation, attributes);
                 result.addAll(annotations);
-            } else {
-                result.addAll(getAnnotationsOn(context, annotation.getAnnotationType().asElement(), type, repeatContainerType, visited));
+            } else if (recursive) {
+                result.addAll(getAnnotationsOn(environment, annotation.getAnnotationType().asElement(), type, repeatContainerType, visited, true));
             }
         }
         return result;
@@ -976,6 +1082,77 @@ public class Utils {
                 return Access.PRIVATE;
             default:
                 return Access.UNKNOWN;
+        }
+    }
+
+    @CheckForNull
+    public static List<ElementType> getAnnotationTarget(ProcessingEnvironment environment, AnnotationMirror annotation) {
+        List<AnnotationMirror> targets = getAnnotationsOn(environment, annotation.getAnnotationType().asElement(), Target.class, null, false);
+        if (targets.isEmpty()) {
+            return null;
+        }
+        AnnotationMirror target = targets.get(0);
+        Map<? extends ExecutableElement, ? extends AnnotationValue> values = environment.getElementUtils().getElementValuesWithDefaults(target);
+        return Arrays.asList(getEnumArrayAnnotationValue(target, values, "value", ElementType.class));
+    }
+
+    public static boolean annotationCanPutOn(ProcessingEnvironment environment, AnnotationMirror annotation, ElementType elementType) {
+        List<ElementType> types = getAnnotationTarget(environment, annotation);
+        if (types == null) {
+            return elementType != ElementType.TYPE_PARAMETER;
+        }
+        return types.contains(elementType);
+    }
+
+    private static void importTypeMirror(@NonNull Context context, @NonNull TypeMirror typeMirror) {
+        if (typeMirror.getKind() == TypeKind.ARRAY) {
+            ArrayType arrayType = (ArrayType) typeMirror;
+            importTypeMirror(context, arrayType.getComponentType());
+        } else if (typeMirror.getKind() == TypeKind.DECLARED) {
+            DeclaredType declaredType = (DeclaredType) typeMirror;
+            TypeElement typeElement = toElement(declaredType);
+            Type type = Type.extract(context, typeElement);
+            if (type != null) {
+                context.importVariable(type);
+            }
+        }
+    }
+
+    private static void importAnnotationValue(@NonNull Context context, @NonNull AnnotationValue annValue) {
+        AnnotationValueKind type = getAnnotationValueType(annValue);
+        if (type == AnnotationValueKind.TYPE) {
+            TypeMirror typeMirror = (TypeMirror) annValue.getValue();
+            importTypeMirror(context, typeMirror);
+        } else if (type == AnnotationValueKind.ANNOTATION) {
+            AnnotationMirror annotationMirror = (AnnotationMirror) annValue.getValue();
+            importAnnotation(context, annotationMirror);
+        } else if (type == AnnotationValueKind.ENUM) {
+            VariableElement enumValue = (VariableElement) annValue.getValue();
+            TypeElement enumElement = (TypeElement) enumValue.getEnclosingElement();
+            Type enumType = Type.extract(context, enumElement);
+            if (enumType != null) {
+                context.importVariable(enumType);
+            }
+        } else if (type == AnnotationValueKind.ARRAY) {
+            //noinspection unchecked
+            List<? extends AnnotationValue> arrayValues = (List<? extends AnnotationValue>) annValue.getValue();
+            for (AnnotationValue arrayValue : arrayValues) {
+                importAnnotationValue(context, arrayValue);
+            }
+        }
+    }
+
+    public static void importAnnotation(@NonNull Context context, @NonNull AnnotationMirror annotation) {
+        Element element = annotation.getAnnotationType().asElement();
+        Type type = Type.extract(context, element);
+        if (type == null) {
+            context.error("Unable to resolve the type " + element + ".");
+            return;
+        }
+        context.importVariable(type);
+        Map<? extends ExecutableElement, ? extends AnnotationValue> annValues = annotation.getElementValues();
+        for (AnnotationValue annValue : annValues.values()) {
+            importAnnotationValue(context, annValue);
         }
     }
 }

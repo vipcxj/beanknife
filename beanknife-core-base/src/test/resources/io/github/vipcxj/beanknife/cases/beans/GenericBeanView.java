@@ -12,15 +12,15 @@ import java.util.Stack;
 @GeneratedView(targetClass = GenericBean.class, configClass = GenericBean.class)
 public class GenericBeanView<T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> {
 
-    private T1 a;
+        private T1 a;
 
-    private T2 b;
+        private T2 b;
 
-    private List<T1> c;
+        private List<T1> c;
 
-    private T2[] d;
+        private T2[] d;
 
-    private List<Map<String, Map<T1, T2>>[]>[] e;
+        private List<Map<String, Map<T1, T2>>[]>[] e;
 
     public GenericBeanView() { }
 
@@ -119,23 +119,23 @@ public class GenericBeanView<T1 extends CharSequence & Set<? extends Character>,
         return results;
     }
 
-    public T1 getA() {
+        public T1 getA() {
         return this.a;
     }
 
-    public T2 getB() {
+        public T2 getB() {
         return this.b;
     }
 
-    public List<T1> getC() {
+        public List<T1> getC() {
         return this.c;
     }
 
-    public T2[] getD() {
+        public T2[] getD() {
         return this.d;
     }
 
-    public List<Map<String, Map<T1, T2>>[]>[] getE() {
+        public List<Map<String, Map<T1, T2>>[]>[] getE() {
         return this.e;
     }
 

@@ -13,6 +13,7 @@ import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedMeta;
 public class BeanBMeta {
     public static final String a = "a";
     public static final String beanA = "beanA";
+    public static final String shouldBeRemoved = "shouldBeRemoved";
 
     public static class Views {
         public static final String io_github_vipcxj_beanknife_cases_beans_BeanBView = "io.github.vipcxj.beanknife.cases.beans.BeanBView";

@@ -12,11 +12,11 @@ import java.util.Stack;
 @GeneratedView(targetClass = SimpleBean.class, configClass = SetterAccessViewConfig.class)
 public class SimpleBeanWithUnknownSetters {
 
-    private String a;
+        private String a;
 
-    private Integer b;
+        private Integer b;
 
-    private long c;
+        private long c;
 
     public SimpleBeanWithUnknownSetters() { }
 
@@ -107,15 +107,15 @@ public class SimpleBeanWithUnknownSetters {
         return results;
     }
 
-    public String getA() {
+        public String getA() {
         return this.a;
     }
 
-    public Integer getB() {
+        public Integer getB() {
         return this.b;
     }
 
-    public long getC() {
+        public long getC() {
         return this.c;
     }
 

@@ -86,4 +86,12 @@ public class ViewOfProcessorTest {
                 "io.github.vipcxj.beanknife.cases.beans.DynamicMethodPropertyBeanView"
         );
     }
+
+    @Test
+    public void testUseAnnotation() {
+        testViewCase(
+                "io.github.vipcxj.beanknife.cases.beans.AnnotationBeanViewConfigure",
+                "io.github.vipcxj.beanknife.cases.beans.AnnotationBeanView"
+        );
+    }
 }

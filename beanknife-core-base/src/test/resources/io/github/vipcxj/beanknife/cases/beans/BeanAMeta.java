@@ -15,6 +15,7 @@ public class BeanAMeta {
     public static final String b = "b";
     public static final String c = "c";
     public static final String beanBMap = "beanBMap";
+    public static final String shouldBeRemoved = "shouldBeRemoved";
 
     public static class Views {
         public static final String io_github_vipcxj_beanknife_cases_beans_BeanAView = "io.github.vipcxj.beanknife.cases.beans.BeanAView";

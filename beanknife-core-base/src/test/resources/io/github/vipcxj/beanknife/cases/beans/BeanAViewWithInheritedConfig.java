@@ -13,17 +13,17 @@ import java.util.Stack;
 @GeneratedView(targetClass = BeanA.class, configClass = InheritedConfigBeanAViewConfig.class)
 public class BeanAViewWithInheritedConfig {
 
-    private int a;
+        private int a;
 
-    private long b;
+        private long b;
 
-    private Date c;
+        private Date c;
 
-    private Map<String, List<BeanB>> beanBMap;
+        private Map<String, List<BeanB>> beanBMap;
 
-    private String type;
+        private String type;
 
-    private Date timestamp;
+        private Date timestamp;
 
     public BeanAViewWithInheritedConfig() { }
 
@@ -126,43 +126,43 @@ public class BeanAViewWithInheritedConfig {
         return results;
     }
 
-    public int getA() {
+        public int getA() {
         return this.a;
     }
 
-    public long getB() {
+        public long getB() {
         return this.b;
     }
 
-    public Date getC() {
+        public Date getC() {
         return this.c;
     }
 
-    public Map<String, List<BeanB>> getBeanBMap() {
+        public Map<String, List<BeanB>> getBeanBMap() {
         return this.beanBMap;
     }
 
-    public String getType() {
+        public String getType() {
         return this.type;
     }
 
-    public Date getTimestamp() {
+        public Date getTimestamp() {
         return this.timestamp;
     }
 
-    public String getTypeWithTimestamp() {
+        public String getTypeWithTimestamp() {
         return InheritedConfigBeanAViewConfig.typeWithTimestamp(this.type, this.timestamp);
     }
 
-    public Date getToday() {
+        public Date getToday() {
         return InheritedConfigBeanAViewConfig.today();
     }
 
-    public Date getYesterday() {
+        public Date getYesterday() {
         return InheritedConfigBeanAViewConfig.yesterday();
     }
 
-    public Date getTomorrow() {
+        public Date getTomorrow() {
         return InheritedConfigBeanAViewConfig.tomorrow();
     }
 

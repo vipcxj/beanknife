@@ -13,13 +13,13 @@ import java.util.Stack;
 @GeneratedView(targetClass = BeanB.class, configClass = InheritedConfigBeanBViewConfig.class)
 public class BeanBViewWithInheritedConfig {
 
-    private String a;
+        private String a;
 
-    private BeanA beanA;
+        private BeanA beanA;
 
-    private String type;
+        private String type;
 
-    private Date timestamp;
+        private Date timestamp;
 
     public BeanBViewWithInheritedConfig() { }
 
@@ -114,35 +114,35 @@ public class BeanBViewWithInheritedConfig {
         return results;
     }
 
-    public String getA() {
+        public String getA() {
         return this.a;
     }
 
-    public BeanA getBeanA() {
+        public BeanA getBeanA() {
         return this.beanA;
     }
 
-    public String getType() {
+        public String getType() {
         return this.type;
     }
 
-    public Date getTimestamp() {
+        public Date getTimestamp() {
         return this.timestamp;
     }
 
-    public String getTypeWithTimestamp() {
+        public String getTypeWithTimestamp() {
         return InheritedConfigBeanBViewConfig.typeWithTimestamp(this.type, this.timestamp);
     }
 
-    public Date getToday() {
+        public Date getToday() {
         return InheritedConfigBeanBViewConfig.today();
     }
 
-    public Date getYesterday() {
+        public Date getYesterday() {
         return InheritedConfigBeanBViewConfig.yesterday();
     }
 
-    public Date getTomorrow() {
+        public Date getTomorrow() {
         return InheritedConfigBeanBViewConfig.tomorrow();
     }
 

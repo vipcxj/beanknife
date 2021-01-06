@@ -3,10 +3,12 @@ package io.github.vipcxj.beanknife.cases.beans;
 import io.github.vipcxj.beanknife.runtime.annotations.Dynamic;
 import io.github.vipcxj.beanknife.runtime.annotations.InjectProperty;
 import io.github.vipcxj.beanknife.runtime.annotations.NewViewProperty;
+import io.github.vipcxj.beanknife.runtime.annotations.RemoveViewProperty;
 
 import java.util.Calendar;
 import java.util.Date;
 
+@RemoveViewProperty("shouldBeRemoved")
 public class InheritedConfigBaseViewConfig {
 
     @NewViewProperty("type")

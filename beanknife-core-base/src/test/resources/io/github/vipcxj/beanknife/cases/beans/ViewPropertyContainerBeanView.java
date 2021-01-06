@@ -12,27 +12,27 @@ import java.util.Stack;
 @GeneratedView(targetClass = ViewPropertyContainerBean.class, configClass = ViewPropertyContainerBeanViewConfig.class)
 public class ViewPropertyContainerBeanView {
 
-    private long a;
+        private long a;
 
-    private String b;
+        private String b;
 
-    private ViewPropertyBeanWithoutParent view;
+        private ViewPropertyBeanWithoutParent view;
 
-    private ViewPropertyBeanWithoutParent[] viewArray;
+        private ViewPropertyBeanWithoutParent[] viewArray;
 
-    private List<ViewPropertyBeanWithoutParent> viewList;
+        private List<ViewPropertyBeanWithoutParent> viewList;
 
-    private Set<ViewPropertyBeanWithoutParent> viewSet;
+        private Set<ViewPropertyBeanWithoutParent> viewSet;
 
-    private Map<String, ViewPropertyBeanWithoutParent> viewMap;
+        private Map<String, ViewPropertyBeanWithoutParent> viewMap;
 
-    private List<Map<String, ViewPropertyBeanWithoutParent>> viewMapList;
+        private List<Map<String, ViewPropertyBeanWithoutParent>> viewMapList;
 
-    private Map<String, List<ViewPropertyBeanWithoutParent>> viewListMap;
+        private Map<String, List<ViewPropertyBeanWithoutParent>> viewListMap;
 
-    private Map<String, List<Map<Integer, Stack<ViewPropertyBeanWithoutParent>>>> viewStackMapListMap;
+        private Map<String, List<Map<Integer, Stack<ViewPropertyBeanWithoutParent>>>> viewStackMapListMap;
 
-    private Map<String, List<Map<Integer, Stack<ViewPropertyBeanWithoutParent>>>>[][][] viewStackMapListMapArrayArrayArray;
+        private Map<String, List<Map<Integer, Stack<ViewPropertyBeanWithoutParent>>>>[][][] viewStackMapListMapArrayArrayArray;
 
     public ViewPropertyContainerBeanView() { }
 
@@ -244,47 +244,47 @@ public class ViewPropertyContainerBeanView {
         return results;
     }
 
-    public long getA() {
+        public long getA() {
         return this.a;
     }
 
-    public String getB() {
+        public String getB() {
         return this.b;
     }
 
-    public ViewPropertyBeanWithoutParent getView() {
+        public ViewPropertyBeanWithoutParent getView() {
         return this.view;
     }
 
-    public ViewPropertyBeanWithoutParent[] getViewArray() {
+        public ViewPropertyBeanWithoutParent[] getViewArray() {
         return this.viewArray;
     }
 
-    public List<ViewPropertyBeanWithoutParent> getViewList() {
+        public List<ViewPropertyBeanWithoutParent> getViewList() {
         return this.viewList;
     }
 
-    public Set<ViewPropertyBeanWithoutParent> getViewSet() {
+        public Set<ViewPropertyBeanWithoutParent> getViewSet() {
         return this.viewSet;
     }
 
-    public Map<String, ViewPropertyBeanWithoutParent> getViewMap() {
+        public Map<String, ViewPropertyBeanWithoutParent> getViewMap() {
         return this.viewMap;
     }
 
-    public List<Map<String, ViewPropertyBeanWithoutParent>> getViewMapList() {
+        public List<Map<String, ViewPropertyBeanWithoutParent>> getViewMapList() {
         return this.viewMapList;
     }
 
-    public Map<String, List<ViewPropertyBeanWithoutParent>> getViewListMap() {
+        public Map<String, List<ViewPropertyBeanWithoutParent>> getViewListMap() {
         return this.viewListMap;
     }
 
-    public Map<String, List<Map<Integer, Stack<ViewPropertyBeanWithoutParent>>>> getViewStackMapListMap() {
+        public Map<String, List<Map<Integer, Stack<ViewPropertyBeanWithoutParent>>>> getViewStackMapListMap() {
         return this.viewStackMapListMap;
     }
 
-    public Map<String, List<Map<Integer, Stack<ViewPropertyBeanWithoutParent>>>>[][][] getViewStackMapListMapArrayArrayArray() {
+        public Map<String, List<Map<Integer, Stack<ViewPropertyBeanWithoutParent>>>>[][][] getViewStackMapListMapArrayArrayArray() {
         return this.viewStackMapListMapArrayArrayArray;
     }
 

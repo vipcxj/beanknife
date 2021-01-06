@@ -5,6 +5,7 @@ import java.lang.annotation.*;
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.SOURCE)
 @Repeatable(RemoveViewProperties.class)
+@Inherited
 public @interface RemoveViewProperty {
     String value();
 }

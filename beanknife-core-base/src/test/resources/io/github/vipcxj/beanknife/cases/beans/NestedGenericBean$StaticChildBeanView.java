@@ -12,7 +12,7 @@ import java.util.Stack;
 @GeneratedView(targetClass = NestedGenericBean.StaticChildBean.class, configClass = NestedGenericBean.StaticChildBean.class)
 public class NestedGenericBean$StaticChildBeanView<T1 extends String> {
 
-    private T1 a;
+        private T1 a;
 
     public NestedGenericBean$StaticChildBeanView() { }
 
@@ -95,7 +95,7 @@ public class NestedGenericBean$StaticChildBeanView<T1 extends String> {
         return results;
     }
 
-    public T1 getA() {
+        public T1 getA() {
         return this.a;
     }
 

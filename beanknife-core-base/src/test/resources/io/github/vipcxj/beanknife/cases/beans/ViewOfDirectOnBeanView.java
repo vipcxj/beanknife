@@ -12,9 +12,9 @@ import java.util.Stack;
 @GeneratedView(targetClass = ViewOfDirectOnBean.class, configClass = ViewOfDirectOnBean.class)
 public class ViewOfDirectOnBeanView {
 
-    private long a;
+        private long a;
 
-    private String b;
+        private String b;
 
     public ViewOfDirectOnBeanView() { }
 
@@ -101,11 +101,11 @@ public class ViewOfDirectOnBeanView {
         return results;
     }
 
-    public long getA() {
+        public long getA() {
         return this.a;
     }
 
-    public String getB() {
+        public String getB() {
         return this.b;
     }
 
