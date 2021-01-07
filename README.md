@@ -576,6 +576,21 @@ class ARealConfigure extends BaseConfigure {
 ```
 Then `ARealConfigure` is equal to
 ```java
+@UseAnnotation(JsonProperty.class)
+@RemoveViewProperty("someCommonUnusedProperty")
+@ViewOf(value = ABean.class, includesPattern = ".*")
+class ARealConfigure extends BaseConfigure {
+    @NewViewProperty("type")
+    public static String type(Object source) {
+        return source.getClass().getName();
+    }
+}
+```
+Through configuration inheritance, we can extract the common configuration into a single class, which will greatly simplify our configuration work.
+
+#### Inheritance of annotation
+We can use `@UseAnnotation` to make the generated class inheriting the annotations from configuration class and original class.
+```java
 @TypeAnnotation(Date.class)
 @DocumentedTypeAnnotation(enumValue = AEnum.B, enumValues = {AEnum.C, AEnum.B, AEnum.A})
 public class AnnotationBean extends BaseAnnotationBean {
@@ -657,21 +672,6 @@ public class AnnotationBean extends BaseAnnotationBean {
     }
 }
 
-@UseAnnotation(JsonProperty.class)
-@RemoveViewProperty("someCommonUnusedProperty")
-@ViewOf(value = ABean.class, includesPattern = ".*")
-class ARealConfigure extends BaseConfigure {
-    @NewViewProperty("type")
-    public static String type(Object source) {
-        return source.getClass().getName();
-    }
-}
-```
-Through configuration inheritance, we can extract the common configuration into a single class, which will greatly simplify our configuration work.
-
-#### Inheritance of annotation
-We can use `@UseAnnotation` to make the generated class inheriting the annotations from configuration class and original class.
-```java
 @UseAnnotation(TypeAnnotation.class)
 @UseAnnotation(DocumentedTypeAnnotation.class)
 @UseAnnotation(InheritableTypeAnnotation.class)
