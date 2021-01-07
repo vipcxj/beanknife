@@ -12,6 +12,8 @@ An annotation processor library to automatically generate the data transfer obje
 * [Introduction](#introduction)
 * [Basics](#basics)
 * [Advanced Usage](#advanced-usage)
+  * [Inheritance of configuration](#Inheritance-of-configuration)
+  * [Inheritance of annotation](#Inheritance-of-annotation)
   * [change the generated class name or package](#change-the-generated-class-name)
   * [filter the property](#filter-the-property)
   * [generate the setter method](#generate-the-setter-method)
@@ -550,6 +552,265 @@ public class BeanBView {
 ```
 
 ### Advanced Usage
+
+#### Inheritance of configuration
+Although `@ViewOf` cannot be inherited, many other configuration elements can be inherited.
+Such as the configuration bean itself.
+```java
+@UseAnnotation(JsonProperty.class)
+@RemoveViewProperty("someCommonUnusedProperty")
+class BaseConfigure {
+    // add a new property named "type" which is the name of the original class name.
+    // here we use 'Object' as the type of argument source, 
+    // because this is not a real configuration class, because there is no ViewOf annotating it.
+    // It may be inherited by many different configuration class, and their original class are different.  
+    @NewViewProperty("type")
+    public static String type(Object source) {
+        return source.getClass().getName();
+    }
+}
+
+@ViewOf(value = ABean.class, includesPattern = ".*")
+class ARealConfigure extends BaseConfigure {
+}
+```
+Then `ARealConfigure` is equal to
+```java
+@TypeAnnotation(Date.class)
+@DocumentedTypeAnnotation(enumValue = AEnum.B, enumValues = {AEnum.C, AEnum.B, AEnum.A})
+public class AnnotationBean extends BaseAnnotationBean {
+
+    @FieldAnnotation1(doubleArray = 1.0)
+    private String a;
+    @FieldAnnotation2(annotation = @ValueAnnotation1(type = Date.class))
+    private String b;
+    @FieldAnnotation1(charValue = '0')
+    @FieldAnnotation2(stringArray = "5")
+    private String[] c;
+    @FieldAnnotation1(annotations = {
+            @ValueAnnotation1(),
+            @ValueAnnotation1(type = AnnotationBean.class)
+    })
+    @PropertyAnnotation1
+    private int d;
+    @PropertyAnnotation2(stringValue = "field_e")
+    private Date e;
+    @PropertyAnnotation2(stringValue = "field_f")
+    private List<String> f;
+    @PropertyAnnotation1(stringValue = "field_g")
+    private short g;
+
+    public String getA() {
+        return a;
+    }
+
+    public void setA(String a) {
+        this.a = a;
+    }
+
+    public String getB() {
+        return b;
+    }
+
+    public void setB(String b) {
+        this.b = b;
+    }
+
+    public String[] getC() {
+        return c;
+    }
+
+    public void setC(String[] c) {
+        this.c = c;
+    }
+
+    @MethodAnnotation1(
+            charValue = 'a',
+            annotations = {
+                    @ValueAnnotation1,
+                    @ValueAnnotation1(
+                            annotations = @ValueAnnotation2
+                    )
+            }
+    )
+    public int getD() {
+        return d;
+    }
+
+    public void setD(int d) {
+        this.d = d;
+    }
+
+    @PropertyAnnotation2(stringValue = "getter_e")
+    public Date getE() {
+        return e;
+    }
+
+    @PropertyAnnotation2(stringValue = "getter_f")
+    public List<String> getF() {
+        return f;
+    }
+
+    @PropertyAnnotation1(stringValue = "getter_g")
+    public short getG() {
+        return g;
+    }
+}
+
+@UseAnnotation(JsonProperty.class)
+@RemoveViewProperty("someCommonUnusedProperty")
+@ViewOf(value = ABean.class, includesPattern = ".*")
+class ARealConfigure extends BaseConfigure {
+    @NewViewProperty("type")
+    public static String type(Object source) {
+        return source.getClass().getName();
+    }
+}
+```
+Through configuration inheritance, we can extract the common configuration into a single class, which will greatly simplify our configuration work.
+
+#### Inheritance of annotation
+We can use `@UseAnnotation` to make the generated class inheriting the annotations from configuration class and original class.
+```java
+@UseAnnotation(TypeAnnotation.class)
+@UseAnnotation(DocumentedTypeAnnotation.class)
+@UseAnnotation(InheritableTypeAnnotation.class)
+@UseAnnotation({ FieldAnnotation1.class, FieldAnnotation2.class })
+@UseAnnotation(MethodAnnotation1.class)
+@UseAnnotation(PropertyAnnotation1.class)
+public class InheritedAnnotationBeanViewConfigure {
+}
+
+@ViewOf(value = AnnotationBean.class, includePattern = ".*")
+@UnUseAnnotation(FieldAnnotation2.class)
+@UseAnnotation(value = PropertyAnnotation2.class, from = { AnnotationSource.CONFIG, AnnotationSource.TARGET_FIELD })
+public class AnnotationBeanViewConfigure extends InheritedAnnotationBeanViewConfigure {
+
+    @UseAnnotation(FieldAnnotation2.class)
+    @OverrideViewProperty(AnnotationBeanMeta.c)
+    private String[] c;
+
+    // FieldAnnotation1 can not be put on a method, so this annotation is ignored.
+    @UseAnnotation(value = FieldAnnotation1.class, dest = AnnotationDest.GETTER)
+    // PropertyAnnotation1 is put on the field in the original class,
+    // but will be put on getter method in the generated class.
+    @UseAnnotation(value = PropertyAnnotation1.class, dest = AnnotationDest.GETTER)
+    @OverrideViewProperty(AnnotationBeanMeta.d)
+    private int d;
+
+    @PropertyAnnotation2(stringValue = "config_e")
+    @OverrideViewProperty(AnnotationBeanMeta.e)
+    private Date e;
+
+}
+```
+will generate
+```java
+@GeneratedView(targetClass = AnnotationBean.class, configClass = AnnotationBeanViewConfigure.class)
+@InheritableTypeAnnotation(
+    annotation = @ValueAnnotation1(type = {
+        int.class
+    }),
+    annotations = {
+        @ValueAnnotation1(type = {
+            void.class
+        }),
+        @ValueAnnotation1(type = {
+            String.class
+        }),
+        @ValueAnnotation1(type = {
+            int[][][].class
+        }),
+        @ValueAnnotation1(type = {
+            Void.class
+        }),
+        @ValueAnnotation1(type = {
+            Void[].class
+        })
+    }
+)
+@TypeAnnotation(Date.class)
+@DocumentedTypeAnnotation(
+    enumValue = AEnum.B,
+    enumValues = {
+        AEnum.C,
+        AEnum.B,
+        AEnum.A
+    }
+)
+public class AnnotationBeanView {
+
+    @FieldAnnotation1(enumClassArray = { AEnum.class, AEnum.class })
+    private Class<?> type;
+
+    @FieldAnnotation1(doubleArray = {1.0})
+    private String a;
+
+    private String b;
+
+    @FieldAnnotation1(charValue = '0')
+    @FieldAnnotation2(stringArray = { "5" })
+    private String[] c;
+
+    private int d;
+
+    @PropertyAnnotation2(stringValue = "config_e")
+    private Date e;
+
+    @PropertyAnnotation2(stringValue = "field_f")
+    private List<String> f;
+
+    @PropertyAnnotation1(stringValue = "field_g")
+    private short g;
+
+    // ignore other methods.
+
+    public Class<?> getType() {
+        return this.type;
+    }
+
+    public String getA() {
+        return this.a;
+    }
+
+    public String getB() {
+        return this.b;
+    }
+
+    public String[] getC() {
+        return this.c;
+    }
+
+    @PropertyAnnotation1
+    @MethodAnnotation1(
+        charValue = 'a',
+        annotations = {
+            @ValueAnnotation1,
+            @ValueAnnotation1(annotations = {
+                @ValueAnnotation2
+            })
+        }
+    )
+    public int getD() {
+        return this.d;
+    }
+
+    public Date getE() {
+        return this.e;
+    }
+
+    public List<String> getF() {
+        return this.f;
+    }
+
+    @PropertyAnnotation1(stringValue = "getter_g")
+    public short getG() {
+        return this.g;
+    }
+
+}
+```
+The full [example](/beanknife-examples/src/main/java/io/github/vipcxj/beanknife/cases/beans/AnnotationBeanViewConfigure.java).
 
 #### change the generated class name
 By default, the dto class is generated with the same package of the original class 
