@@ -12,9 +12,9 @@ import java.util.Stack;
 @GeneratedView(targetClass = ViewPropertyBean.class, configClass = ViewPropertyBeanViewConfig.class)
 public class ViewPropertyBeanWithoutParent {
 
-        private int a;
+    private int a;
 
-        private String b;
+    private String b;
 
     public ViewPropertyBeanWithoutParent() { }
 
@@ -101,11 +101,11 @@ public class ViewPropertyBeanWithoutParent {
         return results;
     }
 
-        public int getA() {
+    public int getA() {
         return this.a;
     }
 
-        public String getB() {
+    public String getB() {
         return this.b;
     }
 

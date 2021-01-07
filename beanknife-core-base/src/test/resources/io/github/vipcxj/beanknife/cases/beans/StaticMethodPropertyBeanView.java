@@ -14,17 +14,17 @@ import java.util.Stack;
 @GeneratedView(targetClass = SimpleBean.class, configClass = StaticMethodPropertyBeanViewConfig.class)
 public class StaticMethodPropertyBeanView {
 
-        private String a;
+    private String a;
 
-        private Object b;
+    private Object b;
 
-        private int one;
+    private int one;
 
-        private Integer c;
+    private Integer c;
 
-        private Integer d;
+    private Integer d;
 
-        private String e;
+    private String e;
 
     public StaticMethodPropertyBeanView() { }
 
@@ -128,27 +128,27 @@ public class StaticMethodPropertyBeanView {
         return results;
     }
 
-        public String getA() {
+    public String getA() {
         return this.a;
     }
 
-        public Object getB() {
+    public Object getB() {
         return this.b;
     }
 
-        public int getOne() {
+    public int getOne() {
         return this.one;
     }
 
-        public Integer getC() {
+    public Integer getC() {
         return this.c;
     }
 
-        public Integer getD() {
+    public Integer getD() {
         return this.d;
     }
 
-        /**
+    /**
      *  test non static method as a static method property.
      *  Though the source can be compiled,
      *  this will cause a exception in the runtime. Because {@link ViewOf#useDefaultBeanProvider()} is false here.

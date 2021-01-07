@@ -4,9 +4,9 @@ import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 import io.github.vipcxj.beanknife.runtime.annotations.Access;
-import io.github.vipcxj.beanknife.runtime.utils.AnnotationPos;
+import io.github.vipcxj.beanknife.runtime.utils.AnnotationDest;
+import io.github.vipcxj.beanknife.runtime.utils.AnnotationSource;
 
-import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.*;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
@@ -98,6 +98,17 @@ public class Property {
             return this;
         } else if (override != null) {
             return override.getBase();
+        } else {
+            return null;
+        }
+    }
+
+    @CheckForNull
+    public Property getField() {
+        if (base && !isMethod()) {
+            return this;
+        } else if (override != null) {
+            return override.getField();
         } else {
             return null;
         }
@@ -241,12 +252,22 @@ public class Property {
         return AnnotationUsage.collectAnnotationUsages(context.getProcessingEnv().getElementUtils(), element, baseUsages);
     }
 
-    private boolean shouldAddAnnotation(@NonNull Elements elements, @NonNull Map<String, AnnotationUsage> useAnnotations, @NonNull AnnotationMirror annotationMirror, @NonNull AnnotationPos pos, boolean test) {
+    private AnnotationSource getAnnotationSource() {
+        if (!base) {
+            return AnnotationSource.CONFIG;
+        } else if (isMethod()) {
+            return AnnotationSource.TARGET_GETTER;
+        } else {
+            return AnnotationSource.TARGET_FIELD;
+        }
+    }
+
+    private boolean shouldAddAnnotation(@NonNull Elements elements, @NonNull Map<String, AnnotationUsage> useAnnotations, @NonNull AnnotationMirror annotationMirror, @NonNull AnnotationDest pos, boolean test) {
         boolean add = false;
         if (test) {
-            Set<AnnotationPos> dest = AnnotationUsage.getAnnotationDest(useAnnotations, annotationMirror, base);
-            AnnotationPos propertyPos = element.getKind() == ElementKind.FIELD ? AnnotationPos.FIELD : AnnotationPos.GETTER;
-            if (dest != null && (dest.contains(pos) || (dest.contains(AnnotationPos.SAME) && propertyPos == pos))) {
+            Set<AnnotationDest> dest = AnnotationUsage.getAnnotationDest(useAnnotations, annotationMirror, getAnnotationSource());
+            AnnotationDest propertyPos = element.getKind() == ElementKind.FIELD ? AnnotationDest.FIELD : AnnotationDest.GETTER;
+            if (dest != null && (dest.contains(pos) || (dest.contains(AnnotationDest.SAME) && propertyPos == pos))) {
                 ElementType elementType = pos.toElementType();
                 add = Utils.annotationCanPutOn(elements, annotationMirror, elementType);
             }
@@ -256,18 +277,16 @@ public class Property {
         return add;
     }
 
-    private void addAnnotation(@NonNull Elements elements, @NonNull Map<String, AnnotationUsage> useAnnotations, List<AnnotationMirror> annotationMirrors, Set<String> annotationNames, AnnotationMirror annotationMirror, @NonNull AnnotationPos pos, boolean test) {
+    private void addAnnotation(@NonNull Elements elements, @NonNull Map<String, AnnotationUsage> useAnnotations, List<AnnotationMirror> annotationMirrors, Set<String> annotationNames, AnnotationMirror annotationMirror, @NonNull AnnotationDest pos, boolean test) {
         List<AnnotationMirror> annotationComponents = Utils.getRepeatableAnnotationComponents(elements, annotationMirror);
         if (annotationComponents == null) {
             if (shouldAddAnnotation(elements, useAnnotations, annotationMirror, pos, test)) {
                 String annotationName = Utils.getAnnotationName(annotationMirror);
-                if (Utils.isAnnotationRepeatable(elements, annotationMirror)) {
-                    annotationMirrors.add(annotationMirror);
-                    annotationNames.add(annotationName);
-                } else if (!annotationNames.contains(annotationName)){
-                    annotationMirrors.add(annotationMirror);
-                    annotationNames.add(annotationName);
+                if (!Utils.isAnnotationRepeatable(elements, annotationMirror)) {
+                    annotationMirrors.removeIf(a -> Utils.getAnnotationName(a).equals(annotationName));
                 }
+                annotationMirrors.add(annotationMirror);
+                annotationNames.add(annotationName);
             }
         } else {
             for (AnnotationMirror annotationComponent : annotationComponents) {
@@ -280,21 +299,32 @@ public class Property {
         }
     }
 
-    public List<AnnotationMirror> collectAnnotations(@NonNull ViewContext context, @NonNull AnnotationPos pos) {
-        if (pos == AnnotationPos.SAME) {
+    public List<AnnotationMirror> collectAnnotations(@NonNull ViewContext context, @NonNull AnnotationDest pos) {
+        return collectAnnotations(context, pos, null);
+    }
+
+    private List<AnnotationMirror> collectAnnotations(@NonNull ViewContext context, @NonNull AnnotationDest pos, @CheckForNull Map<String, AnnotationUsage> annotationUsages) {
+        if (pos == AnnotationDest.SAME) {
             throw new IllegalArgumentException("The annotation pos should not be SAME here.");
         }
-        if (pos == AnnotationPos.TYPE) {
+        if (pos == AnnotationDest.TYPE) {
             throw new IllegalArgumentException("The annotation pos should not be TYPE here.");
         }
         Elements elements = context.getProcessingEnv().getElementUtils();
-        Map<String, AnnotationUsage> annotationUsages = collectAnnotationUsages(context);
+        annotationUsages = annotationUsages == null ? collectAnnotationUsages(context) : annotationUsages;
         List<AnnotationMirror> annotationMirrors = new ArrayList<>();
         Set<String> annotationNames = new HashSet<>();
         if (!base) {
             Property baseProperty = getBase();
             if (baseProperty != null) {
-                for (AnnotationMirror annotationMirror : baseProperty.collectAnnotations(context, pos)) {
+                for (AnnotationMirror annotationMirror : baseProperty.collectAnnotations(context, pos, annotationUsages)) {
+                    addAnnotation(elements, annotationUsages, annotationMirrors, annotationNames, annotationMirror, pos, false);
+                }
+            }
+        } else if (isMethod()) {
+            Property fieldProperty = getField();
+            if (fieldProperty != null) {
+                for (AnnotationMirror annotationMirror : fieldProperty.collectAnnotations(context, pos, annotationUsages)) {
                     addAnnotation(elements, annotationUsages, annotationMirrors, annotationNames, annotationMirror, pos, false);
                 }
             }

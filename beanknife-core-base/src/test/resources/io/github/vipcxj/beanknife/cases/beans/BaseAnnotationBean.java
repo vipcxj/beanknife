@@ -1,17 +1,22 @@
 package io.github.vipcxj.beanknife.cases.beans;
 
+import io.github.vipcxj.beanknife.cases.annotations.FieldAnnotation1;
 import io.github.vipcxj.beanknife.cases.annotations.InheritableTypeAnnotation;
-import io.github.vipcxj.beanknife.cases.annotations.ValueAnnotation;
+import io.github.vipcxj.beanknife.cases.annotations.ValueAnnotation1;
+import io.github.vipcxj.beanknife.cases.models.AEnum;
 
 @InheritableTypeAnnotation(
-        annotation = @ValueAnnotation(type = int.class),
+        annotation = @ValueAnnotation1(type = int.class),
         annotations = {
-                @ValueAnnotation(type = void.class),
-                @ValueAnnotation(type = String.class),
-                @ValueAnnotation(type = int[][][].class),
-                @ValueAnnotation(type = Void.class),
-                @ValueAnnotation(type = Void[].class)
+                @ValueAnnotation1(type = void.class),
+                @ValueAnnotation1(type = String.class),
+                @ValueAnnotation1(type = int[][][].class),
+                @ValueAnnotation1(type = Void.class),
+                @ValueAnnotation1(type = Void[].class)
         }
 )
 public class BaseAnnotationBean {
+
+        @FieldAnnotation1(enumClassArray = {AEnum.class, AEnum.class})
+        public Class<?> type;
 }

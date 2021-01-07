@@ -2,7 +2,7 @@ package io.github.vipcxj.beanknife.runtime.utils;
 
 import java.lang.annotation.ElementType;
 
-public enum AnnotationPos {
+public enum AnnotationDest {
     SAME,
     TYPE,
     FIELD,

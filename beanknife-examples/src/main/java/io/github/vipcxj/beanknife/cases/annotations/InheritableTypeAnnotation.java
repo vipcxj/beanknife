@@ -6,6 +6,6 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 public @interface InheritableTypeAnnotation {
-    ValueAnnotation annotation();
-    ValueAnnotation[] annotations();
+    ValueAnnotation1 annotation();
+    ValueAnnotation1[] annotations();
 }

@@ -6,7 +6,8 @@ import io.github.vipcxj.beanknife.runtime.annotations.Access;
 import io.github.vipcxj.beanknife.runtime.annotations.RemoveViewProperties;
 import io.github.vipcxj.beanknife.runtime.annotations.RemoveViewProperty;
 import io.github.vipcxj.beanknife.runtime.annotations.ViewOf;
-import io.github.vipcxj.beanknife.runtime.utils.AnnotationPos;
+import io.github.vipcxj.beanknife.runtime.utils.AnnotationDest;
+import io.github.vipcxj.beanknife.runtime.utils.AnnotationSource;
 import io.github.vipcxj.beanknife.runtime.utils.CacheType;
 import io.github.vipcxj.beanknife.runtime.utils.Self;
 import org.apache.commons.text.StringEscapeUtils;
@@ -97,11 +98,11 @@ public class ViewOfData {
         collectAnnotations(environment.getElementUtils());
     }
 
-    private void addAnnotation(@NonNull Elements elements, @NonNull AnnotationMirror annotationMirror, boolean fromTarget) {
+    private void addAnnotation(@NonNull Elements elements, @NonNull AnnotationMirror annotationMirror, AnnotationSource source) {
         List<AnnotationMirror> annotationComponents = Utils.getRepeatableAnnotationComponents(elements, annotationMirror);
         if (annotationComponents == null) {
-            Set<AnnotationPos> dest = AnnotationUsage.getAnnotationDest(useAnnotations, annotationMirror, fromTarget);
-            if (dest != null && (dest.contains(AnnotationPos.SAME) || dest.contains(AnnotationPos.TYPE)) && Utils.annotationCanPutOn(elements, annotationMirror, ElementType.TYPE)) {
+            Set<AnnotationDest> dest = AnnotationUsage.getAnnotationDest(useAnnotations, annotationMirror, source);
+            if (dest != null && (dest.contains(AnnotationDest.SAME) || dest.contains(AnnotationDest.TYPE)) && Utils.annotationCanPutOn(elements, annotationMirror, ElementType.TYPE)) {
                 String annotationName = Utils.getAnnotationName(annotationMirror);
                 if (Utils.isAnnotationRepeatable(elements, annotationMirror)) {
                     this.annotationMirrors.add(annotationMirror);
@@ -113,8 +114,8 @@ public class ViewOfData {
             }
         } else {
             for (AnnotationMirror annotationComponent : annotationComponents) {
-                Set<AnnotationPos> dest = AnnotationUsage.getAnnotationDest(useAnnotations, annotationComponent, fromTarget);
-                if (dest != null && (dest.contains(AnnotationPos.SAME) || dest.contains(AnnotationPos.TYPE)) && Utils.annotationCanPutOn(elements, annotationMirror, ElementType.TYPE)) {
+                Set<AnnotationDest> dest = AnnotationUsage.getAnnotationDest(useAnnotations, annotationComponent, source);
+                if (dest != null && (dest.contains(AnnotationDest.SAME) || dest.contains(AnnotationDest.TYPE)) && Utils.annotationCanPutOn(elements, annotationMirror, ElementType.TYPE)) {
                     String annotationName = Utils.getAnnotationName(annotationComponent);
                     this.annotationMirrors.add(annotationComponent);
                     this.annotationNames.add(annotationName);
@@ -128,11 +129,11 @@ public class ViewOfData {
         this.annotationNames = new HashSet<>();
         List<AnnotationMirror> annotationMirrors = Utils.getAllAnnotationMirrors(elements, this.targetElement);
         for (AnnotationMirror annotationMirror : annotationMirrors) {
-            addAnnotation(elements, annotationMirror, true);
+            addAnnotation(elements, annotationMirror, AnnotationSource.TARGET_TYPE);
         }
         annotationMirrors = Utils.getAllAnnotationMirrors(elements, this.configElement);
         for (AnnotationMirror annotationMirror : annotationMirrors) {
-            addAnnotation(elements, annotationMirror, false);
+            addAnnotation(elements, annotationMirror, AnnotationSource.CONFIG);
         }
     }
 

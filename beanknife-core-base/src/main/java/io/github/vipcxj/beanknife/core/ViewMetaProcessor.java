@@ -92,7 +92,8 @@ public class ViewMetaProcessor extends AbstractProcessor {
 
     private void writeBuilderFile(MetaContext context) throws IOException {
         String metaClassName = context.getGenType().getQualifiedName();
-        JavaFileObject sourceFile = processingEnv.getFiler().createSourceFile(metaClassName, context.getViewMeta().getOf());
+        TypeElement[] dependencies = Utils.calcDependencies(context.getViewMeta().getOf()).toArray(new TypeElement[0]);
+        JavaFileObject sourceFile = processingEnv.getFiler().createSourceFile(metaClassName, dependencies);
         try (PrintWriter writer = new PrintWriter(sourceFile.openWriter())) {
             context.collectData();
             context.print(writer);

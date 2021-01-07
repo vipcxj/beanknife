@@ -53,6 +53,7 @@ public class Tester {
 
     @Test
     public void checkView() {
+        checkView(AnnotationBeanView.class);
         checkView(BeanAView.class);
         checkView(BeanAViewWithInheritedConfig.class);
         checkView(BeanBView.class);

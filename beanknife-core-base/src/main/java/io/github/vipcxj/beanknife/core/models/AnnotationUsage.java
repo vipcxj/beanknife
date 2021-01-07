@@ -7,7 +7,8 @@ import io.github.vipcxj.beanknife.runtime.annotations.UnUseAnnotation;
 import io.github.vipcxj.beanknife.runtime.annotations.UnUseAnnotations;
 import io.github.vipcxj.beanknife.runtime.annotations.UseAnnotation;
 import io.github.vipcxj.beanknife.runtime.annotations.UseAnnotations;
-import io.github.vipcxj.beanknife.runtime.utils.AnnotationPos;
+import io.github.vipcxj.beanknife.runtime.utils.AnnotationDest;
+import io.github.vipcxj.beanknife.runtime.utils.AnnotationSource;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
@@ -18,16 +19,14 @@ import javax.lang.model.util.Elements;
 import java.util.*;
 
 public class AnnotationUsage {
-    private boolean useFromTarget;
-    private boolean useFromConfig;
-    private Set<AnnotationPos> dest;
+    private Set<AnnotationSource> from;
+    private Set<AnnotationDest> dest;
 
     public static AnnotationUsage from(@NonNull Elements elements, @NonNull AnnotationMirror useAnnotation) {
         Map<? extends ExecutableElement, ? extends AnnotationValue> values = elements.getElementValuesWithDefaults(useAnnotation);
         AnnotationUsage usage = new AnnotationUsage();
-        usage.useFromTarget = Utils.getBooleanAnnotationValue(useAnnotation, values, "useFromTarget");
-        usage.useFromConfig = Utils.getBooleanAnnotationValue(useAnnotation, values, "useFromConfig");
-        usage.dest = new HashSet<>(Arrays.asList(Utils.getEnumArrayAnnotationValue(useAnnotation, values, "dest", AnnotationPos.class)));
+        usage.from = new HashSet<>(Arrays.asList(Utils.getEnumArrayAnnotationValue(useAnnotation, values, "from", AnnotationSource.class)));
+        usage.dest = new HashSet<>(Arrays.asList(Utils.getEnumArrayAnnotationValue(useAnnotation, values, "dest", AnnotationDest.class)));
         return usage;
     }
 
@@ -57,30 +56,24 @@ public class AnnotationUsage {
     }
 
     @CheckForNull
-    public static Set<AnnotationPos> getAnnotationDest(@NonNull Map<String, AnnotationUsage> useAnnotations, @NonNull AnnotationMirror annotation, boolean fromTarget) {
+    public static Set<AnnotationDest> getAnnotationDest(@NonNull Map<String, AnnotationUsage> useAnnotations, @NonNull AnnotationMirror annotation, AnnotationSource source) {
         String name = Utils.getAnnotationName(annotation);
         AnnotationUsage annotationUsage = useAnnotations.get(name);
         if (annotationUsage == null) {
             return null;
         }
-        if (fromTarget && !annotationUsage.isUseFromTarget()) {
+        if (annotationUsage.getFrom().contains(source)) {
+            return annotationUsage.getDest();
+        } else {
             return null;
         }
-        if (!fromTarget && !annotationUsage.isUseFromConfig()) {
-            return null;
-        }
-        return annotationUsage.getDest();
     }
 
-    public boolean isUseFromTarget() {
-        return useFromTarget;
+    public Set<AnnotationSource> getFrom() {
+        return from;
     }
 
-    public boolean isUseFromConfig() {
-        return useFromConfig;
-    }
-
-    public Set<AnnotationPos> getDest() {
+    public Set<AnnotationDest> getDest() {
         return dest;
     }
 
@@ -88,14 +81,13 @@ public class AnnotationUsage {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        AnnotationUsage usage = (AnnotationUsage) o;
-        return useFromTarget == usage.useFromTarget &&
-                useFromConfig == usage.useFromConfig &&
-                dest == usage.dest;
+        AnnotationUsage that = (AnnotationUsage) o;
+        return Objects.equals(from, that.from) &&
+                Objects.equals(dest, that.dest);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(useFromTarget, useFromConfig, dest);
+        return Objects.hash(from, dest);
     }
 }

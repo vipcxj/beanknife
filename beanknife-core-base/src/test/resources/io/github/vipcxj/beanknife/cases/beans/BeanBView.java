@@ -12,7 +12,7 @@ import java.util.Stack;
 @GeneratedView(targetClass = BeanB.class, configClass = ConfigBeanB.class)
 public class BeanBView {
 
-        private String a;
+    private String a;
 
     public BeanBView() { }
 
@@ -95,7 +95,7 @@ public class BeanBView {
         return results;
     }
 
-        public String getA() {
+    public String getA() {
         return this.a;
     }
 

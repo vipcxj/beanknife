@@ -14,9 +14,9 @@ import java.util.Stack;
 @GeneratedView(targetClass = ConverterBean.class, configClass = ConverterBeanConfig.class)
 public class ConverterBeanView {
 
-        private long a;
+    private long a;
 
-        private Number b;
+    private Number b;
 
     public ConverterBeanView() { }
 
@@ -103,11 +103,11 @@ public class ConverterBeanView {
         return results;
     }
 
-        public long getA() {
+    public long getA() {
         return this.a;
     }
 
-        public Number getB() {
+    public Number getB() {
         return this.b;
     }
 

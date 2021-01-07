@@ -12,7 +12,7 @@ import java.util.Stack;
 @GeneratedView(targetClass = MetaAndViewOfOnDiffBean1.class, configClass = MetaAndViewOfOnDiffBean1ViewConfig.class)
 public class MetaAndViewOfOnDiffBean1View {
 
-        private int pb;
+    private int pb;
 
     public MetaAndViewOfOnDiffBean1View() { }
 
@@ -95,7 +95,7 @@ public class MetaAndViewOfOnDiffBean1View {
         return results;
     }
 
-        public int getPb() {
+    public int getPb() {
         return this.pb;
     }
 

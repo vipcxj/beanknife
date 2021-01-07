@@ -12,9 +12,9 @@ import java.util.Stack;
 @GeneratedView(targetClass = MetaAndViewOfOnDiffBean3.class, configClass = MetaAndViewOfOnDiffBean3.class)
 public class MetaAndViewOfOnDiffBean3View {
 
-        private String pa;
+    private String pa;
 
-        private int pb;
+    private int pb;
 
     public MetaAndViewOfOnDiffBean3View() { }
 
@@ -101,11 +101,11 @@ public class MetaAndViewOfOnDiffBean3View {
         return results;
     }
 
-        public String getPa() {
+    public String getPa() {
         return this.pa;
     }
 
-        public int getPb() {
+    public int getPb() {
         return this.pb;
     }
 

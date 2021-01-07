@@ -12,9 +12,9 @@ import java.util.Stack;
 @GeneratedView(targetClass = NestedGenericBean.class, configClass = NestedGenericBean.class)
 public class NestedGenericBeanView<T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> {
 
-        private T1 a;
+    private T1 a;
 
-        private T2 b;
+    private T2 b;
 
     public NestedGenericBeanView() { }
 
@@ -101,11 +101,11 @@ public class NestedGenericBeanView<T1 extends CharSequence & Set<? extends Chara
         return results;
     }
 
-        public T1 getA() {
+    public T1 getA() {
         return this.a;
     }
 
-        public T2 getB() {
+    public T2 getB() {
         return this.b;
     }
 

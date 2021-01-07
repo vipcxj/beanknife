@@ -546,11 +546,13 @@ public class Type {
                 WildcardTree wildcardTree = (WildcardTree) tree;
                 Tree bound = wildcardTree.getBound();
                 List<Tree> bounds = new ArrayList<>();
-                if (bound.getKind() == Tree.Kind.INTERSECTION_TYPE) {
-                    IntersectionTypeTree intersectionTypeTree = (IntersectionTypeTree) bound;
-                    bounds.addAll(intersectionTypeTree.getBounds());
-                } else {
-                    bounds.add(bound);
+                if (bound != null) {
+                    if (bound.getKind() == Tree.Kind.INTERSECTION_TYPE) {
+                        IntersectionTypeTree intersectionTypeTree = (IntersectionTypeTree) bound;
+                        bounds.addAll(intersectionTypeTree.getBounds());
+                    } else {
+                        bounds.add(bound);
+                    }
                 }
                 if (tree.getKind() == Tree.Kind.EXTENDS_WILDCARD) {
                     extendsBoundTrees = bounds;
@@ -631,7 +633,11 @@ public class Type {
                     return null;
                 }
             }
-            return typeUtils.getDeclaredType((DeclaredType) containerTypeMirror, typeElement, typeParameters.toArray(new TypeMirror[0]));
+            TypeMirror typeMirror = typeUtils.getDeclaredType((DeclaredType) containerTypeMirror, typeElement, typeParameters.toArray(new TypeMirror[0]));
+            for (int i = 0; i < array; ++i) {
+                typeMirror = typeUtils.getArrayType(typeMirror);
+            }
+            return typeMirror;
         } else {
             return null;
         }

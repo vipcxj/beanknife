@@ -33,47 +33,53 @@ public class ViewOfProcessor extends AbstractProcessor {
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        for (TypeElement annotation : annotations) {
-            Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
-            for (Element element : elements) {
-                if (element.getKind() == ElementKind.CLASS) {
-                    List<AnnotationMirror> annotationMirrors = Utils.extractAnnotations(
-                            processingEnv,
-                            element,
-                            "io.github.vipcxj.beanknife.runtime.annotations.ViewOf",
-                            "io.github.vipcxj.beanknife.runtime.annotations.ViewOfs"
-                    );
-                    TypeElement typeElement = (TypeElement) element;
-                    Set<String> metaClassNames = new HashSet<>();
-                    for (AnnotationMirror annotationMirror : annotationMirrors) {
-                        ViewOfData viewOf = ViewOfData.read(processingEnv, annotationMirror, typeElement);
-                        if (hasMeta(roundEnv, viewOf.getTargetElement())) {
-                            continue;
-                        }
-                        List<ViewOfData> viewOfDataList = Utils.collectViewOfs(processingEnv, roundEnv, viewOf.getTargetElement());
-                        TypeElement mostImportantViewConfigElement = getMostImportantViewConfigElement(viewOfDataList);
-                        if (Objects.equals(typeElement, mostImportantViewConfigElement)) {
-                            ViewMetaData viewMetaData = new ViewMetaData("", "", viewOf.getTargetElement(), viewOf.getTargetElement());
-                            MetaContext metaContext = new MetaContext(trees, processingEnv, viewMetaData, viewOfDataList);
-                            String metaClassName = metaContext.getGenType().getQualifiedName();
-                            if (!metaClassNames.contains(metaClassName)) {
-                                metaClassNames.add(metaClassName);
-                                try {
-                                    JavaFileObject sourceFile = processingEnv.getFiler().createSourceFile(metaClassName, viewOf.getTargetElement(), typeElement);
-                                    try (PrintWriter writer = new PrintWriter(sourceFile.openWriter())) {
-                                        metaContext.collectData();
-                                        metaContext.print(writer);
+        try {
+            for (TypeElement annotation : annotations) {
+                Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
+                for (Element element : elements) {
+                    if (element.getKind() == ElementKind.CLASS) {
+                        List<AnnotationMirror> annotationMirrors = Utils.extractAnnotations(
+                                processingEnv,
+                                element,
+                                "io.github.vipcxj.beanknife.runtime.annotations.ViewOf",
+                                "io.github.vipcxj.beanknife.runtime.annotations.ViewOfs"
+                        );
+                        TypeElement typeElement = (TypeElement) element;
+                        Set<String> metaClassNames = new HashSet<>();
+                        for (AnnotationMirror annotationMirror : annotationMirrors) {
+                            ViewOfData viewOf = ViewOfData.read(processingEnv, annotationMirror, typeElement);
+                            if (hasMeta(roundEnv, viewOf.getTargetElement())) {
+                                continue;
+                            }
+                            List<ViewOfData> viewOfDataList = Utils.collectViewOfs(processingEnv, roundEnv, viewOf.getTargetElement());
+                            TypeElement mostImportantViewConfigElement = getMostImportantViewConfigElement(viewOfDataList);
+                            if (Objects.equals(typeElement, mostImportantViewConfigElement)) {
+                                ViewMetaData viewMetaData = new ViewMetaData("", "", viewOf.getTargetElement(), viewOf.getTargetElement());
+                                MetaContext metaContext = new MetaContext(trees, processingEnv, viewMetaData, viewOfDataList);
+                                String metaClassName = metaContext.getGenType().getQualifiedName();
+                                if (!metaClassNames.contains(metaClassName)) {
+                                    metaClassNames.add(metaClassName);
+                                    try {
+                                        List<TypeElement> dependencies = Utils.calcDependencies(viewOf.getTargetElement());
+                                        dependencies.add(typeElement);
+                                        JavaFileObject sourceFile = processingEnv.getFiler().createSourceFile(metaClassName, dependencies.toArray(new Element[0]));
+                                        try (PrintWriter writer = new PrintWriter(sourceFile.openWriter())) {
+                                            metaContext.collectData();
+                                            metaContext.print(writer);
+                                        }
+                                    } catch (IOException e) {
+                                        processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, e.getMessage());
                                     }
-                                } catch (IOException e) {
-                                    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, e.getMessage());
                                 }
                             }
                         }
+                    } else {
+                        processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "");
                     }
-                } else {
-                    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "");
                 }
             }
+        } catch (Throwable t) {
+            Utils.logError(processingEnv, t);
         }
         return false;
     }

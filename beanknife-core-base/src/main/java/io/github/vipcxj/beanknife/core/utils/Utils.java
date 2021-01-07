@@ -724,44 +724,45 @@ public class Utils {
         Type type = Type.extract(context, annotation.getAnnotationType().asElement());
         type.printType(writer, context, false, false);
         Map<? extends ExecutableElement, ? extends AnnotationValue> attributes = annotation.getElementValues();
-        boolean shouldBreakLine = shouldBreakLineForPrintingAnnotation(attributes.values());
-        boolean useValue = attributes.size() == 1 && attributes.keySet().iterator().next().getSimpleName().toString().equals("value");
-        if (attributes.isEmpty()) {
-            writer.println();
-        } else if (useValue) {
-            AnnotationValue annotationValue = attributes.values().iterator().next();
-            writer.print("(");
-            printAnnotationValue(writer, annotationValue, context, indent, indentNum);
-            writer.print(")");
-        } else if (shouldBreakLine) {
-            writer.println("(");
-            int i = 0;
-            for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : attributes.entrySet()) {
-                Utils.printIndent(writer, indent, indentNum + 1);
-                writer.print(entry.getKey().getSimpleName());
-                writer.print(" = ");
-                printAnnotationValue(writer, entry.getValue(), context, indent, indentNum + 1);
-                if (i != attributes.size() - 1) {
-                    writer.println(",");
-                } else {
-                    writer.println();
+        if (!attributes.isEmpty()) {
+            boolean shouldBreakLine = shouldBreakLineForPrintingAnnotation(attributes.values());
+            boolean useValue = attributes.size() == 1 && attributes.keySet().iterator().next().getSimpleName().toString().equals("value");
+            if (useValue) {
+                AnnotationValue annotationValue = attributes.values().iterator().next();
+                writer.print("(");
+                printAnnotationValue(writer, annotationValue, context, indent, indentNum);
+                writer.print(")");
+            } else if (shouldBreakLine) {
+                writer.println("(");
+                int i = 0;
+                for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : attributes.entrySet()) {
+                    Utils.printIndent(writer, indent, indentNum + 1);
+                    writer.print(entry.getKey().getSimpleName());
+                    writer.print(" = ");
+                    printAnnotationValue(writer, entry.getValue(), context, indent, indentNum + 1);
+                    if (i != attributes.size() - 1) {
+                        writer.println(",");
+                    } else {
+                        writer.println();
+                    }
+                    ++i;
                 }
-                ++i;
-            }
-            writer.print(")");
-        } else {
-            writer.print("(");
-            int i = 0;
-            for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : attributes.entrySet()) {
-                writer.print(entry.getKey().getSimpleName());
-                writer.print(" = ");
-                printAnnotationValue(writer, entry.getValue(), context, indent, indentNum);
-                if (i != attributes.size() - 1) {
-                    writer.print(", ");
+                Utils.printIndent(writer, indent, indentNum);
+                writer.print(")");
+            } else {
+                writer.print("(");
+                int i = 0;
+                for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : attributes.entrySet()) {
+                    writer.print(entry.getKey().getSimpleName());
+                    writer.print(" = ");
+                    printAnnotationValue(writer, entry.getValue(), context, indent, indentNum);
+                    if (i != attributes.size() - 1) {
+                        writer.print(", ");
+                    }
+                    ++i;
                 }
-                ++i;
+                writer.print(")");
             }
-            writer.print(")");
         }
     }
 
@@ -793,12 +794,44 @@ public class Utils {
         return false;
     }
 
+    public static List<TypeElement> calcDependencies(TypeElement element) {
+        List<TypeElement> dependencies = new ArrayList<>();
+        dependencies.add(element);
+        TypeMirror superclass = element.getSuperclass();
+        if (superclass.getKind() != TypeKind.NONE) {
+           DeclaredType declaredType = (DeclaredType) superclass;
+           dependencies.addAll(calcDependencies(Utils.toElement(declaredType)));
+        }
+        return dependencies;
+    }
+
+    private static Element[] calcDependencies(ViewContext context) {
+        ViewOfData viewOf = context.getViewOf();
+        List<TypeElement> targetDependencies = calcDependencies(viewOf.getTargetElement());
+        List<TypeElement> configDependencies;
+        if (!viewOf.getConfigElement().equals(viewOf.getTargetElement())) {
+            configDependencies = calcDependencies(viewOf.getConfigElement());
+        } else {
+            configDependencies = Collections.emptyList();
+        }
+        Element[] dependencies = new Element[targetDependencies.size() + configDependencies.size()];
+        int i = 0;
+        for (TypeElement targetDependency : targetDependencies) {
+            dependencies[i++] = targetDependency;
+        }
+        for (TypeElement configDependency : configDependencies) {
+            dependencies[i++] = configDependency;
+        }
+        return dependencies;
+    }
+
     public static void writeViewFile(ViewContext context) throws IOException {
         Modifier modifier = context.getViewOf().getAccess();
         if (modifier == null) {
             return;
         }
-        JavaFileObject sourceFile = context.getProcessingEnv().getFiler().createSourceFile(context.getGenType().getQualifiedName(), context.getViewOf().getTargetElement(), context.getViewOf().getConfigElement());
+        Element[] dependencies = calcDependencies(context);
+        JavaFileObject sourceFile = context.getProcessingEnv().getFiler().createSourceFile(context.getGenType().getQualifiedName(), dependencies);
         try (PrintWriter writer = new PrintWriter(sourceFile.openWriter())) {
             context.collectData();
             context.print(writer);

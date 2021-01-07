@@ -13,11 +13,11 @@ import java.util.Stack;
 @GeneratedView(targetClass = MetaAndViewOfBothOnBean.class, configClass = MetaAndViewOfBothOnBean.class)
 public class MetaAndViewOfBothOnBeanView {
 
-        private int a;
+    private int a;
 
-        private String c;
+    private String c;
 
-        private Date e;
+    private Date e;
 
     public MetaAndViewOfBothOnBeanView() { }
 
@@ -108,15 +108,15 @@ public class MetaAndViewOfBothOnBeanView {
         return results;
     }
 
-        public int getA() {
+    public int getA() {
         return this.a;
     }
 
-        public String getC() {
+    public String getC() {
         return this.c;
     }
 
-        public Date getE() {
+    public Date getE() {
         return this.e;
     }
 

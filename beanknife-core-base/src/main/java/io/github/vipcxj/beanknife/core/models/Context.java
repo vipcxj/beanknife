@@ -334,6 +334,9 @@ public class Context {
         } else if (tree.getKind() == Tree.Kind.EXTENDS_WILDCARD || tree.getKind() == Tree.Kind.SUPER_WILDCARD) {
             WildcardTree wildcardTree = (WildcardTree) tree;
             Tree bounds = wildcardTree.getBound();
+            if (bounds == null) {
+                throw new IllegalStateException("This is impossible!");
+            }
             List<Type> boundTypes;
             if (bounds.getKind() == Tree.Kind.INTERSECTION_TYPE) {
                 IntersectionTypeTree intersectionTypeTree = (IntersectionTypeTree) bounds;

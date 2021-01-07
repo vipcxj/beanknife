@@ -7,7 +7,7 @@ import io.github.vipcxj.beanknife.runtime.BeanProviders;
 import io.github.vipcxj.beanknife.runtime.PropertyConverter;
 import io.github.vipcxj.beanknife.runtime.annotations.*;
 import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedView;
-import io.github.vipcxj.beanknife.runtime.utils.AnnotationPos;
+import io.github.vipcxj.beanknife.runtime.utils.AnnotationDest;
 import io.github.vipcxj.beanknife.runtime.utils.BeanUsage;
 import io.github.vipcxj.beanknife.runtime.utils.CacheType;
 import org.apache.commons.text.StringEscapeUtils;
@@ -283,15 +283,15 @@ public class ViewContext extends Context {
             if (converter != null) {
                 importVariable(converter);
             }
-            List<AnnotationMirror> annotationMirrors = property.collectAnnotations(this, AnnotationPos.FIELD);
+            List<AnnotationMirror> annotationMirrors = property.collectAnnotations(this, AnnotationDest.FIELD);
             for (AnnotationMirror annotationMirror : annotationMirrors) {
                 Utils.importAnnotation(this, annotationMirror);
             }
-            annotationMirrors = property.collectAnnotations(this, AnnotationPos.GETTER);
+            annotationMirrors = property.collectAnnotations(this, AnnotationDest.GETTER);
             for (AnnotationMirror annotationMirror : annotationMirrors) {
                 Utils.importAnnotation(this, annotationMirror);
             }
-            annotationMirrors = property.collectAnnotations(this, AnnotationPos.SETTER);
+            annotationMirrors = property.collectAnnotations(this, AnnotationDest.SETTER);
             for (AnnotationMirror annotationMirror : annotationMirrors) {
                 Utils.importAnnotation(this, annotationMirror);
             }
@@ -491,6 +491,7 @@ public class ViewContext extends Context {
         configType.printType(writer, this, false, false);
         writer.println(".class)");
         for (AnnotationMirror annotationMirror : viewOf.getAnnotationMirrors()) {
+            Utils.printIndent(writer, INDENT, 0);
             Utils.printAnnotation(writer, annotationMirror, this, INDENT, 0);
             writer.println();
         }
@@ -516,8 +517,8 @@ public class ViewContext extends Context {
                     empty = false;
                     writer.println();
                 }
-                Utils.printIndent(writer, INDENT, 1);
-                for (AnnotationMirror annotationMirror : property.collectAnnotations(this, AnnotationPos.FIELD)) {
+                for (AnnotationMirror annotationMirror : property.collectAnnotations(this, AnnotationDest.FIELD)) {
+                    Utils.printIndent(writer, INDENT, 1);
                     Utils.printAnnotation(writer, annotationMirror, this, INDENT, 1);
                     writer.println();
                 }
@@ -577,8 +578,8 @@ public class ViewContext extends Context {
                     empty = false;
                     writer.println();
                 }
-                Utils.printIndent(writer, INDENT, 1);
-                for (AnnotationMirror annotationMirror : property.collectAnnotations(this, AnnotationPos.GETTER)) {
+                for (AnnotationMirror annotationMirror : property.collectAnnotations(this, AnnotationDest.GETTER)) {
+                    Utils.printIndent(writer, INDENT, 1);
                     Utils.printAnnotation(writer, annotationMirror, this, INDENT, 1);
                     writer.println();
                 }
@@ -623,8 +624,8 @@ public class ViewContext extends Context {
                     empty = false;
                     writer.println();
                 }
-                Utils.printIndent(writer, INDENT, 1);
-                for (AnnotationMirror annotationMirror : property.collectAnnotations(this, AnnotationPos.SETTER)) {
+                for (AnnotationMirror annotationMirror : property.collectAnnotations(this, AnnotationDest.SETTER)) {
+                    Utils.printIndent(writer, INDENT, 1);
                     Utils.printAnnotation(writer, annotationMirror, this, INDENT, 1);
                     writer.println();
                 }
