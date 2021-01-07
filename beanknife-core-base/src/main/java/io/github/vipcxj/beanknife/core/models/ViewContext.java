@@ -283,15 +283,15 @@ public class ViewContext extends Context {
             if (converter != null) {
                 importVariable(converter);
             }
-            List<AnnotationMirror> annotationMirrors = property.collectionAnnotations(this, AnnotationPos.FIELD, false);
+            List<AnnotationMirror> annotationMirrors = property.collectAnnotations(this, AnnotationPos.FIELD);
             for (AnnotationMirror annotationMirror : annotationMirrors) {
                 Utils.importAnnotation(this, annotationMirror);
             }
-            annotationMirrors = property.collectionAnnotations(this, AnnotationPos.GETTER, false);
+            annotationMirrors = property.collectAnnotations(this, AnnotationPos.GETTER);
             for (AnnotationMirror annotationMirror : annotationMirrors) {
                 Utils.importAnnotation(this, annotationMirror);
             }
-            annotationMirrors = property.collectionAnnotations(this, AnnotationPos.SETTER, false);
+            annotationMirrors = property.collectAnnotations(this, AnnotationPos.SETTER);
             for (AnnotationMirror annotationMirror : annotationMirrors) {
                 Utils.importAnnotation(this, annotationMirror);
             }
@@ -323,7 +323,7 @@ public class ViewContext extends Context {
     }
 
     private List<DeclaredType> getConverters(Element element) {
-        return Utils.getAnnotationsOn(getProcessingEnv(), element, UsePropertyConverter.class, UsePropertyConverters.class)
+        return Utils.getAnnotationsOn(getProcessingEnv().getElementUtils(), element, UsePropertyConverter.class, UsePropertyConverters.class)
                 .stream().map(annotation -> {
                     Map<? extends ExecutableElement, ? extends AnnotationValue> attributes = getProcessingEnv().getElementUtils().getElementValuesWithDefaults(annotation);
                     return Utils.getTypeAnnotationValue(annotation, attributes, "value");
@@ -517,7 +517,7 @@ public class ViewContext extends Context {
                     writer.println();
                 }
                 Utils.printIndent(writer, INDENT, 1);
-                for (AnnotationMirror annotationMirror : property.collectionAnnotations(this, AnnotationPos.FIELD, true)) {
+                for (AnnotationMirror annotationMirror : property.collectAnnotations(this, AnnotationPos.FIELD)) {
                     Utils.printAnnotation(writer, annotationMirror, this, INDENT, 1);
                     writer.println();
                 }
@@ -578,7 +578,7 @@ public class ViewContext extends Context {
                     writer.println();
                 }
                 Utils.printIndent(writer, INDENT, 1);
-                for (AnnotationMirror annotationMirror : property.collectionAnnotations(this, AnnotationPos.GETTER, true)) {
+                for (AnnotationMirror annotationMirror : property.collectAnnotations(this, AnnotationPos.GETTER)) {
                     Utils.printAnnotation(writer, annotationMirror, this, INDENT, 1);
                     writer.println();
                 }
@@ -624,7 +624,7 @@ public class ViewContext extends Context {
                     writer.println();
                 }
                 Utils.printIndent(writer, INDENT, 1);
-                for (AnnotationMirror annotationMirror : property.collectionAnnotations(this, AnnotationPos.SETTER, true)) {
+                for (AnnotationMirror annotationMirror : property.collectAnnotations(this, AnnotationPos.SETTER)) {
                     Utils.printAnnotation(writer, annotationMirror, this, INDENT, 1);
                     writer.println();
                 }

@@ -4,7 +4,8 @@ import java.lang.annotation.*;
 
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.SOURCE)
+@Repeatable(UnUseAnnotations.class)
 @Inherited
-public @interface UseAnnotations {
-    UseAnnotation[] value() default {};
+public @interface UnUseAnnotation {
+    Class<? extends Annotation>[] value() default {};
 }

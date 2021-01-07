@@ -28,6 +28,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
+import java.lang.annotation.Repeatable;
 import java.lang.annotation.Target;
 import java.lang.reflect.Array;
 import java.util.*;
@@ -450,9 +452,22 @@ public class Utils {
         T[] values = (T[]) Array.newInstance(enumType, annValues.size());
         int i = 0;
         for (AnnotationValue annValue : annValues) {
-            values[i++] = getEnum((String) annValue.getValue(), enumType);
+            VariableElement variableElement = (VariableElement) annValue.getValue();
+            TypeElement enumClass = (TypeElement) variableElement.getEnclosingElement();
+            String qName = enumClass.getQualifiedName() + "." + variableElement.getSimpleName();
+            values[i++] = getEnum(qName, enumType);
         }
         return values;
+    }
+
+    public static AnnotationMirror[] getAnnotationArrayAnnotationValue(@NonNull AnnotationMirror annotation, @NonNull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues, @NonNull String name) {
+        List<? extends AnnotationValue> annValues = getArrayAnnotationValue(annotation, annotationValues, name);
+        AnnotationMirror[] annotationMirrors = new AnnotationMirror[annValues.size()];
+        int i = 0;
+        for (AnnotationValue annValue : annValues) {
+            annotationMirrors[i++] = (AnnotationMirror) annValue.getValue();
+        }
+        return annotationMirrors;
     }
 
     public static List<AnnotationMirror> getAnnotationElement(AnnotationMirror annotation, @NonNull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues) {
@@ -848,35 +863,34 @@ public class Utils {
         return element.getQualifiedName().toString().equals(type.getCanonicalName());
     }
 
-    public static List<AnnotationMirror> getAnnotationsOn(@NonNull ProcessingEnvironment environment, @NonNull Element element, @NonNull Class<?> type, @CheckForNull Class<?> repeatContainerType) {
-        return getAnnotationsOn(environment, element, type, repeatContainerType, new HashSet<>());
+    public static List<AnnotationMirror> getAnnotationsOn(@NonNull Elements elements, @NonNull Element element, @NonNull Class<?> type, @CheckForNull Class<?> repeatContainerType) {
+        return getAnnotationsOn(elements, element, type, repeatContainerType, new HashSet<>(), true, true);
     }
 
-    public static List<AnnotationMirror> getAnnotationsOn(@NonNull ProcessingEnvironment environment, @NonNull Element element, @NonNull Class<?> type, @CheckForNull Class<?> repeatContainerType, boolean recursive) {
-        return getAnnotationsOn(environment, element, type, repeatContainerType, new HashSet<>(), recursive);
+    public static List<AnnotationMirror> getAnnotationsOn(@NonNull Elements elements, @NonNull Element element, @NonNull Class<?> type, @CheckForNull Class<?> repeatContainerType, boolean indirect) {
+        return getAnnotationsOn(elements, element, type, repeatContainerType, new HashSet<>(), indirect, true);
     }
 
-    private static List<AnnotationMirror> getAnnotationsOn(@NonNull ProcessingEnvironment environment, @NonNull Element element, @NonNull Class<?> type, @CheckForNull Class<?> repeatContainerType, @NonNull Set<Element> visited) {
-        return getAnnotationsOn(environment, element, type, repeatContainerType, visited, true);
+    public static List<AnnotationMirror> getAnnotationsOn(@NonNull Elements elements, @NonNull Element element, @NonNull Class<?> type, @CheckForNull Class<?> repeatContainerType, boolean indirect, boolean metaExtends) {
+        return getAnnotationsOn(elements, element, type, repeatContainerType, new HashSet<>(), indirect, metaExtends);
     }
 
-    private static List<AnnotationMirror> getAnnotationsOn(@NonNull ProcessingEnvironment environment, @NonNull Element element, @NonNull Class<?> type, @CheckForNull Class<?> repeatContainerType, @NonNull Set<Element> visited, boolean recursive) {
+    private static List<AnnotationMirror> getAnnotationsOn(@NonNull Elements elements,  @NonNull Element element, @NonNull Class<?> type, @CheckForNull Class<?> repeatContainerType, @NonNull Set<Element> visited, boolean indirect, boolean metaExtends) {
         if (visited.contains(element)) {
             return Collections.emptyList();
         }
         visited.add(element);
         List<AnnotationMirror> result = new ArrayList<>();
-        Elements elementUtils = environment.getElementUtils();
-        List<? extends AnnotationMirror> allAnnotations = elementUtils.getAllAnnotationMirrors(element);
+        List<? extends AnnotationMirror> allAnnotations = indirect ? getAllAnnotationMirrors(elements, element) : element.getAnnotationMirrors();
         for (AnnotationMirror annotation : allAnnotations) {
             if (isThisAnnotation(annotation, type)) {
                 result.add(annotation);
             } else if (repeatContainerType != null && isThisAnnotation(annotation, repeatContainerType)){
-                Map<? extends ExecutableElement, ? extends AnnotationValue> attributes = elementUtils.getElementValuesWithDefaults(annotation);
+                Map<? extends ExecutableElement, ? extends AnnotationValue> attributes = elements.getElementValuesWithDefaults(annotation);
                 List<AnnotationMirror> annotations = getAnnotationElement(annotation, attributes);
                 result.addAll(annotations);
-            } else if (recursive) {
-                result.addAll(getAnnotationsOn(environment, annotation.getAnnotationType().asElement(), type, repeatContainerType, visited, true));
+            } else if (metaExtends) {
+                result.addAll(getAnnotationsOn(elements, annotation.getAnnotationType().asElement(), type, repeatContainerType, visited, indirect, true));
             }
         }
         return result;
@@ -983,7 +997,7 @@ public class Utils {
         Set<? extends Element> proxySources = roundEnv.getElementsAnnotatedWith(GeneratedMeta.class);
         Map<String, TypeElement> configClasses = new HashMap<>();
         for (Element proxySource : proxySources) {
-            List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(proxySource);
+            List<? extends AnnotationMirror> annotationMirrors = proxySource.getAnnotationMirrors();
             for (AnnotationMirror annotationMirror : annotationMirrors) {
                 if (Utils.isThisAnnotation(annotationMirror, GeneratedMeta.class)) {
                     Map<? extends ExecutableElement, ? extends AnnotationValue> elementValuesWithDefaults = processingEnv.getElementUtils().getElementValuesWithDefaults(annotationMirror);
@@ -997,13 +1011,12 @@ public class Utils {
         }
         List<ViewOfData> out = new ArrayList<>();
         for (TypeElement configElement : configClasses.values()) {
-            List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(configElement);
+            List<? extends AnnotationMirror> annotationMirrors = configElement.getAnnotationMirrors();
             for (AnnotationMirror annotationMirror : annotationMirrors) {
                 if (Utils.isThisAnnotation(annotationMirror, ViewOf.class)) {
                     collectViewOfs(out, processingEnv, configElement, annotationMirror);
                 }
             }
-            annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(configElement);
             for (AnnotationMirror annotationMirror : annotationMirrors) {
                 if (Utils.isThisAnnotation(annotationMirror, ViewOfs.class)) {
                     Map<? extends ExecutableElement, ? extends AnnotationValue> elementValuesWithDefaults = processingEnv.getElementUtils().getElementValuesWithDefaults(annotationMirror);
@@ -1024,7 +1037,7 @@ public class Utils {
             if (Utils.shouldIgnoredElement(candidate)) {
                 continue;
             }
-            List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(candidate);
+            List<? extends AnnotationMirror> annotationMirrors = candidate.getAnnotationMirrors();
             for (AnnotationMirror annotationMirror : annotationMirrors) {
                 if (Utils.isThisAnnotation(annotationMirror, ViewOf.class)) {
                     collectViewOfs(out, processingEnv, (TypeElement) candidate, targetElement, annotationMirror);
@@ -1036,7 +1049,7 @@ public class Utils {
             if (Utils.shouldIgnoredElement(candidate)) {
                 continue;
             }
-            List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(candidate);
+            List<? extends AnnotationMirror> annotationMirrors = candidate.getAnnotationMirrors();
             for (AnnotationMirror annotationMirror : annotationMirrors) {
                 if (Utils.isThisAnnotation(annotationMirror, ViewOfs.class)) {
                     Map<? extends ExecutableElement, ? extends AnnotationValue> elementValuesWithDefaults = processingEnv.getElementUtils().getElementValuesWithDefaults(annotationMirror);
@@ -1085,19 +1098,83 @@ public class Utils {
         }
     }
 
+    public static List<AnnotationMirror> getRepeatableAnnotationComponents(@NonNull Elements elements, @NonNull AnnotationMirror annotation) {
+        TypeElement componentElement = getRepeatableAnnotationComponentElement(elements, annotation);
+        if (componentElement != null) {
+            Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues = elements.getElementValuesWithDefaults(annotation);
+            AnnotationMirror[] values = getAnnotationArrayAnnotationValue(annotation, annotationValues, "value");
+            return Arrays.asList(values);
+        }
+        return null;
+    }
+
+    private static TypeElement getRepeatableAnnotationContainerElement(@NonNull Elements elements, @NonNull TypeElement element) {
+        if (element.getKind() == ElementKind.ANNOTATION_TYPE) {
+            List<AnnotationMirror> repeatableList = getAnnotationsOn(elements, element, Repeatable.class, null, false, false);
+            if (!repeatableList.isEmpty()) {
+                AnnotationMirror repeatable = repeatableList.get(0);
+                Map<? extends ExecutableElement, ? extends AnnotationValue> annValues = repeatable.getElementValues();
+                AnnotationValue annValue = annValues.values().iterator().next();
+                DeclaredType repeatableAnnotationType = (DeclaredType) annValue.getValue();
+                return toElement(repeatableAnnotationType);
+            }
+        }
+        return null;
+    }
+
+    public static TypeElement getRepeatableAnnotationComponentElement(@NonNull Elements elements, AnnotationMirror annotation) {
+        TypeElement typeElement = Utils.toElement(annotation.getAnnotationType());
+        Map<? extends ExecutableElement, ? extends AnnotationValue> elementValues = elements.getElementValuesWithDefaults(annotation);
+        if (elementValues.size() == 1) {
+            ExecutableElement key = elementValues.keySet().iterator().next();
+            if (key.getSimpleName().toString().equals("value")) {
+                TypeMirror returnType = key.getReturnType();
+                if (returnType.getKind() == TypeKind.ARRAY) {
+                    ArrayType arrayType = (ArrayType) returnType;
+                    TypeMirror componentType = arrayType.getComponentType();
+                    if (componentType.getKind() == TypeKind.DECLARED) {
+                        TypeElement componentElement = toElement((DeclaredType) componentType);
+                        TypeElement containerElement = getRepeatableAnnotationContainerElement(elements, componentElement);
+                        if (containerElement != null && containerElement.getQualifiedName().toString().equals(typeElement.getQualifiedName().toString())) {
+                            return componentElement;
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    public static boolean isAnnotationRepeatable(@NonNull Elements elements, AnnotationMirror annotation) {
+        return !getAnnotationsOn(elements, annotation.getAnnotationType().asElement(), Repeatable.class, null, false, false).isEmpty();
+    }
+
+    public static boolean isAnnotationInheritable(@NonNull Elements elements, AnnotationMirror annotation) {
+        List<AnnotationMirror> inheritedList = getAnnotationsOn(elements, annotation.getAnnotationType().asElement(), Inherited.class, null, false, false);
+        if (!inheritedList.isEmpty()) {
+            return true;
+        }
+        TypeElement componentElement = getRepeatableAnnotationComponentElement(elements, annotation);
+        if (componentElement != null) {
+            return !getAnnotationsOn(elements, componentElement, Inherited.class, null, false, false).isEmpty();
+        } else {
+            return false;
+        }
+    }
+
     @CheckForNull
-    public static List<ElementType> getAnnotationTarget(ProcessingEnvironment environment, AnnotationMirror annotation) {
-        List<AnnotationMirror> targets = getAnnotationsOn(environment, annotation.getAnnotationType().asElement(), Target.class, null, false);
+    public static List<ElementType> getAnnotationTarget(@NonNull Elements elements, @NonNull AnnotationMirror annotation) {
+        List<AnnotationMirror> targets = getAnnotationsOn(elements, annotation.getAnnotationType().asElement(), Target.class, null, false, false);
         if (targets.isEmpty()) {
             return null;
         }
         AnnotationMirror target = targets.get(0);
-        Map<? extends ExecutableElement, ? extends AnnotationValue> values = environment.getElementUtils().getElementValuesWithDefaults(target);
+        Map<? extends ExecutableElement, ? extends AnnotationValue> values = elements.getElementValuesWithDefaults(target);
         return Arrays.asList(getEnumArrayAnnotationValue(target, values, "value", ElementType.class));
     }
 
-    public static boolean annotationCanPutOn(ProcessingEnvironment environment, AnnotationMirror annotation, ElementType elementType) {
-        List<ElementType> types = getAnnotationTarget(environment, annotation);
+    public static boolean annotationCanPutOn(@NonNull Elements elements, @NonNull AnnotationMirror annotation, @NonNull ElementType elementType) {
+        List<ElementType> types = getAnnotationTarget(elements, annotation);
         if (types == null) {
             return elementType != ElementType.TYPE_PARAMETER;
         }
@@ -1154,5 +1231,31 @@ public class Utils {
         for (AnnotationValue annValue : annValues.values()) {
             importAnnotationValue(context, annValue);
         }
+    }
+
+    public static List<AnnotationMirror> getAllAnnotationMirrors(@NonNull Elements elements, @NonNull Element element) {
+        return getAllAnnotationMirrors(elements, element, true);
+    }
+
+    private static List<AnnotationMirror> getAllAnnotationMirrors(@NonNull Elements elements, @NonNull Element element, boolean direct) {
+        List<AnnotationMirror> results = new LinkedList<>();
+        if (direct) {
+            results.addAll(element.getAnnotationMirrors());
+        } else {
+            for (AnnotationMirror annotationMirror : element.getAnnotationMirrors()) {
+             if (isAnnotationInheritable(elements, annotationMirror)) {
+                 results.add(annotationMirror);
+             }
+            }
+        }
+        if (element.getKind() == ElementKind.CLASS) {
+            TypeElement typeElement = (TypeElement) element;
+            TypeMirror superclass = typeElement.getSuperclass();
+            if (superclass.getKind() != TypeKind.NONE) {
+                DeclaredType declaredType = (DeclaredType) superclass;
+                results.addAll(0, getAllAnnotationMirrors(elements, declaredType.asElement(), false));
+            }
+        }
+        return results;
     }
 }
