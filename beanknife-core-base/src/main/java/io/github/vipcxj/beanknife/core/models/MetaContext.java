@@ -61,7 +61,7 @@ public class MetaContext extends Context {
                 addProperty(property, false);
             }
         }
-        getProperties().removeIf(property -> !Utils.canSeeFromOtherClass(property, true));
+        getProperties().removeIf(property -> Utils.canNotSeeFromOtherClass(property, true));
         importAll();
     }
 

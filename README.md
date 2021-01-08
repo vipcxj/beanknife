@@ -556,36 +556,36 @@ public class BeanBView {
 #### Inheritance of configuration
 Although `@ViewOf` cannot be inherited, many other configuration elements can be inherited.
 Such as the configuration bean itself.
-```java
-@UseAnnotation(JsonProperty.class)
-@RemoveViewProperty("someCommonUnusedProperty")
-class BaseConfigure {
-    // add a new property named "type" which is the name of the original class name.
-    // here we use 'Object' as the type of argument source, 
-    // because this is not a real configuration class, because there is no ViewOf annotating it.
-    // It may be inherited by many different configuration class, and their original class are different.  
-    @NewViewProperty("type")
-    public static String type(Object source) {
-        return source.getClass().getName();
-    }
-}
+See [Leaf11BeanViewConfigure](/beanknife-examples/src/main/java/io/github/vipcxj/beanknife/cases/beans/Leaf11BeanViewConfigure.java), 
+[Leaf12BeanViewConfigure](/beanknife-examples/src/main/java/io/github/vipcxj/beanknife/cases/beans/Leaf12BeanViewConfigure.java) 
+and [Leaf21BeanViewConfigure](/beanknife-examples/src/main/java/io/github/vipcxj/beanknife/cases/beans/Leaf21BeanViewConfigure.java)
 
-@ViewOf(value = ABean.class, includesPattern = ".*")
-class ARealConfigure extends BaseConfigure {
-}
-```
-Then `ARealConfigure` is equal to
-```java
-@UseAnnotation(JsonProperty.class)
-@RemoveViewProperty("someCommonUnusedProperty")
-@ViewOf(value = ABean.class, includesPattern = ".*")
-class ARealConfigure extends BaseConfigure {
-    @NewViewProperty("type")
-    public static String type(Object source) {
-        return source.getClass().getName();
-    }
-}
-```
+Almost all attributes of `@ViewOf` has a standalone version annotation. They all can be inherited.
+
+| attribute               | standalone annotation           | merge method  | value on child  | value on base    | final value                 |
+|-------------------------|---------------------------------|---------------|-----------------|------------------|-----------------------------|
+| `access`                | `ViewAccess`                    | override      | `Access.NONE`   | `Access.PUBLIC`  | `Access.NONE`               |
+| `includes`              | `ViewPropertiesInclude`         | union         | `{"a", "b"}`    | `{"b", "c"}`     | `{"b", "c", "a", "b"}`      | 
+| `excludes`              | `ViewPropertiesExclude`         | union         | `{"a", "b"}`    | `{"b", "c"}`     | `{"b", "c", "a", "b"}`      | 
+| `includePattern`        | `ViewPropertiesIncludePattern`  | append        | `"[aA]pple\\d"` | `"[oO]range\\d"` | `"[oO]range\\d [aA]pple\\d"`|
+| `excludePattern`        | `ViewPropertiesExcludePattern`  | append        | `"[aA]pple\\d"` | `"[oO]range\\d"` | `"[oO]range\\d [aA]pple\\d"`|
+| `emptyConstructor`      | `ViewEmptyConstructor`          | override      | `Access.NONE`   | `Access.PUBLIC`  | `Access.NONE`               |
+| `fieldsConstructor`     | `ViewFieldsConstructor`         | override      | `Access.NONE`   | `Access.PUBLIC`  | `Access.NONE`               |
+| `copyConstructor`       | `ViewCopyConstructor`           | override      | `Access.NONE`   | `Access.PUBLIC`  | `Access.NONE`               |
+| `readConstructor`       | `ViewReadConstructor`           | override      | `Access.NONE`   | `Access.PUBLIC`  | `Access.NONE`               |
+| `getters`               | `ViewGetters`                   | override      | `Access.NONE`   | `Access.PUBLIC`  | `Access.NONE`               |
+| `setters`               | `ViewSetters`                   | override      | `Access.NONE`   | `Access.PUBLIC`  | `Access.NONE`               |
+| `errorMethods`          | `ViewErrorMethods`              | override      | `false`         | `true`           | `false`                     |
+| `serializable`          | `ViewSerializable`              | override      | `false`         | `true`           | `false`                     |
+| `serialVersionUID`      | `ViewSerialVersionUID`          | override      | `1L`            | `0L`             | `1L`                        |
+| `useDefaultBeanProvider`| `ViewUseDefaultBeanProvider`    | override      | `false`         | `true`           | `false`                     |
+| `configureBeanCacheType`| `ViewConfigureBeanCacheType`    | override      | `CacheType.NONE`| `CacheType.LOCAL`| `CacheType.NONE`            |
+
+---
+**NOTE**
+The attribute of `ViewOf` has a higher priority than standalone annotation.
+---
+
 Through configuration inheritance, we can extract the common configuration into a single class, which will greatly simplify our configuration work.
 
 #### Inheritance of annotation

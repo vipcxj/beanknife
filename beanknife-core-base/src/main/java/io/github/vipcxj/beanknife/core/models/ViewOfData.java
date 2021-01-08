@@ -2,10 +2,7 @@ package io.github.vipcxj.beanknife.core.models;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.github.vipcxj.beanknife.core.utils.Utils;
-import io.github.vipcxj.beanknife.runtime.annotations.Access;
-import io.github.vipcxj.beanknife.runtime.annotations.RemoveViewProperties;
-import io.github.vipcxj.beanknife.runtime.annotations.RemoveViewProperty;
-import io.github.vipcxj.beanknife.runtime.annotations.ViewOf;
+import io.github.vipcxj.beanknife.runtime.annotations.*;
 import io.github.vipcxj.beanknife.runtime.utils.AnnotationDest;
 import io.github.vipcxj.beanknife.runtime.utils.AnnotationSource;
 import io.github.vipcxj.beanknife.runtime.utils.CacheType;
@@ -17,6 +14,7 @@ import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.util.Elements;
 import java.io.PrintWriter;
+import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -56,7 +54,8 @@ public class ViewOfData {
     }
 
     public void load(@NonNull ProcessingEnvironment environment, @NonNull AnnotationMirror viewOf, @NonNull TypeElement sourceElement) {
-        Map<? extends ExecutableElement, ? extends AnnotationValue> annValues = environment.getElementUtils().getElementValuesWithDefaults(viewOf);
+        Elements elements = environment.getElementUtils();
+        Map<? extends ExecutableElement, ? extends AnnotationValue> annValues = elements.getElementValuesWithDefaults(viewOf);
         this.viewOf = viewOf;
         this.sourceElement = sourceElement;
         DeclaredType value = Utils.getTypeAnnotationValue(viewOf, annValues, "value");
@@ -70,32 +69,119 @@ public class ViewOfData {
             this.configElement = sourceElement;
         }
         this.genPackage = Utils.getStringAnnotationValue(viewOf, annValues, "genPackage");
-        this.genName = Utils.getStringAnnotationValue(viewOf, annValues, "genName");
-        this.access = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "access"));
-        this.includes = Utils.getStringArrayAnnotationValue(viewOf, annValues, "includes");
-        this.excludes = Utils.getStringArrayAnnotationValue(viewOf, annValues, "excludes");
-        this.includePattern = Utils.getStringAnnotationValue(viewOf, annValues, "includePattern");
-        this.excludePattern = Utils.getStringAnnotationValue(viewOf, annValues, "excludePattern");
-        this.emptyConstructor = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "emptyConstructor"));
-        this.fieldsConstructor = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "fieldsConstructor"));
-        this.copyConstructor = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "copyConstructor"));
-        this.readConstructor = getModifier(Utils.getEnumAnnotationValue(viewOf, annValues, "readConstructor"));
-        this.getters = getAccess(Utils.getEnumAnnotationValue(viewOf, annValues, "getters"));
-        this.setters = getAccess(Utils.getEnumAnnotationValue(viewOf, annValues, "setters"));
-        this.errorMethods = Utils.getBooleanAnnotationValue(viewOf, annValues, "errorMethods");
-        this.serializable = Utils.getBooleanAnnotationValue(viewOf, annValues, "serializable");
-        this.serialVersionUID = Utils.getLongAnnotationValue(viewOf, annValues, "serialVersionUID");
-        this.useDefaultBeanProvider = Utils.getBooleanAnnotationValue(viewOf, annValues, "useDefaultBeanProvider");
-        this.configureBeanCacheType = getCacheType(Utils.getEnumAnnotationValue(viewOf, annValues, "configureBeanCacheType"));
+        this.genName = loadGenName(elements);
+        this.access = getModifier(loadEnum(elements, "access", Access.PUBLIC, Access.class, ViewAccess.class));
+        this.includes = loadStringArray(elements, "includes", ViewPropertiesInclude.class, ViewPropertiesIncludes.class);
+        this.excludes = loadStringArray(elements, "excludes", ViewPropertiesExclude.class, ViewPropertiesExcludes.class);
+        this.includePattern = loadPattern(elements, "includePattern", ViewPropertiesIncludePattern.class, ViewPropertiesIncludePatterns.class);
+        this.excludePattern = loadPattern(elements, "excludePattern", ViewPropertiesExcludePattern.class, ViewPropertiesExcludePatterns.class);
+        this.emptyConstructor = getModifier(loadEnum(elements, "emptyConstructor", Access.PUBLIC, Access.class, ViewEmptyConstructor.class));
+        this.fieldsConstructor = getModifier(loadEnum(elements, "fieldsConstructor", Access.PUBLIC, Access.class, ViewFieldsConstructor.class));
+        this.copyConstructor = getModifier(loadEnum(elements, "copyConstructor", Access.PUBLIC, Access.class, ViewCopyConstructor.class));
+        this.readConstructor = getModifier(loadEnum(elements, "readConstructor", Access.PUBLIC, Access.class, ViewReadConstructor.class));
+        this.getters = loadEnum(elements, "getters", Access.PUBLIC, Access.class, ViewGetters.class);
+        this.setters = loadEnum(elements, "setters", Access.NONE, Access.class, ViewSetters.class);
+        this.errorMethods = loadBoolean(elements, "errorMethods", true, ViewErrorMethods.class);
+        this.serializable = loadBoolean(elements, "serializable", false, ViewSerializable.class);
+        this.serialVersionUID = loadSerialVersionUID(elements);
+        this.useDefaultBeanProvider = loadBoolean(elements, "useDefaultBeanProvider", false, ViewUseDefaultBeanProvider.class);
+        this.configureBeanCacheType = loadEnum(elements, "configureBeanCacheType", CacheType.LOCAL, CacheType.class, ViewConfigureBeanCacheType.class);
         this.extraExcludes = new ArrayList<>();
-        List<AnnotationMirror> removeViewProperties = Utils.getAnnotationsOn(environment.getElementUtils(), configElement, RemoveViewProperty.class, RemoveViewProperties.class);
+        List<AnnotationMirror> removeViewProperties = Utils.getAnnotationsOn(elements, configElement, RemoveViewProperty.class, RemoveViewProperties.class);
         for (AnnotationMirror removeViewProperty : removeViewProperties) {
-            Map<? extends ExecutableElement, ? extends AnnotationValue> values = environment.getElementUtils().getElementValuesWithDefaults(removeViewProperty);
+            Map<? extends ExecutableElement, ? extends AnnotationValue> values = elements.getElementValuesWithDefaults(removeViewProperty);
             String exclude = Utils.getStringAnnotationValue(removeViewProperty, values, "value");
             this.extraExcludes.add(exclude);
         }
-        this.useAnnotations = AnnotationUsage.collectAnnotationUsages(environment.getElementUtils(), configElement, null);
-        collectAnnotations(environment.getElementUtils());
+        this.useAnnotations = AnnotationUsage.collectAnnotationUsages(elements, configElement, null);
+        collectAnnotations(elements);
+    }
+
+    private String loadGenName(Elements elements) {
+        String genName = Utils.getStringAnnotationValue(viewOf, "genName");
+        if (genName != null ) {
+            return genName;
+        }
+        List<AnnotationMirror> mappers = Utils.getAnnotationsOn(elements, configElement, ViewGenNameMapper.class, null, true, false);
+        if (!mappers.isEmpty()) {
+            AnnotationMirror mapperAnnotation = mappers.get(mappers.size() - 1);
+            String mapper = Utils.getStringAnnotationValue(mapperAnnotation, "value");
+            if (mapper != null) {
+                return mapper.replaceAll("\\$\\{name}", targetElement.getSimpleName().toString());
+            }
+        }
+        return "";
+    }
+
+    private <T extends Enum<T>> T loadEnum(Elements elements, String name, T defaultValue, Class<T> enumType, Class<? extends Annotation> annotationType) {
+        T access = Utils.getEnumAnnotationValue(viewOf, name, enumType);
+        if (access == null) {
+            List<AnnotationMirror> accessAnnotations = Utils.getAnnotationsOn(elements, configElement, annotationType, null, true, false);
+            if (!accessAnnotations.isEmpty()) {
+                access = Utils.getEnumAnnotationValue(accessAnnotations.get(accessAnnotations.size() - 1), "value", enumType);
+            }
+        }
+        if (access == null) {
+            access = defaultValue;
+        }
+        return access;
+    }
+
+    private boolean loadBoolean(Elements elements, String name, boolean defaultValue, Class<? extends Annotation> annotationType) {
+        Boolean objValue = Utils.getBooleanAnnotationValue(viewOf, name);
+        if (objValue == null) {
+            List<AnnotationMirror> annotations = Utils.getAnnotationsOn(elements, configElement, annotationType, null, true, false);
+            if (!annotations.isEmpty()) {
+                objValue = Utils.getBooleanAnnotationValue(annotations.get(annotations.size() - 1), "value");
+            }
+        }
+        return objValue != null ? objValue : defaultValue;
+    }
+
+    private long loadSerialVersionUID(Elements elements) {
+        Long objValue = Utils.getLongAnnotationValue(viewOf, "serialVersionUID");
+        if (objValue == null) {
+            List<AnnotationMirror> annotations = Utils.getAnnotationsOn(elements, configElement, ViewSerialVersionUID.class, null, true, false);
+            if (!annotations.isEmpty()) {
+                objValue = Utils.getLongAnnotationValue(annotations.get(annotations.size() - 1), "value");
+            }
+        }
+        return objValue != null ? objValue : 0L;
+    }
+
+    private String[] loadStringArray(Elements elements, String name, Class<? extends Annotation> annotationType, Class<? extends Annotation> annotationsType) {
+        List<String> values = Utils.getStringArrayAnnotationValue(viewOf, name);
+        if (values == null) {
+            values = new ArrayList<>();
+            List<AnnotationMirror> annotations = Utils.getAnnotationsOn(elements, configElement, annotationType, annotationsType, true, false);
+            for (AnnotationMirror annotation : annotations) {
+                List<String> value = Utils.getStringArrayAnnotationValue(annotation, "value");
+                if (value != null) {
+                    values.addAll(value);
+                }
+            }
+        }
+        return values.toArray(new String[0]);
+    }
+
+    private String loadPattern(Elements elements, String name, Class<? extends Annotation> annotationType, Class<? extends Annotation> annotationsType) {
+        String value = Utils.getStringAnnotationValue(viewOf, name);
+        if (value == null) {
+            StringBuilder sb = new StringBuilder();
+            List<AnnotationMirror> annotations = Utils.getAnnotationsOn(elements, configElement, annotationType, annotationsType, true, false);
+            for (AnnotationMirror annotation : annotations) {
+                String part = Utils.getStringAnnotationValue(annotation, "value");
+                if (part != null) {
+                    if (sb.length() == 0) {
+                        sb.append(part);
+                    } else {
+                        sb.append(" ").append(part);
+                    }
+                }
+            }
+            value = sb.toString();
+        }
+        return value;
     }
 
     private void addAnnotation(@NonNull Elements elements, @NonNull AnnotationMirror annotationMirror, AnnotationSource source) {
@@ -141,47 +227,18 @@ public class ViewOfData {
         load(environment, this.viewOf, this.sourceElement);
     }
 
-    private static Modifier getModifier(String modifier) {
-        if ("io.github.vipcxj.beanknife.runtime.annotations.Access.PUBLIC".equals(modifier)) {
-            return Modifier.PUBLIC;
-        } else if ("io.github.vipcxj.beanknife.runtime.annotations.Access.PRIVATE".equals(modifier)) {
-            return Modifier.PRIVATE;
-        } else if ("io.github.vipcxj.beanknife.runtime.annotations.Access.PROTECTED".equals(modifier)) {
-            return Modifier.PROTECTED;
-        } else if ("io.github.vipcxj.beanknife.runtime.annotations.Access.DEFAULT".equals(modifier)) {
-            return Modifier.DEFAULT;
-        } else if ("io.github.vipcxj.beanknife.runtime.annotations.Access.NONE".equals(modifier)) {
-            return null;
-        } else {
-            throw new IllegalArgumentException("This is impossible!");
-        }
-    }
-
-    public static Access getAccess(String qName) {
-        if ("io.github.vipcxj.beanknife.runtime.annotations.Access.PUBLIC".equals(qName)) {
-            return Access.PUBLIC;
-        } else if ("io.github.vipcxj.beanknife.runtime.annotations.Access.PRIVATE".equals(qName)) {
-            return Access.PRIVATE;
-        } else if ("io.github.vipcxj.beanknife.runtime.annotations.Access.PROTECTED".equals(qName)) {
-            return Access.PROTECTED;
-        } else if ("io.github.vipcxj.beanknife.runtime.annotations.Access.DEFAULT".equals(qName)) {
-            return Access.DEFAULT;
-        } else if ("io.github.vipcxj.beanknife.runtime.annotations.Access.NONE".equals(qName)) {
-            return Access.NONE;
-        } else if ("io.github.vipcxj.beanknife.runtime.annotations.Access.UNKNOWN".equals(qName)) {
-            return Access.UNKNOWN;
-        } else {
-            throw new IllegalArgumentException("This is impossible!");
-        }
-    }
-
-    public static CacheType getCacheType(String qName) {
-        if ("io.github.vipcxj.beanknife.runtime.utils.CacheType.NONE".equals(qName)) {
-            return CacheType.NONE;
-        } else if ("io.github.vipcxj.beanknife.runtime.utils.CacheType.LOCAL".equals(qName)) {
-            return CacheType.LOCAL;
-        } else {
-            return CacheType.GLOBAL;
+    private static Modifier getModifier(Access access) {
+        switch (access) {
+            case PUBLIC:
+                return Modifier.PUBLIC;
+            case PRIVATE:
+                return Modifier.PRIVATE;
+            case PROTECTED:
+                return Modifier.PROTECTED;
+            case DEFAULT:
+                return Modifier.DEFAULT;
+            default:
+                return null;
         }
     }
 

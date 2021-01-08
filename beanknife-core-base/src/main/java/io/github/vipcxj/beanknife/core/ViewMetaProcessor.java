@@ -38,12 +38,7 @@ public class ViewMetaProcessor extends AbstractProcessor {
                 Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
                 for (Element element : elements) {
                     if (element.getKind() == ElementKind.CLASS) {
-                        List<AnnotationMirror> annotationMirrors = Utils.extractAnnotations(
-                                processingEnv,
-                                element,
-                                "io.github.vipcxj.beanknife.runtime.annotations.ViewMeta",
-                                "io.github.vipcxj.beanknife.runtime.annotations.ViewMetas"
-                        );
+                        List<AnnotationMirror> annotationMirrors = Utils.getAnnotationsOn(processingEnv.getElementUtils(), element, ViewMeta.class, ViewMetas.class, false, false);
                         TypeElement configElement = (TypeElement) element;
                         Set<String> targetClassNames = new HashSet<>();
                         for (AnnotationMirror annotationMirror : annotationMirrors) {

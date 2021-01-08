@@ -33,6 +33,7 @@ import java.lang.annotation.Repeatable;
 import java.lang.annotation.Target;
 import java.lang.reflect.Array;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Utils {
 
@@ -237,8 +238,8 @@ public class Utils {
         }
     }
 
-    public static boolean canSeeFromOtherClass(Property property, boolean samePackage) {
-        return canSeeFromOtherClass(property.getModifier(), samePackage);
+    public static boolean canNotSeeFromOtherClass(Property property, boolean samePackage) {
+        return !canSeeFromOtherClass(property.getModifier(), samePackage);
     }
 
     public static boolean canSeeFromOtherClass(Element element, boolean samePackage) {
@@ -259,32 +260,61 @@ public class Utils {
         return toElement(mirror.getAnnotationType()).getQualifiedName().toString();
     }
 
-    @NonNull
-    public static List<AnnotationMirror> extractAnnotations(
-            @NonNull ProcessingEnvironment environment,
-            @NonNull Element element,
-            @NonNull String qName,
-            @CheckForNull String qNames
-    ) {
-        if (qName.isEmpty()) {
-            return Collections.emptyList();
-        }
-        if (qNames != null && qNames.equals(qName)) {
-            throw new IllegalArgumentException("Annotation and Annotations can not be equal: " + qName + ".");
-        }
-        List<? extends AnnotationMirror> annotationMirrors = element.getAnnotationMirrors();
-        List<AnnotationMirror> result = new ArrayList<>();
-        for (AnnotationMirror annotationMirror : annotationMirrors) {
-            String name = getAnnotationName(annotationMirror);
-            if (qName.equals(name)) {
-                result.add(annotationMirror);
-            }
-            if (qNames != null && qNames.equals(name)) {
-                Map<? extends ExecutableElement, ? extends AnnotationValue> anValues = environment.getElementUtils().getElementValuesWithDefaults(annotationMirror);
-                result.addAll(getAnnotationElement(annotationMirror, anValues));
+    @CheckForNull
+    public static AnnotationValue getAnnotationValue(@NonNull AnnotationMirror annotation, @NonNull String name) {
+        for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : annotation.getElementValues().entrySet()) {
+            if (name.equals(entry.getKey().getSimpleName().toString())) {
+                return entry.getValue();
             }
         }
-        return result;
+        return null;
+    }
+
+    @CheckForNull
+    public static String getStringAnnotationValue(@NonNull AnnotationMirror annotation, @NonNull String name) {
+        AnnotationValue annotationValue = getAnnotationValue(annotation, name);
+        if (annotationValue == null) {
+            return null;
+        }
+        return (String) annotationValue.getValue();
+    }
+
+    @CheckForNull
+    public static <T extends Enum<T>> T getEnumAnnotationValue(@NonNull AnnotationMirror annotation, @NonNull String name, Class<T> enumType) {
+        AnnotationValue annotationValue = getAnnotationValue(annotation, name);
+        if (annotationValue == null) {
+            return null;
+        }
+        return toEnum(annotationValue, enumType);
+    }
+
+    @CheckForNull
+    public static Boolean getBooleanAnnotationValue(@NonNull AnnotationMirror annotation, @NonNull String name) {
+        AnnotationValue annotationValue = getAnnotationValue(annotation, name);
+        if (annotationValue == null) {
+            return null;
+        }
+        return (Boolean) annotationValue.getValue();
+    }
+
+    @CheckForNull
+    public static Long getLongAnnotationValue(@NonNull AnnotationMirror annotation, @NonNull String name) {
+        AnnotationValue annotationValue = getAnnotationValue(annotation, name);
+        if (annotationValue == null) {
+            return null;
+        }
+        return (Long) annotationValue.getValue();
+    }
+
+    @CheckForNull
+    public static List<String> getStringArrayAnnotationValue(@NonNull AnnotationMirror annotation, @NonNull String name) {
+        AnnotationValue annotationValue = getAnnotationValue(annotation, name);
+        if (annotationValue == null) {
+            return null;
+        }
+        //noinspection unchecked
+        List<? extends AnnotationValue> arrayValue = (List<? extends AnnotationValue>) annotationValue.getValue();
+        return arrayValue.stream().map(value -> (String) value.getValue()).collect(Collectors.toList());
     }
 
     public static AnnotationValue getAnnotationValue(AnnotationMirror annotation, @NonNull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues, @NonNull String name) {
@@ -294,6 +324,27 @@ public class Utils {
             }
         }
         throw new IllegalArgumentException("There is no attribute named \"" + name + "\" in annotation " + getAnnotationName(annotation));
+    }
+
+    private static String toEnumString(AnnotationValue annotationValue) {
+        VariableElement variableElement = (VariableElement) annotationValue.getValue();
+        TypeElement enumClass = (TypeElement) variableElement.getEnclosingElement();
+        return enumClass.getQualifiedName() + "." + variableElement.getSimpleName();
+    }
+
+    @CheckForNull
+    private static <T extends Enum<T>> T getEnum(String qName, Class<T> type) {
+        String typeName = type.getName();
+        for (T constant : type.getEnumConstants()) {
+            if (Objects.equals(qName, typeName + "." + constant.name())) {
+                return constant;
+            }
+        }
+        return null;
+    }
+
+    private static <T extends Enum<T>> T toEnum(AnnotationValue annotationValue, Class<T> enumType) {
+        return getEnum(toEnumString(annotationValue), enumType);
     }
 
     public enum AnnotationValueKind {
@@ -390,9 +441,7 @@ public class Utils {
         AnnotationValue annotationValue = getAnnotationValue(annotation, annotationValues, name);
         AnnotationValueKind kind = getAnnotationValueType(annotationValue);
         if (kind == AnnotationValueKind.ENUM) {
-            VariableElement variableElement = (VariableElement) annotationValue.getValue();
-            TypeElement enumClass = (TypeElement) variableElement.getEnclosingElement();
-            return enumClass.getQualifiedName() + "." + variableElement.getSimpleName();
+            return toEnumString(annotationValue);
         }
         throwCastAnnotationValueTypeError(annotation, name, kind, AnnotationValueKind.ENUM);
         throw new IllegalArgumentException("This is impossible.");
@@ -402,17 +451,6 @@ public class Utils {
     public static <T extends Enum<T>> T getEnumAnnotationValue(@NonNull AnnotationMirror annotation, @NonNull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues, @NonNull String name, @NonNull Class<T> enumType) {
         String qName = getEnumAnnotationValue(annotation, annotationValues, name);
         return Objects.requireNonNull(getEnum(qName, enumType));
-    }
-
-    @CheckForNull
-    private static <T extends Enum<T>> T getEnum(String qName, Class<T> type) {
-        String typeName = type.getName();
-        for (T constant : type.getEnumConstants()) {
-            if (Objects.equals(qName, typeName + "." + constant.name())) {
-                return constant;
-            }
-        }
-        return null;
     }
 
     public static List<? extends AnnotationValue> getArrayAnnotationValue(@NonNull AnnotationMirror annotation, @NonNull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues, @NonNull String name) {

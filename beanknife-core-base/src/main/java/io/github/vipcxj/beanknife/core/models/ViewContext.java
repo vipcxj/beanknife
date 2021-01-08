@@ -140,7 +140,7 @@ public class ViewContext extends Context {
                 );
             }
         }
-        getProperties().removeIf(property -> !Utils.canSeeFromOtherClass (property, samePackage)
+        getProperties().removeIf(property -> Utils.canNotSeeFromOtherClass(property, samePackage)
                 || (includePatterns.stream().noneMatch(pattern -> pattern.matcher(property.getName()).matches())
                 && Arrays.stream(viewOf.getIncludes()).noneMatch(include -> include.equals(property.getName())))
                 || excludePatterns.stream().anyMatch(pattern -> pattern.matcher(property.getName()).matches())

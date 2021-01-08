@@ -8,6 +8,8 @@ import io.github.vipcxj.beanknife.core.models.ViewOfData;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 import io.github.vipcxj.beanknife.runtime.annotations.ViewMeta;
 import io.github.vipcxj.beanknife.runtime.annotations.ViewMetas;
+import io.github.vipcxj.beanknife.runtime.annotations.ViewOf;
+import io.github.vipcxj.beanknife.runtime.annotations.ViewOfs;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -38,12 +40,7 @@ public class ViewOfProcessor extends AbstractProcessor {
                 Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
                 for (Element element : elements) {
                     if (element.getKind() == ElementKind.CLASS) {
-                        List<AnnotationMirror> annotationMirrors = Utils.extractAnnotations(
-                                processingEnv,
-                                element,
-                                "io.github.vipcxj.beanknife.runtime.annotations.ViewOf",
-                                "io.github.vipcxj.beanknife.runtime.annotations.ViewOfs"
-                        );
+                        List<AnnotationMirror> annotationMirrors = Utils.getAnnotationsOn(processingEnv.getElementUtils(), element, ViewOf.class, ViewOfs.class, false, false);
                         TypeElement typeElement = (TypeElement) element;
                         Set<String> metaClassNames = new HashSet<>();
                         for (AnnotationMirror annotationMirror : annotationMirrors) {
