@@ -583,7 +583,9 @@ Almost all attributes of `@ViewOf` has a standalone version annotation. They all
 
 ---
 **NOTE**
+
 The attribute of `ViewOf` has a higher priority than standalone annotation.
+
 ---
 
 Through configuration inheritance, we can extract the common configuration into a single class, which will greatly simplify our configuration work.
@@ -895,6 +897,7 @@ The default bean provider will use the empty constructor to instantiate the conf
 
 This plugin provide a bean provider which lookup the bean in the spring application context. So with it, 
 you can use a spring component to configure the DTO generation.
+
 ---
 **NOTE**
 
