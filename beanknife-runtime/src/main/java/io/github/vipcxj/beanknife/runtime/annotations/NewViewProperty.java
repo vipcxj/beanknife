@@ -22,7 +22,7 @@ import java.lang.annotation.Target;
  * However the dynamic property is calculated in the getter method, and has not a related field in the generated class.
  *
  */
-@Target(ElementType.METHOD)
+@Target({ ElementType.FIELD, ElementType.METHOD })
 @Retention(RetentionPolicy.SOURCE)
 public @interface NewViewProperty {
     /**

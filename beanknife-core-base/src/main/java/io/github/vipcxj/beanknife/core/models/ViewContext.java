@@ -3,6 +3,7 @@ package io.github.vipcxj.beanknife.core.models;
 import com.sun.source.util.Trees;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.github.vipcxj.beanknife.core.utils.Utils;
+import io.github.vipcxj.beanknife.core.utils.VarMapper;
 import io.github.vipcxj.beanknife.runtime.BeanProviders;
 import io.github.vipcxj.beanknife.runtime.PropertyConverter;
 import io.github.vipcxj.beanknife.runtime.annotations.*;
@@ -209,8 +210,27 @@ public class ViewContext extends Context {
                             }
                         });
                         getProperties().removeIf(Objects::isNull);
-                    } else {
-                        throw new IllegalStateException("This is impossible!");
+                    } else if (newViewProperty != null) {
+                        String name = newViewProperty.value();
+                        Type type = Type.extract(this, member);
+                        Access getterAccess = Utils.resolveGetterAccess(viewOf, newViewProperty.getter());
+                        Access setterAccess = Utils.resolveSetterAccess(viewOf, newViewProperty.setter());
+                        Modifier modifier = Utils.accessToModifier(getterAccess);
+                        Property property = new Property(
+                                newViewProperty.value(),
+                                false,
+                                modifier,
+                                getterAccess,
+                                setterAccess,
+                                type,
+                                false,
+                                Utils.createGetterName(name, type.isBoolean()),
+                                Utils.createSetterName(name, type.isBoolean()),
+                                false,
+                                member,
+                                getProcessingEnv().getElementUtils().getDocComment(member)
+                        );
+                        addProperty(property, true);
                     }
                 } else if (member.getKind() == ElementKind.METHOD) {
                     Extractor extractor;
@@ -800,9 +820,10 @@ public class ViewContext extends Context {
 
     private void prepareReadProperty(@NonNull PrintWriter writer, Property property, Map<String, String> varMap) {
         Type converter = property.getConverter();
-        if (!property.isCustomMethod() && converter == null && property.isView()) {
+        Property baseProperty = property.getBase();
+        if (!property.isCustomMethod() && baseProperty != null && converter == null && property.isView()) {
             String var = "p" + varMap.size();
-            prepareView(writer, property.getType(), var, Objects.requireNonNull(property.getOverride()).getType(), property.getValueString("source"), 2, 0);
+            prepareView(writer, property.getType(), var, baseProperty.getType(), property.getValueString("source"), 2, 0);
             varMap.put(property.getName(), var);
         }
     }
@@ -957,7 +978,7 @@ public class ViewContext extends Context {
         }
     }
 
-    private void printAssignFields(@NonNull PrintWriter writer, @NonNull Map<String, String> varMap, @NonNull String target) {
+    private void printAssignFields(@NonNull PrintWriter writer, @NonNull Map<String, String> varMap, @NonNull VarMapper varMapper, @NonNull String target) {
         for (Property property : getProperties()) {
             if (!property.isDynamic()) {
                 Type converter = property.getConverter();
@@ -970,20 +991,82 @@ public class ViewContext extends Context {
                     property.getExtractor().print(writer);
                     writer.println(";");
                 } else {
-                    if (converter != null) {
-                        writer.print("new ");
-                        converter.printType(writer, this, false, false);
-                        writer.print("().convert(");
-                        writer.print(property.getValueString("source"));
-                        writer.println(");");
-                    } else if (property.isView()) {
-                        writer.print(varMap.get(property.getName()));
-                        writer.println(";");
+                    Property baseProperty = property.getBase();
+                    if (baseProperty != null) {
+                        if (converter != null) {
+                            writer.print("new ");
+                            converter.printType(writer, this, false, false);
+                            writer.print("().convert(");
+                            writer.print(baseProperty.getValueString("source"));
+                            writer.println(");");
+                        } else if (property.isView()) {
+                            writer.print(varMap.get(property.getName()));
+                            writer.println(";");
+                        } else {
+                            writer.print(baseProperty.getValueString("source"));
+                            writer.println(";");
+                        }
                     } else {
-                        writer.print(property.getValueString("source"));
+                        writer.print(varMapper.getVar(property.getName()));
                         writer.println(";");
                     }
                 }
+            }
+        }
+    }
+
+    @NonNull
+    private VarMapper printDefineReadArguments(@NonNull PrintWriter writer, @NonNull List<Property> extraProperties) {
+        VarMapper varMapper = new VarMapper("source");
+        if (extraProperties.size() > 2) {
+            writer.println();
+            Utils.printIndent(writer, INDENT, 2);
+            targetType.printType(writer, this, true, false);
+            writer.print(" source");
+            for (Property extraProperty : extraProperties) {
+                writer.print(",");
+                writer.println();
+                Utils.printIndent(writer, INDENT, 2);
+                extraProperty.printType(writer, this, true, false);
+                writer.print(" ");
+                writer.print(varMapper.getVar(extraProperty.getName()));
+            }
+            writer.println();
+            Utils.printIndent(writer, INDENT, 1);
+        } else {
+            targetType.printType(writer, this, true, false);
+            writer.print(" source");
+            for (Property extraProperty : extraProperties) {
+                writer.print(", ");
+                extraProperty.printType(writer, this, true, false);
+                writer.print(" ");
+                writer.print(varMapper.getVar(extraProperty.getName()));
+            }
+        }
+        return varMapper;
+    }
+
+    private void printUseReadArguments(
+            @NonNull PrintWriter writer,
+            @NonNull List<Property> extraProperties,
+            @NonNull VarMapper varMapper
+    ) {
+        if (extraProperties.size() > 3) {
+            writer.println();
+            Utils.printIndent(writer, INDENT, 2);
+            writer.print("source");
+            for (Property extraProperty : extraProperties) {
+                writer.println(",");
+                Utils.printIndent(writer, INDENT, 2);
+                writer.print(varMapper.getVar(extraProperty.getName()));
+            }
+            writer.println(",");
+            Utils.printIndent(writer, INDENT, 2);
+        } else {
+            writer.print("source");
+            for (Property extraProperty : extraProperties) {
+                writer.print(", ");
+                writer.print(varMapper.getVar(extraProperty.getName()));
             }
         }
     }
@@ -1006,8 +1089,12 @@ public class ViewContext extends Context {
         }
         genType.printType(writer, this, true, false);
         writer.print(" read(");
-        targetType.printType(writer, this, true, false);
-        writer.println(" source) {");
+        List<Property> extraProperties = getProperties()
+                .stream()
+                .filter(p -> !p.isDynamic() && !p.isCustomMethod() && p.getBase() == null)
+                .collect(Collectors.toList());
+        VarMapper varMapper = printDefineReadArguments(writer, extraProperties);
+        writer.println(") {");
         printReturnNullWhenInputNull(writer, "source");
         if (viewOf.getReadConstructor() != null) {
             Utils.printIndent(writer, INDENT, 2);
@@ -1016,7 +1103,9 @@ public class ViewContext extends Context {
             if (!genType.getParameters().isEmpty()) {
                 writer.print("<>");
             }
-            writer.println("(source);");
+            writer.print("(");
+            printUseReadArguments(writer, extraProperties, varMapper);
+            writer.println(");");
         } else {
             Map<String, String> varMap = prepareRead(writer);
             if (hasEmptyConstructor) {
@@ -1028,7 +1117,7 @@ public class ViewContext extends Context {
                     writer.print("<>");
                 }
                 writer.println("();");
-                printAssignFields(writer, varMap, "out");
+                printAssignFields(writer, varMap, varMapper, "out");
                 Utils.printIndent(writer, INDENT, 2);
                 writer.println("return out;");
             } else if (hasFieldsConstructor) {
@@ -1074,12 +1163,13 @@ public class ViewContext extends Context {
         Utils.printIndent(writer, INDENT, 1);
         writer.println("}");
         writer.println();
-        printCollectionReader(writer, "Array", "");
-        printCollectionReader(writer, "List", "ArrayList");
-        printCollectionReader(writer, "Set", "HashSet");
-        printCollectionReader(writer, "Stack", "Stack");
-        printCollectionReader(writer, "Map", "HashMap");
-
+        if (extraProperties.isEmpty()) {
+            printCollectionReader(writer, "Array", "");
+            printCollectionReader(writer, "List", "ArrayList");
+            printCollectionReader(writer, "Set", "HashSet");
+            printCollectionReader(writer, "Stack", "Stack");
+            printCollectionReader(writer, "Map", "HashMap");
+        }
         return false;
     }
 
@@ -1090,16 +1180,20 @@ public class ViewContext extends Context {
         if (empty) {
             writer.println();
         }
+        List<Property> extraProperties = getProperties()
+                .stream()
+                .filter(p -> !p.isDynamic() && !p.isCustomMethod() && p.getBase() == null)
+                .collect(Collectors.toList());
         Utils.printIndent(writer, INDENT, 1);
         Utils.printModifier(writer, viewOf.getReadConstructor());
         genType.printType(writer, this, false, false);
         writer.print("(");
-        targetType.printType(writer, this, true, false);
-        writer.println(" source) {");
+        VarMapper varMapper = printDefineReadArguments(writer, extraProperties);
+        writer.println(") {");
         String npeMessage = "The input source argument of the read constructor of class " + genType.getQualifiedName() + " should not be null.";
         printThrowNPEWhenInputNull(writer, "source", npeMessage);
         Map<String, String> varMap = prepareRead(writer);
-        printAssignFields(writer, varMap, "this");
+        printAssignFields(writer, varMap, varMapper, "this");
         Utils.printIndent(writer, INDENT, 1);
         writer.println("}");
         writer.println();
