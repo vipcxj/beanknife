@@ -60,6 +60,12 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.16</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
@@ -127,6 +133,11 @@
                                     <groupId>io.github.vipcxj</groupId>
                                     <artifactId>beanknife-core</artifactId>
                                     <version>${project.version}</version>
+                                </path>
+                                <path>
+                                    <groupId>org.projectlombok</groupId>
+                                    <artifactId>lombok</artifactId>
+                                    <version>1.18.16</version>
                                 </path>
                             </annotationProcessorPaths>
                         </configuration>

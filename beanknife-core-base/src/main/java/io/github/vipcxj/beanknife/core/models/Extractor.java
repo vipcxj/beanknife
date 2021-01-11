@@ -2,6 +2,7 @@ package io.github.vipcxj.beanknife.core.models;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import io.github.vipcxj.beanknife.core.utils.VarMapper;
 import io.github.vipcxj.beanknife.runtime.utils.CacheType;
 
 import javax.lang.model.element.ExecutableElement;
@@ -19,7 +20,7 @@ public interface Extractor {
     Type getContainer();
     @NonNull
     ExecutableElement getExecutableElement();
-    void print(PrintWriter writer);
+    void print(PrintWriter writer, @CheckForNull VarMapper varMapper, @NonNull String indent, int indentNum);
     boolean isDynamic();
     default boolean useBeanProvider() {
         return !getExecutableElement().getModifiers().contains(Modifier.STATIC);

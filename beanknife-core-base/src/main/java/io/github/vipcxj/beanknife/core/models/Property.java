@@ -2,6 +2,7 @@ package io.github.vipcxj.beanknife.core.models;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import io.github.vipcxj.beanknife.core.utils.LombokInfo;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 import io.github.vipcxj.beanknife.runtime.annotations.Access;
 import io.github.vipcxj.beanknife.runtime.utils.AnnotationDest;
@@ -28,6 +29,7 @@ public class Property {
     private final boolean writeable;
     private Element element;
     private final String comment;
+    private final LombokInfo lombokInfo;
     private Extractor extractor;
     @CheckForNull
     private Type converter;
@@ -47,7 +49,8 @@ public class Property {
             String setterName,
             boolean writeable,
             @NonNull Element element,
-            String comment
+            String comment,
+            LombokInfo lombokInfo
     ) {
         this.name = name;
         this.base = base;
@@ -62,6 +65,7 @@ public class Property {
         this.element = element;
         this.comment = comment;
         this.override = null;
+        this.lombokInfo = lombokInfo;
     }
 
     public Property(Property other, String commentIfNone) {
@@ -81,6 +85,7 @@ public class Property {
         this.converter = other.converter;
         this.view = other.view;
         this.override = other.override;
+        this.lombokInfo = other.lombokInfo;
     }
 
     @NonNull
@@ -161,8 +166,20 @@ public class Property {
         }
     }
 
+    public boolean isLombokReadable(boolean samePackage) {
+        return lombokInfo != null && lombokInfo.isReadable(samePackage);
+    }
+
+    public boolean hasLombokGetter() {
+        return lombokInfo != null && lombokInfo.hasGetter();
+    }
+
     public String getName() {
         return name;
+    }
+
+    public boolean isBase() {
+        return base;
     }
 
     public Modifier getModifier() {
@@ -336,7 +353,7 @@ public class Property {
     }
 
     public String getValueString(String sourceVar) {
-        if (isMethod()) {
+        if (isMethod() || hasLombokGetter()) {
             return sourceVar + "." + getGetterName() + "()";
         } else {
             return sourceVar + "." + getName();
@@ -365,11 +382,10 @@ public class Property {
         writer.print(" ");
         writer.print(getGetterName());
         writer.println("() {");
-        Utils.printIndent(writer, indent, indentNum);
-        writer.print(indent);
+        Utils.printIndent(writer, indent, indentNum + 1);
         writer.print("return ");
         if (isDynamic()) {
-            extractor.print(writer);
+            extractor.print(writer, null, indent, indentNum + 1);
         } else {
             writer.print("this.");
             writer.print(context.getMappedFieldName(this));

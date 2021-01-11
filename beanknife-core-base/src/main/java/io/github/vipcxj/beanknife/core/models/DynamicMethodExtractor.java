@@ -2,6 +2,7 @@ package io.github.vipcxj.beanknife.core.models;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import io.github.vipcxj.beanknife.core.utils.VarMapper;
 import io.github.vipcxj.beanknife.runtime.annotations.InjectProperty;
 import io.github.vipcxj.beanknife.runtime.annotations.InjectSelf;
 
@@ -115,7 +116,7 @@ public class DynamicMethodExtractor implements Extractor {
     }
 
     @Override
-    public void print(PrintWriter writer) {
+    public void print(PrintWriter writer, @CheckForNull VarMapper varMapper, @NonNull String indent, int indentNum) {
         printConfigBean(writer, "this");
         writer.print(".");
         writer.print(executableElement.getSimpleName());

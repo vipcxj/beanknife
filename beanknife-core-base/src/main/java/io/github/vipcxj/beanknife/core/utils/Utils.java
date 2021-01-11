@@ -114,7 +114,7 @@ public class Utils {
         return modifier;
     }
 
-    private static boolean isWriteable(String setterName, TypeMirror type, List<? extends Element> members, boolean samePackage) {
+    private static boolean isWriteable(String setterName, TypeMirror type, List<? extends Element> members, boolean samePackage, @CheckForNull LombokInfo lombokInfo) {
         boolean writeable = false;
         for (Element member : members) {
             if (member.getKind() == ElementKind.METHOD
@@ -135,6 +135,9 @@ public class Utils {
                 writeable = getter.getReturnType().getKind() == TypeKind.VOID;
                 break;
             }
+        }
+        if (!writeable && lombokInfo != null) {
+            return lombokInfo.isWritable(samePackage);
         }
         return writeable;
     }
@@ -160,7 +163,9 @@ public class Utils {
             @CheckForNull ViewOfData viewOf,
             @NonNull VariableElement e,
             @NonNull List<? extends Element> members,
-            boolean samePackage
+            boolean samePackage,
+            Access typeLombokGetter,
+            Access typeLombokSetter
     ) {
         if (e.getKind() != ElementKind.FIELD) {
             return null;
@@ -172,7 +177,8 @@ public class Utils {
         Access setter = viewProperty != null ? viewProperty.setter() : Access.UNKNOWN;
         TypeMirror type = e.asType();
         String setterName = createSetterName(name, type.getKind() == TypeKind.BOOLEAN);
-        boolean writeable = isWriteable(setterName, type, members, samePackage);
+        LombokInfo lombokInfo = new LombokInfo(e, typeLombokGetter, typeLombokSetter);
+        boolean writeable = isWriteable(setterName, type, members, samePackage, lombokInfo);
         return new Property(
                 name,
                 true,
@@ -185,7 +191,8 @@ public class Utils {
                 setterName,
                 writeable,
                 e,
-                context.getProcessingEnv().getElementUtils().getDocComment(e)
+                context.getProcessingEnv().getElementUtils().getDocComment(e),
+                lombokInfo
         );
     }
 
@@ -213,7 +220,7 @@ public class Utils {
         }
         ViewProperty viewProperty = e.getAnnotation(ViewProperty.class);
         String setterName = createSetterName(name, type.getKind() == TypeKind.BOOLEAN);
-        boolean writeable = isWriteable(setterName, type, members, samePackage);
+        boolean writeable = isWriteable(setterName, type, members, samePackage, null);
         return new Property(
                 name,
                 true,
@@ -226,7 +233,8 @@ public class Utils {
                 setterName,
                 writeable,
                 e,
-                context.getProcessingEnv().getElementUtils().getDocComment(e)
+                context.getProcessingEnv().getElementUtils().getDocComment(e),
+                null
         );
     }
 
@@ -239,7 +247,11 @@ public class Utils {
     }
 
     public static boolean canNotSeeFromOtherClass(Property property, boolean samePackage) {
-        return !canSeeFromOtherClass(property.getModifier(), samePackage);
+        if (property.hasLombokGetter()) {
+            return !property.isLombokReadable(samePackage);
+        } else {
+            return !canSeeFromOtherClass(property.getModifier(), samePackage);
+        }
     }
 
     public static boolean canSeeFromOtherClass(Element element, boolean samePackage) {
@@ -286,6 +298,15 @@ public class Utils {
             return null;
         }
         return toEnum(annotationValue, enumType);
+    }
+
+    @CheckForNull
+    public static String getEnumAnnotationValue(@NonNull AnnotationMirror annotation, @NonNull String name) {
+        AnnotationValue annotationValue = getAnnotationValue(annotation, name);
+        if (annotationValue == null) {
+            return null;
+        }
+        return toEnumString(annotationValue);
     }
 
     @CheckForNull
@@ -1328,5 +1349,16 @@ public class Utils {
             }
         }
         return results;
+    }
+
+    @CheckForNull
+    public static AnnotationMirror getAnnotationDirectOn(@NonNull Element element, String qName) {
+        for (AnnotationMirror annotationMirror : element.getAnnotationMirrors()) {
+            if (toElement(annotationMirror.getAnnotationType()).getQualifiedName().toString().equals(qName)) {
+                return annotationMirror;
+            }
+        }
+        return null;
+
     }
 }

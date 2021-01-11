@@ -2,6 +2,8 @@ package io.github.vipcxj.beanknife.core.models;
 
 import com.sun.source.util.Trees;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import io.github.vipcxj.beanknife.core.utils.LombokUtils;
+import io.github.vipcxj.beanknife.core.utils.ParamInfo;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 import io.github.vipcxj.beanknife.core.utils.VarMapper;
 import io.github.vipcxj.beanknife.runtime.BeanProviders;
@@ -38,6 +40,7 @@ public class ViewContext extends Context {
     private final Type genType;
     private final Type generatedType;
     private final boolean samePackage;
+    private final Map<String, ParamInfo> extraParams;
     private boolean useConfigureBeanVarInRead;
     private boolean useCachedConfigureBeanField;
 
@@ -55,6 +58,7 @@ public class ViewContext extends Context {
         this.generatedType = Type.extract(this, GeneratedView.class);
         this.packageName = this.genType.getPackageName();
         this.samePackage = this.targetType.isSamePackage(this.genType);
+        this.extraParams = new TreeMap<>();
         this.containers.push(Type.fromPackage(this, this.packageName));
         this.useCachedConfigureBeanField = false;
         this.useConfigureBeanVarInRead = false;
@@ -103,10 +107,12 @@ public class ViewContext extends Context {
         }
         Elements elementUtils = getProcessingEnv().getElementUtils();
         List<? extends Element> members = elementUtils.getAllMembers(targetElement);
+        Access typeGetterAccess = LombokUtils.getGetterAccess(targetElement, null);
+        Access typeSetterAccess = LombokUtils.getSetterAccess(targetElement, null);
         for (Element member : members) {
             Property property = null;
             if (member.getKind() == ElementKind.FIELD) {
-                property = Utils.createPropertyFromBase(this, viewOf, (VariableElement) member, members, samePackage);
+                property = Utils.createPropertyFromBase(this, viewOf, (VariableElement) member, members, samePackage, typeGetterAccess, typeSetterAccess);
             } else if (member.getKind() == ElementKind.METHOD) {
                 property = Utils.createPropertyFromBase(this, viewOf, (ExecutableElement) member, members, samePackage);
             }
@@ -228,7 +234,8 @@ public class ViewContext extends Context {
                                 Utils.createSetterName(name, type.isBoolean()),
                                 false,
                                 member,
-                                getProcessingEnv().getElementUtils().getDocComment(member)
+                                getProcessingEnv().getElementUtils().getDocComment(member),
+                                null
                         );
                         addProperty(property, true);
                     }
@@ -275,7 +282,8 @@ public class ViewContext extends Context {
                                 Utils.createSetterName(name, type.isBoolean()),
                                 false,
                                 member,
-                                getProcessingEnv().getElementUtils().getDocComment(member)
+                                getProcessingEnv().getElementUtils().getDocComment(member),
+                                null
                         ).withExtractor(extractor);
                         addProperty(property, true);
                     }
@@ -286,9 +294,50 @@ public class ViewContext extends Context {
             Extractor extractor = property.getExtractor();
             return extractor != null && !extractor.check();
         });
-        for (Property property : getProperties()) {
+        ListIterator<Property> propertyListIterator = getProperties().listIterator();
+        while (propertyListIterator.hasNext()) {
+            Property property = propertyListIterator.next();
             importVariable(property.getType());
             Extractor extractor = property.getExtractor();
+            if (extractor != null && !extractor.isDynamic()) {
+                List<ParamInfo> paramInfoList = ((StaticMethodExtractor) extractor).getParamInfoList();
+                boolean conflict = false;
+                for (ParamInfo paramInfo : paramInfoList) {
+                    if (paramInfo.isExtraParam()) {
+                        String extraParamName = paramInfo.getExtraParamName();
+                        ParamInfo existParamInfo = extraParams.get(extraParamName);
+                        if (existParamInfo == null) {
+                            extraParams.put(extraParamName, paramInfo);
+                        } else {
+                            Type type = Type.extract(this, paramInfo.getVar());
+                            Type existType = Type.extract(this, existParamInfo.getVar());
+                            if (type == null) {
+                                error("Unable to resolve the type of the argument \"" + paramInfo.getParameterName() + "\" in the static property method \"" + paramInfo.getMethodName() + "\".");
+                                conflict = true;
+                                break;
+                            }
+                            if (existType.canAssignTo(type)) {
+                                extraParams.put(extraParamName, paramInfo);
+                            } else if (!type.canAssignTo(existType)) {
+                                error("The type of extra param \"" +
+                                        extraParamName +
+                                        "\" in the static property method \"" +
+                                        paramInfo.getMethodName() +
+                                        "\" conflict with the extra param with the same name in the static property method \"" +
+                                        existParamInfo.getMethodName() +
+                                        "."
+                                );
+                                conflict = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (conflict) {
+                    propertyListIterator.remove();
+                    continue;
+                }
+            }
             if (extractor != null && extractor.useBeanProvider()) {
                 importVariable(Type.extract(this, BeanProviders.class));
                 importVariable(Type.extract(this, BeanUsage.class));
@@ -988,7 +1037,7 @@ public class ViewContext extends Context {
                 writer.print(this.getMappedFieldName(property));
                 writer.print(" = ");
                 if (property.isCustomMethod() && property.getExtractor() != null) {
-                    property.getExtractor().print(writer);
+                    property.getExtractor().print(writer, varMapper, INDENT, 2);
                     writer.println(";");
                 } else {
                     Property baseProperty = property.getBase();
@@ -1018,18 +1067,25 @@ public class ViewContext extends Context {
     @NonNull
     private VarMapper printDefineReadArguments(@NonNull PrintWriter writer, @NonNull List<Property> extraProperties) {
         VarMapper varMapper = new VarMapper("source");
-        if (extraProperties.size() > 2) {
+        if (extraProperties.size() + extraParams.size() > 3) {
             writer.println();
             Utils.printIndent(writer, INDENT, 2);
             targetType.printType(writer, this, true, false);
             writer.print(" source");
             for (Property extraProperty : extraProperties) {
-                writer.print(",");
-                writer.println();
+                writer.println(",");
                 Utils.printIndent(writer, INDENT, 2);
                 extraProperty.printType(writer, this, true, false);
                 writer.print(" ");
                 writer.print(varMapper.getVar(extraProperty.getName()));
+            }
+            for (ParamInfo paramInfo : extraParams.values()) {
+                writer.println(",");
+                Utils.printIndent(writer, INDENT, 2);
+                Type type = Type.extract(this, paramInfo.getVar());
+                type.printType(writer, this, true, false);
+                writer.print(" ");
+                writer.print(varMapper.getVar(paramInfo.getExtraParamName()));
             }
             writer.println();
             Utils.printIndent(writer, INDENT, 1);
@@ -1042,6 +1098,13 @@ public class ViewContext extends Context {
                 writer.print(" ");
                 writer.print(varMapper.getVar(extraProperty.getName()));
             }
+            for (ParamInfo paramInfo : extraParams.values()) {
+                writer.print(", ");
+                Type type = Type.extract(this, paramInfo.getVar());
+                type.printType(writer, this, true, false);
+                writer.print(" ");
+                writer.print(varMapper.getVar(paramInfo.getExtraParamName()));
+            }
         }
         return varMapper;
     }
@@ -1051,7 +1114,7 @@ public class ViewContext extends Context {
             @NonNull List<Property> extraProperties,
             @NonNull VarMapper varMapper
     ) {
-        if (extraProperties.size() > 3) {
+        if (extraProperties.size() + extraParams.size() > 3) {
             writer.println();
             Utils.printIndent(writer, INDENT, 2);
             writer.print("source");
@@ -1060,6 +1123,11 @@ public class ViewContext extends Context {
                 Utils.printIndent(writer, INDENT, 2);
                 writer.print(varMapper.getVar(extraProperty.getName()));
             }
+            for (ParamInfo paramInfo : extraParams.values()) {
+                writer.println(",");
+                Utils.printIndent(writer, INDENT, 2);
+                writer.print(varMapper.getVar(paramInfo.getExtraParamName()));
+            }
             writer.println(",");
             Utils.printIndent(writer, INDENT, 2);
         } else {
@@ -1067,6 +1135,10 @@ public class ViewContext extends Context {
             for (Property extraProperty : extraProperties) {
                 writer.print(", ");
                 writer.print(varMapper.getVar(extraProperty.getName()));
+            }
+            for (ParamInfo paramInfo : extraParams.values()) {
+                writer.print(", ");
+                writer.print(varMapper.getVar(paramInfo.getExtraParamName()));
             }
         }
     }
@@ -1134,7 +1206,7 @@ public class ViewContext extends Context {
                     Type converter = property.getConverter();
                     Utils.printIndent(writer, INDENT, 3);
                     if (property.isCustomMethod() && property.getExtractor() != null) {
-                        property.getExtractor().print(writer);
+                        property.getExtractor().print(writer, varMapper, INDENT, 3);
                     } else {
                         boolean isViewType = property.isView();
                         if (converter != null) {
@@ -1163,7 +1235,7 @@ public class ViewContext extends Context {
         Utils.printIndent(writer, INDENT, 1);
         writer.println("}");
         writer.println();
-        if (extraProperties.isEmpty()) {
+        if (extraProperties.isEmpty() && extraParams.isEmpty()) {
             printCollectionReader(writer, "Array", "");
             printCollectionReader(writer, "List", "ArrayList");
             printCollectionReader(writer, "Set", "HashSet");

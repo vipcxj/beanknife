@@ -2,7 +2,9 @@ package io.github.vipcxj.beanknife.core.models;
 
 import com.sun.source.util.Trees;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import io.github.vipcxj.beanknife.core.utils.LombokUtils;
 import io.github.vipcxj.beanknife.core.utils.Utils;
+import io.github.vipcxj.beanknife.runtime.annotations.Access;
 import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedMeta;
 import org.apache.commons.text.StringEscapeUtils;
 
@@ -50,10 +52,12 @@ public class MetaContext extends Context {
         TypeElement element = viewMeta.getOf();
         Elements elementUtils = getProcessingEnv().getElementUtils();
         List<? extends Element> members = elementUtils.getAllMembers(element);
+        Access typeGetterAccess = LombokUtils.getGetterAccess(element, null);
+        Access typeSetterAccess = LombokUtils.getSetterAccess(element, null);
         for (Element member : members) {
             Property property = null;
             if (member.getKind() == ElementKind.FIELD) {
-                property = Utils.createPropertyFromBase(this, null, (VariableElement) member, members, true);
+                property = Utils.createPropertyFromBase(this, null, (VariableElement) member, members, true, typeGetterAccess, typeSetterAccess);
             } else if (member.getKind() == ElementKind.METHOD) {
                 property = Utils.createPropertyFromBase(this, null, (ExecutableElement) member, members, true);
             }
