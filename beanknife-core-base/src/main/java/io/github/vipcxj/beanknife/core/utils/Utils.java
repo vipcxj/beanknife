@@ -892,7 +892,6 @@ public class Utils {
         Element[] dependencies = calcDependencies(context);
         JavaFileObject sourceFile = context.getProcessingEnv().getFiler().createSourceFile(context.getGenType().getQualifiedName(), dependencies);
         try (PrintWriter writer = new PrintWriter(sourceFile.openWriter())) {
-            context.collectData();
             context.print(writer);
         }
     }

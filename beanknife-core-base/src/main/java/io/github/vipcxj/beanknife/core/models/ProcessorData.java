@@ -1,5 +1,6 @@
 package io.github.vipcxj.beanknife.core.models;
 
+import com.sun.source.util.Trees;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.github.vipcxj.beanknife.core.utils.Utils;
@@ -10,16 +11,22 @@ import javax.lang.model.element.TypeElement;
 import java.util.*;
 
 public class ProcessorData {
+    private final Trees trees;
+    private final ProcessingEnvironment processingEnv;
     private final List<String> errors;
     private final Map<String, ViewOfData> viewOfDataByGenTypeName;
     private final Map<String, List<ViewOfData>> viewOfDataByTargetTypeName;
     private final Map<String, List<ViewOfData>> viewOfDataByConfigTypeName;
+    private final Map<String, ViewContext> viewContextMap;
 
-    public ProcessorData() {
+    public ProcessorData(@NonNull Trees trees, @NonNull ProcessingEnvironment processingEnv) {
+        this.trees = trees;
+        this.processingEnv = processingEnv;
         this.errors = new ArrayList<>();
         this.viewOfDataByGenTypeName = new HashMap<>();
         this.viewOfDataByTargetTypeName = new HashMap<>();
         this.viewOfDataByConfigTypeName = new HashMap<>();
+        this.viewContextMap = new HashMap<>();
     }
 
     @NonNull
@@ -111,16 +118,20 @@ public class ProcessorData {
         return null;
     }
 
-    public void collect(@NonNull ProcessingEnvironment environment, @NonNull RoundEnvironment roundEnvironment) {
+    private String getGenTypeName(@NonNull ViewOfData viewOfData) {
+        return Utils.extractGenTypeName(
+                viewOfData.getTargetElement(),
+                viewOfData.getGenName(),
+                viewOfData.getGenPackage(),
+                "View"
+        );
+    }
+
+    public void collect(@NonNull RoundEnvironment roundEnvironment) {
         Map<String, ViewOfData> viewOfDataMap = this.viewOfDataByGenTypeName;
-        List<ViewOfData> viewOfDataList = Utils.collectViewOfs(environment, roundEnvironment);
+        List<ViewOfData> viewOfDataList = Utils.collectViewOfs(processingEnv, roundEnvironment);
         for (ViewOfData viewOfData : viewOfDataList) {
-            String genTypeName = Utils.extractGenTypeName(
-                    viewOfData.getTargetElement(),
-                    viewOfData.getGenName(),
-                    viewOfData.getGenPackage(),
-                    "View"
-            );
+            String genTypeName = getGenTypeName(viewOfData);
             ViewOfData existed = viewOfDataMap.get(genTypeName);
             if (existed == null) {
                 viewOfDataMap.put(genTypeName, viewOfData);
@@ -149,9 +160,18 @@ public class ProcessorData {
         }
     }
 
-    public void fix(ProcessingEnvironment environment) {
-        for (ViewOfData viewOfData : viewOfDataByGenTypeName.values()) {
-            viewOfData.reload(environment);
+    public void clearViewContextMap() {
+        viewContextMap.clear();
+    }
+
+    public ViewContext getViewContext(@NonNull ViewOfData viewOf) {
+        String genTypeName = getGenTypeName(viewOf);
+        ViewContext viewContext = viewContextMap.get(genTypeName);
+        if (viewContext == null) {
+            viewContext =new ViewContext(trees, processingEnv, this, viewOf);
+            viewContext.collectData();
+            viewContextMap.put(genTypeName, viewContext);
         }
+        return viewContext;
     }
 }

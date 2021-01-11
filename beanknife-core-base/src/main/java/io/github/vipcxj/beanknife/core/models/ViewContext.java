@@ -1,6 +1,7 @@
 package io.github.vipcxj.beanknife.core.models;
 
 import com.sun.source.util.Trees;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.github.vipcxj.beanknife.core.utils.LombokUtils;
 import io.github.vipcxj.beanknife.core.utils.ParamInfo;
@@ -40,6 +41,7 @@ public class ViewContext extends Context {
     private final Type genType;
     private final Type generatedType;
     private final boolean samePackage;
+    private List<Property> extraProperties;
     private final Map<String, ParamInfo> extraParams;
     private boolean useConfigureBeanVarInRead;
     private boolean useCachedConfigureBeanField;
@@ -58,6 +60,7 @@ public class ViewContext extends Context {
         this.generatedType = Type.extract(this, GeneratedView.class);
         this.packageName = this.genType.getPackageName();
         this.samePackage = this.targetType.isSamePackage(this.genType);
+        this.extraProperties = new ArrayList<>();
         this.extraParams = new TreeMap<>();
         this.containers.push(Type.fromPackage(this, this.packageName));
         this.useCachedConfigureBeanField = false;
@@ -78,6 +81,14 @@ public class ViewContext extends Context {
 
     public Trees getTrees() {
         return trees;
+    }
+
+    public boolean hasExtraProperties() {
+        return !extraProperties.isEmpty();
+    }
+
+    public boolean hasExtraParams() {
+        return !extraParams.isEmpty();
     }
 
     private int checkAnnConflict(NewViewProperty newViewProperty, OverrideViewProperty overrideViewProperty) {
@@ -207,6 +218,20 @@ public class ViewContext extends Context {
                                     if (!isView) {
                                         error("The property " + p.getName() + " can not be override because type mismatched.");
                                         return null;
+                                    } else {
+                                        ViewContext viewContext = getViewContext(newType);
+                                        if (viewContext == null) {
+                                            throw new NullPointerException("This is impossible!");
+                                        }
+                                        if (viewContext.hasExtraProperties() || viewContext.hasExtraParams()) {
+                                            error("Unable to convert from " +
+                                                    viewContext.getTargetType() +
+                                                    " to its view type " +
+                                                    viewContext.getGenType() +
+                                                    ". Because it has extra properties or extra params."
+                                            );
+                                            return null;
+                                        }
                                     }
                                 }
                                 newProperty = newProperty.withType(newType, isView);
@@ -365,7 +390,29 @@ public class ViewContext extends Context {
                 Utils.importAnnotation(this, annotationMirror);
             }
         }
+        extraProperties = getProperties()
+                .stream()
+                .filter(p -> !p.isDynamic() && !p.isCustomMethod() && p.getBase() == null)
+                .collect(Collectors.toList());
         lock();
+    }
+
+    @CheckForNull
+    private ViewContext getViewContext(@NonNull Type type) {
+        if (isViewType(type)) {
+            return processorData.getViewContext(getViewData(type));
+        }
+        if ((type.isType(List.class))
+                || type.isType(Stack.class)
+                || type.isType(Set.class)) {
+            return getViewContext(type.getParameters().get(0));
+        } else if (type.isType(Map.class)) {
+            return getViewContext(type.getParameters().get(1));
+        } else if (type.isArray()) {
+            return getViewContext(Objects.requireNonNull(type.getComponentType()));
+        } else {
+            return null;
+        }
     }
 
     private boolean matchViewType(Type sourceType, Type targetType) {
@@ -1065,7 +1112,7 @@ public class ViewContext extends Context {
     }
 
     @NonNull
-    private VarMapper printDefineReadArguments(@NonNull PrintWriter writer, @NonNull List<Property> extraProperties) {
+    private VarMapper printDefineReadArguments(@NonNull PrintWriter writer) {
         VarMapper varMapper = new VarMapper("source");
         if (extraProperties.size() + extraParams.size() > 3) {
             writer.println();
@@ -1111,7 +1158,6 @@ public class ViewContext extends Context {
 
     private void printUseReadArguments(
             @NonNull PrintWriter writer,
-            @NonNull List<Property> extraProperties,
             @NonNull VarMapper varMapper
     ) {
         if (extraProperties.size() + extraParams.size() > 3) {
@@ -1161,11 +1207,7 @@ public class ViewContext extends Context {
         }
         genType.printType(writer, this, true, false);
         writer.print(" read(");
-        List<Property> extraProperties = getProperties()
-                .stream()
-                .filter(p -> !p.isDynamic() && !p.isCustomMethod() && p.getBase() == null)
-                .collect(Collectors.toList());
-        VarMapper varMapper = printDefineReadArguments(writer, extraProperties);
+        VarMapper varMapper = printDefineReadArguments(writer);
         writer.println(") {");
         printReturnNullWhenInputNull(writer, "source");
         if (viewOf.getReadConstructor() != null) {
@@ -1176,7 +1218,7 @@ public class ViewContext extends Context {
                 writer.print("<>");
             }
             writer.print("(");
-            printUseReadArguments(writer, extraProperties, varMapper);
+            printUseReadArguments(writer, varMapper);
             writer.println(");");
         } else {
             Map<String, String> varMap = prepareRead(writer);
@@ -1252,15 +1294,11 @@ public class ViewContext extends Context {
         if (empty) {
             writer.println();
         }
-        List<Property> extraProperties = getProperties()
-                .stream()
-                .filter(p -> !p.isDynamic() && !p.isCustomMethod() && p.getBase() == null)
-                .collect(Collectors.toList());
         Utils.printIndent(writer, INDENT, 1);
         Utils.printModifier(writer, viewOf.getReadConstructor());
         genType.printType(writer, this, false, false);
         writer.print("(");
-        VarMapper varMapper = printDefineReadArguments(writer, extraProperties);
+        VarMapper varMapper = printDefineReadArguments(writer);
         writer.println(") {");
         String npeMessage = "The input source argument of the read constructor of class " + genType.getQualifiedName() + " should not be null.";
         printThrowNPEWhenInputNull(writer, "source", npeMessage);

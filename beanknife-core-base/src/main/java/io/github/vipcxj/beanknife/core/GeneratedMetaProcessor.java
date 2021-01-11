@@ -28,13 +28,14 @@ public class GeneratedMetaProcessor extends AbstractProcessor {
     public synchronized void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
         this.trees = Trees.instance(processingEnv);
-        this.processorData = new ProcessorData();
+        this.processorData = new ProcessorData(this.trees, processingEnv);
     }
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         try {
-            this.processorData.collect(processingEnv, roundEnv);
+            this.processorData.clearViewContextMap();
+            this.processorData.collect(roundEnv);
             for (TypeElement annotation : annotations) {
                 // this.processorData.fix(processingEnv);
                 Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
@@ -65,7 +66,7 @@ public class GeneratedMetaProcessor extends AbstractProcessor {
 
     private void processViewOf(ProcessorData processorData, ViewOfData viewOfData, TypeElement targetElement) {
         if (viewOfData.getTargetElement().equals(targetElement)) {
-            ViewContext context = new ViewContext(this.trees, processingEnv, processorData, viewOfData);
+            ViewContext context = processorData.getViewContext(viewOfData);
             try {
                 Utils.writeViewFile(context);
             } catch (IOException e) {
