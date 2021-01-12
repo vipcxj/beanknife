@@ -7,4 +7,9 @@ public class NullShortAsZeroConverter implements PropertyConverter<Short, Short>
     public Short convert(Short value) {
         return value != null ? value : 0;
     }
+
+    @Override
+    public Short convertBack(Short value) {
+        return value;
+    }
 }

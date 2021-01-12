@@ -91,9 +91,14 @@ public class ViewContext extends Context {
         return !extraParams.isEmpty();
     }
 
-    private int checkAnnConflict(NewViewProperty newViewProperty, OverrideViewProperty overrideViewProperty) {
+    private int checkAnnConflict(
+            @CheckForNull NewViewProperty newViewProperty,
+            @CheckForNull OverrideViewProperty overrideViewProperty,
+            @CheckForNull MapViewProperty mapViewProperty
+    ) {
         return (newViewProperty != null ? 1 : 0)
-                + (overrideViewProperty != null ? 1 : 0);
+                + (overrideViewProperty != null ? 1 : 0)
+                + (mapViewProperty != null ? 1 : 0);
     }
 
     public void collectData() {
@@ -117,15 +122,15 @@ public class ViewContext extends Context {
             Utils.importAnnotation(this, annotationMirror);
         }
         Elements elementUtils = getProcessingEnv().getElementUtils();
-        List<? extends Element> members = elementUtils.getAllMembers(targetElement);
+        final List<? extends Element> targetMembers = elementUtils.getAllMembers(targetElement);
         Access typeGetterAccess = LombokUtils.getGetterAccess(targetElement, null);
         Access typeSetterAccess = LombokUtils.getSetterAccess(targetElement, null);
-        for (Element member : members) {
+        for (Element member : targetMembers) {
             Property property = null;
             if (member.getKind() == ElementKind.FIELD) {
-                property = Utils.createPropertyFromBase(this, viewOf, (VariableElement) member, members, samePackage, typeGetterAccess, typeSetterAccess);
+                property = Utils.createPropertyFromBase(this, viewOf, (VariableElement) member, typeGetterAccess, typeSetterAccess);
             } else if (member.getKind() == ElementKind.METHOD) {
-                property = Utils.createPropertyFromBase(this, viewOf, (ExecutableElement) member, members, samePackage);
+                property = Utils.createPropertyFromBase(this, viewOf, (ExecutableElement) member);
             }
             if (property != null) {
                 addProperty(property, false);
@@ -144,7 +149,6 @@ public class ViewContext extends Context {
                 );
             }
         }
-
         List<Pattern> excludePatterns = new ArrayList<>();
         for (String p : viewOf.getExcludePattern().split(",\\s")) {
             try {
@@ -164,15 +168,29 @@ public class ViewContext extends Context {
                 || excludePatterns.stream().anyMatch(pattern -> pattern.matcher(property.getName()).matches())
                 || Arrays.stream(viewOf.getExcludes()).anyMatch(exclude -> exclude.equals(property.getName()))
                 || viewOf.getExtraExcludes().contains(property.getName()));
+        getProperties().replaceAll(property -> {
+            Property base = property.getBase();
+            if (base != null) {
+                Property field = property.getField();
+                boolean fieldWriteable = field != null && Utils.canSeeFromOtherClass(field.getElement(), samePackage);
+                ExecutableElement setterMethod = Utils.getSetterMethod(elementUtils, base.getSetterName(), base.getTypeMirror(), targetMembers);
+                boolean writeMethod = setterMethod != null;
+                boolean writeable = writeMethod ? Utils.canSeeFromOtherClass(setterMethod, samePackage) : fieldWriteable;
+                return property.withWriteInfo(writeable, writeMethod);
+            } else {
+                return property;
+            }
+        });
         List<Property> baseProperties = new ArrayList<>(getProperties());
         if (configElement != targetElement) {
-            members = elementUtils.getAllMembers(configElement);
-            for (Element member : members) {
+            List<? extends Element> configMembers = elementUtils.getAllMembers(configElement);
+            for (Element member : configMembers) {
                 NewViewProperty newViewProperty = member.getAnnotation(NewViewProperty.class);
                 OverrideViewProperty overrideViewProperty = member.getAnnotation(OverrideViewProperty.class);
-                int exists = checkAnnConflict(newViewProperty, overrideViewProperty);
+                MapViewProperty mapViewProperty = member.getAnnotation(MapViewProperty.class);
+                int exists = checkAnnConflict(newViewProperty, overrideViewProperty, mapViewProperty);
                 if (exists > 1) {
-                    error("NewViewProperty and OverrideViewProperty should not be put on the same property.");
+                    error("NewViewProperty, OverrideViewProperty and MapViewProperty should not be put on the same property.");
                     continue;
                 }
                 if (exists == 0) {
@@ -190,20 +208,33 @@ public class ViewContext extends Context {
                         continue;
                     }
                 }
+                if (mapViewProperty != null) {
+                    if (baseProperties.stream().noneMatch(p -> p.getName().equals(mapViewProperty.map()))) {
+                        error("The property " + mapViewProperty.map() + " does not exists, so the @MapViewProperty annotation is invalid and has been ignored.");
+                        continue;
+                    }
+                    if (!mapViewProperty.name().equals(mapViewProperty.map()) && getProperties().stream().anyMatch(p -> p.getName().equals(mapViewProperty.name()))) {
+                        error("The property " + mapViewProperty.name() + " already exists, so the @MapViewProperty annotation is invalid and has been ignored.");
+                        continue;
+                    }
+                }
                 if (member.getKind() == ElementKind.FIELD) {
-                    if (overrideViewProperty != null) {
+                    if (overrideViewProperty != null || mapViewProperty != null) {
                         List<DeclaredType> converters = getConverters(member);
-                        String name = overrideViewProperty.value();
+                        String name = overrideViewProperty != null ? overrideViewProperty.value() : mapViewProperty.name();
+                        String mappedName = overrideViewProperty != null ? overrideViewProperty.value() : mapViewProperty.map();
                         Type newType = Type.extract(this, member);
                         if (newType == null) {
                             error("Unable to resolve the type of field property: " + member.getSimpleName() + ".");
                             continue;
                         }
                         getProperties().replaceAll(p -> {
-                            if (p.getName().equals(name)) {
-                                Property newProperty = p.extend(member)
-                                        .withGetterAccess(Utils.resolveGetterAccess(viewOf, overrideViewProperty.getter()))
-                                        .withSetterAccess(Utils.resolveSetterAccess(viewOf, overrideViewProperty.setter()));
+                            if (p.getName().equals(mappedName)) {
+                                Access getterAccess = overrideViewProperty != null ? overrideViewProperty.getter() : mapViewProperty.getter();
+                                Access setterAccess = overrideViewProperty != null ? overrideViewProperty.setter() : mapViewProperty.setter();
+                                Property newProperty = p.extend(member, name)
+                                        .withGetterAccess(Utils.resolveGetterAccess(viewOf, getterAccess))
+                                        .withSetterAccess(Utils.resolveSetterAccess(viewOf, setterAccess));
                                 TypeElement converter = selectConverter(member, converters, member.asType(), p.getTypeMirror());
                                 Type converterType = null;
                                 if (converter != null) {
@@ -257,7 +288,6 @@ public class ViewContext extends Context {
                                 false,
                                 Utils.createGetterName(name, type.isBoolean()),
                                 Utils.createSetterName(name, type.isBoolean()),
-                                false,
                                 member,
                                 getProcessingEnv().getElementUtils().getDocComment(member),
                                 null
@@ -277,13 +307,16 @@ public class ViewContext extends Context {
                     } else {
                         extractor = new StaticMethodExtractor(this, (ExecutableElement) member);
                     }
-                    if (overrideViewProperty != null) {
-                        String name = overrideViewProperty.value();
+                    if (overrideViewProperty != null || mapViewProperty != null) {
+                        String name = overrideViewProperty != null ? overrideViewProperty.value() : mapViewProperty.name();
+                        String mappedName = overrideViewProperty != null ? overrideViewProperty.value() : mapViewProperty.map();
                         getProperties().replaceAll(p -> {
-                            if (p.getName().equals(name)) {
-                                return p.extend(member)
-                                        .withGetterAccess(Utils.resolveGetterAccess(viewOf, overrideViewProperty.getter()))
-                                        .withSetterAccess(Utils.resolveSetterAccess(viewOf, overrideViewProperty.setter()))
+                            if (p.getName().equals(mappedName)) {
+                                Access getterAccess = overrideViewProperty != null ? overrideViewProperty.getter() : mapViewProperty.getter();
+                                Access setterAccess = overrideViewProperty != null ? overrideViewProperty.setter() : mapViewProperty.setter();
+                                return p.extend(member, name)
+                                        .withGetterAccess(Utils.resolveGetterAccess(viewOf, getterAccess))
+                                        .withSetterAccess(Utils.resolveSetterAccess(viewOf, setterAccess))
                                         .withExtractor(extractor);
                             } else {
                                 return p;
@@ -305,7 +338,6 @@ public class ViewContext extends Context {
                                 true,
                                 Utils.createGetterName(name, type.isBoolean()),
                                 Utils.createSetterName(name, type.isBoolean()),
-                                false,
                                 member,
                                 getProcessingEnv().getElementUtils().getDocComment(member),
                                 null
@@ -688,6 +720,7 @@ public class ViewContext extends Context {
         }
         empty = printReadConstructor(writer, empty);
         empty = printReader(writer, empty, hasEmptyConstructor, hasFieldsConstructor);
+        empty = printWriteBack(writer, empty);
         for (Property property : properties) {
             if (property.hasGetter()) {
                 if (empty) {
@@ -919,7 +952,7 @@ public class ViewContext extends Context {
         Property baseProperty = property.getBase();
         if (!property.isCustomMethod() && baseProperty != null && converter == null && property.isView()) {
             String var = "p" + varMap.size();
-            prepareView(writer, property.getType(), var, baseProperty.getType(), property.getValueString("source"), 2, 0);
+            prepareView(writer, property.getType(), var, baseProperty.getType(), property.getValueString(this, "source"), 2, 0);
             varMap.put(property.getName(), var);
         }
     }
@@ -1093,13 +1126,13 @@ public class ViewContext extends Context {
                             writer.print("new ");
                             converter.printType(writer, this, false, false);
                             writer.print("().convert(");
-                            writer.print(baseProperty.getValueString("source"));
+                            writer.print(baseProperty.getValueString(this, "source"));
                             writer.println(");");
                         } else if (property.isView()) {
                             writer.print(varMap.get(property.getName()));
                             writer.println(";");
                         } else {
-                            writer.print(baseProperty.getValueString("source"));
+                            writer.print(baseProperty.getValueString(this, "source"));
                             writer.println(";");
                         }
                     } else {
@@ -1255,12 +1288,12 @@ public class ViewContext extends Context {
                             writer.print("new ");
                             converter.printType(writer, this, false, false);
                             writer.print("().convert(");
-                            writer.print(property.getValueString("source"));
+                            writer.print(property.getValueString(this, "source"));
                             writer.println(")");
                         } else if (isViewType) {
                             writer.print(varMap.get(property.getName()));
                         } else {
-                            writer.print(property.getValueString("source"));
+                            writer.print(property.getValueString(this, "source"));
                         }
                     }
                     if (i != properties.size() - 1) {
@@ -1305,6 +1338,51 @@ public class ViewContext extends Context {
         Map<String, String> varMap = prepareRead(writer);
         printAssignFields(writer, varMap, varMapper, "this");
         Utils.printIndent(writer, INDENT, 1);
+        writer.println("}");
+        writer.println();
+        return false;
+    }
+
+    private boolean printWriteBack(@NonNull PrintWriter writer, boolean empty) {
+        if (viewOf.getWriteBackMethod() == Access.NONE) {
+            return empty;
+        }
+        if (empty) {
+            writer.println();
+        }
+        Utils.printIndent(writer, INDENT, 1);
+        Utils.printAccess(writer, viewOf.getWriteBackMethod());
+        writer.print("void writeBack(");
+        getTargetType().printType(writer, this, true, false);
+
+        writer.print(" target) {");
+        boolean hasSetter = false;
+        for (Property property : getProperties()) {
+            if (property.isWriteable() || property.isLombokWritable(samePackage)) {
+                if (!viewOf.getWriteExcludes().contains(property.getName())) {
+                    hasSetter = true;
+                    writer.println();
+                    Utils.printIndent(writer, INDENT, 2);
+                    if (property.isWriteMethod()) {
+                        writer.print("target.");
+                        writer.print(property.getSetterName());
+                        writer.print("(");
+                        writer.print(property.getValueString(this, "this"));
+                        writer.print(");");
+                    } else {
+                        writer.print("target.");
+                        writer.print(Objects.requireNonNull(property.getField()).getName());
+                        writer.print(" = ");
+                        writer.print(property.getValueString(this, "this"));
+                        writer.print(";");
+                    }
+                }
+            }
+        }
+        if (hasSetter) {
+            writer.println();
+            Utils.printIndent(writer, INDENT, 1);
+        }
         writer.println("}");
         writer.println();
         return false;

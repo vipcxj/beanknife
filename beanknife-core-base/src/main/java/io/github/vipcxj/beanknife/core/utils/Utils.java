@@ -114,17 +114,17 @@ public class Utils {
         return modifier;
     }
 
-    private static boolean isWriteable(String setterName, TypeMirror type, List<? extends Element> members, boolean samePackage, @CheckForNull LombokInfo lombokInfo) {
-        boolean writeable = false;
+    public static ExecutableElement getSetterMethod(Elements elements, String setterName, TypeMirror type, List<? extends Element> members) {
+        ExecutableElement find = null;
         for (Element member : members) {
+            Set<Modifier> modifiers = member.getModifiers();
             if (member.getKind() == ElementKind.METHOD
-                    && !member.getModifiers().contains(Modifier.STATIC)
-                    && !member.getModifiers().contains(Modifier.ABSTRACT)
-                    && canSeeFromOtherClass(member, samePackage)
+                    && !modifiers.contains(Modifier.STATIC)
+                    && !modifiers.contains(Modifier.ABSTRACT)
                     && setterName.equals(member.getSimpleName().toString())
             ) {
-                ExecutableElement getter = (ExecutableElement) member;
-                List<? extends VariableElement> parameters = getter.getParameters();
+                ExecutableElement setter = (ExecutableElement) member;
+                List<? extends VariableElement> parameters = setter.getParameters();
                 if (parameters.size() != 1) {
                     continue;
                 }
@@ -132,14 +132,14 @@ public class Utils {
                 if (!variableElement.asType().equals(type)) {
                     continue;
                 }
-                writeable = getter.getReturnType().getKind() == TypeKind.VOID;
-                break;
+                if (setter.getReturnType().getKind() == TypeKind.VOID) {
+                    if (find == null || elements.hides(setter, find)) {
+                        find = setter;
+                    }
+                }
             }
         }
-        if (!writeable && lombokInfo != null) {
-            return lombokInfo.isWritable(samePackage);
-        }
-        return writeable;
+        return find;
     }
 
     public static Access resolveGetterAccess(@CheckForNull ViewOfData viewOf, @NonNull Access access) {
@@ -162,8 +162,6 @@ public class Utils {
             @NonNull Context context,
             @CheckForNull ViewOfData viewOf,
             @NonNull VariableElement e,
-            @NonNull List<? extends Element> members,
-            boolean samePackage,
             Access typeLombokGetter,
             Access typeLombokSetter
     ) {
@@ -178,7 +176,6 @@ public class Utils {
         TypeMirror type = e.asType();
         String setterName = createSetterName(name, type.getKind() == TypeKind.BOOLEAN);
         LombokInfo lombokInfo = new LombokInfo(e, typeLombokGetter, typeLombokSetter);
-        boolean writeable = isWriteable(setterName, type, members, samePackage, lombokInfo);
         return new Property(
                 name,
                 true,
@@ -189,7 +186,6 @@ public class Utils {
                 false,
                 createGetterName(name, type.getKind() == TypeKind.BOOLEAN),
                 setterName,
-                writeable,
                 e,
                 context.getProcessingEnv().getElementUtils().getDocComment(e),
                 lombokInfo
@@ -199,9 +195,7 @@ public class Utils {
     public static Property createPropertyFromBase(
             @NonNull Context context,
             @CheckForNull ViewOfData viewOf,
-            @NonNull ExecutableElement e,
-            @NonNull List<? extends Element> members,
-            boolean samePackage
+            @NonNull ExecutableElement e
     ) {
         if (e.getKind() != ElementKind.METHOD) {
             return null;
@@ -220,7 +214,6 @@ public class Utils {
         }
         ViewProperty viewProperty = e.getAnnotation(ViewProperty.class);
         String setterName = createSetterName(name, type.getKind() == TypeKind.BOOLEAN);
-        boolean writeable = isWriteable(setterName, type, members, samePackage, null);
         return new Property(
                 name,
                 true,
@@ -231,7 +224,6 @@ public class Utils {
                 true,
                 methodName,
                 setterName,
-                writeable,
                 e,
                 context.getProcessingEnv().getElementUtils().getDocComment(e),
                 null

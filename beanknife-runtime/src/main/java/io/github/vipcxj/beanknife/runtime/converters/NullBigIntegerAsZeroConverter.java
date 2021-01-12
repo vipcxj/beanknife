@@ -9,4 +9,9 @@ public class NullBigIntegerAsZeroConverter implements PropertyConverter<BigInteg
     public BigInteger convert(BigInteger value) {
         return value != null ? value : BigInteger.ZERO;
     }
+
+    @Override
+    public BigInteger convertBack(BigInteger value) {
+        return value;
+    }
 }

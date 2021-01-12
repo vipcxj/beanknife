@@ -17,7 +17,7 @@ import java.util.*;
 
 public class Property {
 
-    private final String name;
+    private String name;
     private boolean base;
     private final Modifier modifier;
     private Access getter;
@@ -26,7 +26,8 @@ public class Property {
     private final boolean method;
     private final String getterName;
     private final String setterName;
-    private final boolean writeable;
+    private boolean writeable;
+    private boolean writeMethod;
     private Element element;
     private final String comment;
     private final LombokInfo lombokInfo;
@@ -47,7 +48,6 @@ public class Property {
             boolean method,
             String getterName,
             String setterName,
-            boolean writeable,
             @NonNull Element element,
             String comment,
             LombokInfo lombokInfo
@@ -61,7 +61,6 @@ public class Property {
         this.method = method;
         this.getterName = getterName;
         this.setterName = setterName;
-        this.writeable = writeable;
         this.element = element;
         this.comment = comment;
         this.override = null;
@@ -79,6 +78,7 @@ public class Property {
         this.getterName = other.getterName;
         this.setterName = other.setterName;
         this.writeable = other.writeable;
+        this.writeMethod = other.writeMethod;
         this.element = other.element;
         this.comment = other.comment != null ? other.comment : commentIfNone;
         this.extractor = other.extractor;
@@ -89,8 +89,9 @@ public class Property {
     }
 
     @NonNull
-    public Property extend(@NonNull Element element) {
+    public Property extend(@NonNull Element element, @NonNull String newName) {
         Property property = new Property(this, null);
+        property.name = newName;
         property.base = false;
         property.element = element;
         property.override = this;
@@ -117,6 +118,13 @@ public class Property {
         } else {
             return null;
         }
+    }
+
+    public Property withWriteInfo(boolean writeable, boolean writeMethod) {
+        Property property = new Property(this, null);
+        property.writeable = writeable;
+        property.writeMethod = writeMethod;
+        return property;
     }
 
     public Property withGetterAccess(Access access) {
@@ -170,6 +178,10 @@ public class Property {
         return lombokInfo != null && lombokInfo.isReadable(samePackage);
     }
 
+    public boolean isLombokWritable(boolean samePackage) {
+        return lombokInfo != null && lombokInfo.isWritable(samePackage);
+    }
+
     public boolean hasLombokGetter() {
         return lombokInfo != null && lombokInfo.hasGetter();
     }
@@ -216,6 +228,14 @@ public class Property {
 
     public String getSetterName() {
         return setterName;
+    }
+
+    public boolean isWriteable() {
+        return writeable;
+    }
+
+    public boolean isWriteMethod() {
+        return writeMethod;
     }
 
     public Element getElement() {
@@ -352,11 +372,15 @@ public class Property {
         return annotationMirrors;
     }
 
-    public String getValueString(String sourceVar) {
+    public String getValueString(@NonNull Context context, @NonNull String sourceVar) {
+        Property base = getBase();
+        if (base == null) {
+            throw new IllegalArgumentException("This is impossible!");
+        }
         if (isMethod() || hasLombokGetter()) {
-            return sourceVar + "." + getGetterName() + "()";
+            return sourceVar + "." + base.getGetterName() + "()";
         } else {
-            return sourceVar + "." + getName();
+            return sourceVar + "." + context.getMappedFieldName(base);
         }
     }
 

@@ -7,4 +7,9 @@ public class NullDoubleAsZeroConverter implements PropertyConverter<Double, Doub
     public Double convert(Double value) {
         return value != null ? value : 0.0;
     }
+
+    @Override
+    public Double convertBack(Double value) {
+        return value;
+    }
 }

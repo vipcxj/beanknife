@@ -7,4 +7,9 @@ public class NullStringAsEmptyConverter implements PropertyConverter<String, Str
     public String convert(String value) {
         return value != null ? value : "";
     }
+
+    @Override
+    public String convertBack(String value) {
+        return value;
+    }
 }

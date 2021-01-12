@@ -7,4 +7,9 @@ public class NullIntegerAsZeroConverter implements PropertyConverter<Integer, In
     public Integer convert(Integer value) {
         return value != null ? value : 0;
     }
+
+    @Override
+    public Integer convertBack(Integer value) {
+        return value;
+    }
 }

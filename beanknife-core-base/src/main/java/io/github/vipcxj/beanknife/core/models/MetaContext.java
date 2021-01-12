@@ -57,9 +57,9 @@ public class MetaContext extends Context {
         for (Element member : members) {
             Property property = null;
             if (member.getKind() == ElementKind.FIELD) {
-                property = Utils.createPropertyFromBase(this, null, (VariableElement) member, members, true, typeGetterAccess, typeSetterAccess);
+                property = Utils.createPropertyFromBase(this, null, (VariableElement) member, typeGetterAccess, typeSetterAccess);
             } else if (member.getKind() == ElementKind.METHOD) {
-                property = Utils.createPropertyFromBase(this, null, (ExecutableElement) member, members, true);
+                property = Utils.createPropertyFromBase(this, null, (ExecutableElement) member);
             }
             if (property != null) {
                 addProperty(property, false);

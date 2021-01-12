@@ -94,4 +94,12 @@ public class ViewOfProcessorTest {
                 "io.github.vipcxj.beanknife.cases.beans.AnnotationBeanView"
         );
     }
+
+    @Test
+    public void testWriteableBean() {
+        testViewCase(
+                "io.github.vipcxj.beanknife.cases.beans.WriteableBeanViewConfigure",
+                "io.github.vipcxj.beanknife.cases.beans.WriteableBeanView"
+        );
+    }
 }

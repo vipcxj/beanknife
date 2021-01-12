@@ -42,7 +42,10 @@ public class ViewOfData {
     private long serialVersionUID;
     private boolean useDefaultBeanProvider;
     private CacheType configureBeanCacheType;
-    private List<String> extraExcludes;
+    private Access writeBackMethod;
+    private Access createAndWriteBackMethod;
+    private Set<String> extraExcludes;
+    private Set<String> writeExcludes;
     private Map<String, AnnotationUsage> useAnnotations;
     private List<AnnotationMirror> annotationMirrors;
     private Set<String> annotationNames;
@@ -86,12 +89,21 @@ public class ViewOfData {
         this.serialVersionUID = loadSerialVersionUID(elements);
         this.useDefaultBeanProvider = loadBoolean(elements, "useDefaultBeanProvider", false, ViewUseDefaultBeanProvider.class);
         this.configureBeanCacheType = loadEnum(elements, "configureBeanCacheType", CacheType.LOCAL, CacheType.class, ViewConfigureBeanCacheType.class);
-        this.extraExcludes = new ArrayList<>();
+        this.writeBackMethod = loadEnum(elements, "writeBackMethod", Access.NONE, Access.class, ViewWriteBackMethod.class);
+        this.createAndWriteBackMethod = loadEnum(elements, "createAndWriteBackMethod", Access.NONE, Access.class, ViewCreateAndWriteBackMethod.class);
+        this.extraExcludes = new HashSet<>();
         List<AnnotationMirror> removeViewProperties = Utils.getAnnotationsOn(elements, configElement, RemoveViewProperty.class, RemoveViewProperties.class);
         for (AnnotationMirror removeViewProperty : removeViewProperties) {
             Map<? extends ExecutableElement, ? extends AnnotationValue> values = elements.getElementValuesWithDefaults(removeViewProperty);
             String exclude = Utils.getStringAnnotationValue(removeViewProperty, values, "value");
             this.extraExcludes.add(exclude);
+        }
+        this.writeExcludes = new HashSet<>();
+        List<AnnotationMirror> writeBackExcludes = Utils.getAnnotationsOn(elements, configElement, ViewWriteBackExclude.class, ViewWriteBackExcludes.class);
+        for (AnnotationMirror writeBackExclude : writeBackExcludes) {
+            Map<? extends ExecutableElement, ? extends AnnotationValue> values = writeBackExclude.getElementValues();
+            String[] exclude = Utils.getStringArrayAnnotationValue(writeBackExclude, values, "value");
+            this.writeExcludes.addAll(Arrays.asList(exclude));
         }
         this.useAnnotations = AnnotationUsage.collectAnnotationUsages(elements, configElement, null);
         collectAnnotations(elements);
@@ -223,10 +235,6 @@ public class ViewOfData {
         }
     }
 
-    public void reload(ProcessingEnvironment environment) {
-        load(environment, this.viewOf, this.sourceElement);
-    }
-
     private static Modifier getModifier(Access access) {
         switch (access) {
             case PUBLIC:
@@ -330,8 +338,20 @@ public class ViewOfData {
         return configureBeanCacheType;
     }
 
-    public List<String> getExtraExcludes() {
+    public Access getWriteBackMethod() {
+        return writeBackMethod;
+    }
+
+    public Access getCreateAndWriteBackMethod() {
+        return createAndWriteBackMethod;
+    }
+
+    public Set<String> getExtraExcludes() {
         return extraExcludes;
+    }
+
+    public Set<String> getWriteExcludes() {
+        return writeExcludes;
     }
 
     public Map<String, AnnotationUsage> getUseAnnotations() {

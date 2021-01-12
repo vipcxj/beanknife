@@ -7,4 +7,9 @@ public class NullLongAsZeroConverter implements PropertyConverter<Long, Long> {
     public Long convert(Long value) {
         return value != null ? value : 0L;
     }
+
+    @Override
+    public Long convertBack(Long value) {
+        return value;
+    }
 }

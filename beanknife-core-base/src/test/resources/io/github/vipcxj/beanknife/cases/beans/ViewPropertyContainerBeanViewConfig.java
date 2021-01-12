@@ -2,6 +2,7 @@ package io.github.vipcxj.beanknife.cases.beans;
 
 import io.github.vipcxj.beanknife.runtime.annotations.OverrideViewProperty;
 import io.github.vipcxj.beanknife.runtime.annotations.ViewOf;
+import io.github.vipcxj.beanknife.runtime.annotations.ViewPropertiesIncludePattern;
 
 import java.util.List;
 import java.util.Map;
@@ -9,6 +10,7 @@ import java.util.Set;
 import java.util.Stack;
 
 @ViewOf(value = ViewPropertyContainerBean.class, includePattern = ".*")
+@ViewPropertiesIncludePattern(".*")
 public class ViewPropertyContainerBeanViewConfig {
 
     @OverrideViewProperty(ViewPropertyContainerBeanMeta.view)

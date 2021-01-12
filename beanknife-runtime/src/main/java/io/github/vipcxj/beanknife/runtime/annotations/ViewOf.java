@@ -131,4 +131,25 @@ public @interface ViewOf {
      * @return The cache type of the configure bean instance
      */
     CacheType configureBeanCacheType() default CacheType.LOCAL;
+
+    /**
+     * Generate a write-back method. Which writing back to the original type instance.
+     * The method does not create a new original type instance.
+     * You should create it yourself and send it to the method as a parameter.
+     * This means collection and map version write-back methods are not possible.
+     * @return The access level of the generated write-back method. By default, {@link Access#NONE} is used, it means no method is generated.
+     */
+    Access writeBackMethod() default Access.NONE;
+
+    /**
+     * Generate a create-and-write-back method. Which creating a new original type instance and then writing back to it.
+     * The method create a new original type instance through {@link io.github.vipcxj.beanknife.runtime.spi.BeanProvider}.
+     * By default, no default bean-provider is provided. Set {@link #useDefaultBeanProvider()} to true to activate the default bean provider which just new the instance by reflection.
+     * You can also change the default behaviour by put the annotation {@link ViewUseDefaultBeanProvider} on a base configuration class.
+     * Because there is no external parameters is used, The collection and map version create-and-write-back methods are generated as well.
+     * @see #useDefaultBeanProvider()
+     * @see ViewUseDefaultBeanProvider
+     * @return The access level of the generated create-and-write-back method. By default, {@link Access#NONE} is used, it means no method is generated.
+     */
+    Access createAndWriteBackMethod() default Access.NONE;
 }

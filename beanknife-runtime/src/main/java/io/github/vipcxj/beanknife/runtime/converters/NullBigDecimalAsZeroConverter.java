@@ -9,4 +9,9 @@ public class NullBigDecimalAsZeroConverter implements PropertyConverter<BigDecim
     public BigDecimal convert(BigDecimal value) {
         return value != null ? value : BigDecimal.ZERO;
     }
+
+    @Override
+    public BigDecimal convertBack(BigDecimal value) {
+        return value;
+    }
 }

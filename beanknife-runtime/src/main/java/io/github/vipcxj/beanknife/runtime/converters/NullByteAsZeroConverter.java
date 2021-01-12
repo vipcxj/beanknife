@@ -7,4 +7,9 @@ public class NullByteAsZeroConverter implements PropertyConverter<Byte, Byte> {
     public Byte convert(Byte value) {
         return value != null ? value : 0;
     }
+
+    @Override
+    public Byte convertBack(Byte value) {
+        return value;
+    }
 }

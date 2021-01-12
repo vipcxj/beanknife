@@ -7,4 +7,9 @@ public class NullFloatAsZeroConverter implements PropertyConverter<Float, Float>
     public Float convert(Float value) {
         return value != null ? value : 0.0f;
     }
+
+    @Override
+    public Float convertBack(Float value) {
+        return value;
+    }
 }
