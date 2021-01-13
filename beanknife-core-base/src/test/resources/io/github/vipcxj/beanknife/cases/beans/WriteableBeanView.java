@@ -22,18 +22,26 @@ public class WriteableBeanView<T> {
 
     private List<SimpleBean> d;
 
+    private Integer e;
+
+    private long f;
+
     public WriteableBeanView() { }
 
     public WriteableBeanView(
         String a,
         boolean b,
         List<? extends Set<? extends T>> c,
-        List<SimpleBean> d
+        List<SimpleBean> d,
+        Integer e,
+        long f
     ) {
         this.a = a;
         this.b = b;
         this.c = c;
         this.d = d;
+        this.e = e;
+        this.f = f;
     }
 
     public WriteableBeanView(WriteableBeanView<T> source) {
@@ -41,6 +49,8 @@ public class WriteableBeanView<T> {
         this.b = source.b;
         this.c = source.c;
         this.d = source.d;
+        this.e = source.e;
+        this.f = source.f;
     }
 
     public WriteableBeanView(WriteableBean<T> source) {
@@ -51,6 +61,8 @@ public class WriteableBeanView<T> {
         this.b = source.isB();
         this.c = source.getC();
         this.d = source.getD();
+        this.e = source.e;
+        this.f = source.getF();
     }
 
     public static <T> WriteableBeanView<T> read(WriteableBean<T> source) {
@@ -120,6 +132,7 @@ public class WriteableBeanView<T> {
         target.setB(this.isB());
         target.setC(this.getC());
         target.setD(this.getD());
+        target.e = this.e;
     }
 
     protected WriteableBean<T> createAndWriteBack() {
@@ -128,6 +141,7 @@ public class WriteableBeanView<T> {
         target.setB(this.isB());
         target.setC(this.getC());
         target.setD(this.getD());
+        target.e = this.e;
         return target;
     }
 
@@ -145,6 +159,14 @@ public class WriteableBeanView<T> {
 
     public List<SimpleBean> getD() {
         return this.d;
+    }
+
+    public Integer getE() {
+        return this.e;
+    }
+
+    public long getF() {
+        return this.f;
     }
 
 }

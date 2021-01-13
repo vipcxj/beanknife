@@ -8,6 +8,8 @@ public class WriteableBean<T> {
     private boolean b;
     private List<? extends Set<? extends T>> c;
     List<SimpleBean> d;
+    Integer e;
+    private long f;
 
     public String getA() {
         return a;
@@ -39,5 +41,13 @@ public class WriteableBean<T> {
 
     public void setD(List<SimpleBean> d) {
         this.d = d;
+    }
+
+    public long getF() {
+        return f;
+    }
+
+    public void setF(long f) {
+        this.f = f;
     }
 }
