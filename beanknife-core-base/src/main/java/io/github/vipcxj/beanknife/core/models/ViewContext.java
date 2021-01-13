@@ -118,6 +118,10 @@ public class ViewContext extends Context {
         if (viewOf.isSerializable()) {
             importVariable(Type.extract(this, Serializable.class));
         }
+        if (viewOf.getCreateAndWriteBackMethod() != Access.NONE) {
+            importVariable(Type.extract(this, BeanProviders.class));
+            importVariable(Type.extract(this, BeanUsage.class));
+        }
         for (AnnotationMirror annotationMirror : viewOf.getAnnotationMirrors()) {
             Utils.importAnnotation(this, annotationMirror);
         }
@@ -173,7 +177,7 @@ public class ViewContext extends Context {
             if (base != null) {
                 Property field = property.getField();
                 boolean fieldWriteable = field != null && Utils.canSeeFromOtherClass(field.getElement(), samePackage);
-                ExecutableElement setterMethod = Utils.getSetterMethod(elementUtils, base.getSetterName(), base.getTypeMirror(), targetMembers);
+                ExecutableElement setterMethod = Utils.getSetterMethod(processingEnv, base.getSetterName(), base.getTypeMirror(), targetMembers);
                 boolean writeMethod = setterMethod != null;
                 boolean writeable = writeMethod ? Utils.canSeeFromOtherClass(setterMethod, samePackage) : fieldWriteable;
                 return property.withWriteInfo(writeable, writeMethod);
@@ -599,26 +603,34 @@ public class ViewContext extends Context {
         }
     }
 
+    private void printBeanProviderGetInstance(@NonNull PrintWriter writer, @NonNull Type type, @NonNull BeanUsage usage, @NonNull String requester, boolean cache) {
+        boolean useDefaultBeanProvider = viewOf.isUseDefaultBeanProvider();
+        writer.print(BeanProviders.class.getSimpleName());
+        writer.print(".INSTANCE.get(");
+        type.printType(writer, this, false, false);
+        writer.print(".class, ");
+        writer.print(BeanUsage.class.getSimpleName());
+        writer.print(".");
+        writer.print(usage.name());
+        writer.print(", ");
+        writer.print(requester);
+        writer.print(", ");
+        writer.print(useDefaultBeanProvider);
+        writer.print(", ");
+        writer.print(cache);
+        writer.print(")");
+    }
+
     public void printInitConfigureBean(@NonNull PrintWriter writer, @NonNull String requester, boolean useConfigBeanVar) {
         if (useConfigBeanVar) {
             writer.print(READ_CONFIG_BEAN_VAR);
         } else {
-            boolean useDefaultBeanProvider = viewOf.isUseDefaultBeanProvider();
-            CacheType cacheType = viewOf.getConfigureBeanCacheType();
-            writer.print(BeanProviders.class.getSimpleName());
-            writer.print(".INSTANCE.get(");
-            configType.printType(writer, this, false, false);
-            writer.print(".class, ");
-            writer.print(BeanUsage.class.getSimpleName());
-            writer.print(".");
-            writer.print(BeanUsage.CONFIGURE.name());
-            writer.print(", ");
-            writer.print(requester);
-            writer.print(", ");
-            writer.print(useDefaultBeanProvider);
-            writer.print(", ");
-            writer.print(cacheType == CacheType.GLOBAL);
-            writer.print(")");
+            printBeanProviderGetInstance(
+                    writer, configType,
+                    BeanUsage.CONFIGURE,
+                    requester,
+                    viewOf.getConfigureBeanCacheType() == CacheType.GLOBAL
+            );
         }
     }
 
@@ -720,7 +732,8 @@ public class ViewContext extends Context {
         }
         empty = printReadConstructor(writer, empty);
         empty = printReader(writer, empty, hasEmptyConstructor, hasFieldsConstructor);
-        empty = printWriteBack(writer, empty);
+        empty = printWriteBack(writer, empty, false);
+        empty = printWriteBack(writer, empty, true);
         for (Property property : properties) {
             if (property.hasGetter()) {
                 if (empty) {
@@ -1343,24 +1356,40 @@ public class ViewContext extends Context {
         return false;
     }
 
-    private boolean printWriteBack(@NonNull PrintWriter writer, boolean empty) {
-        if (viewOf.getWriteBackMethod() == Access.NONE) {
+    private boolean printWriteBack(@NonNull PrintWriter writer, boolean empty, boolean create) {
+        if (!create && viewOf.getWriteBackMethod() == Access.NONE) {
+            return empty;
+        }
+        if (create && viewOf.getCreateAndWriteBackMethod() == Access.NONE) {
             return empty;
         }
         if (empty) {
             writer.println();
         }
         Utils.printIndent(writer, INDENT, 1);
-        Utils.printAccess(writer, viewOf.getWriteBackMethod());
-        writer.print("void writeBack(");
-        getTargetType().printType(writer, this, true, false);
-
-        writer.print(" target) {");
-        boolean hasSetter = false;
+        Utils.printAccess(writer, create ? viewOf.getCreateAndWriteBackMethod() : viewOf.getWriteBackMethod());
+        if (create) {
+            getTargetType().printType(writer, this, true, false);
+            writer.print(" createAndWriteBack(");
+        } else {
+            writer.print("void writeBack(");
+        }
+        if (!create) {
+            getTargetType().printType(writer, this, true, false);
+            writer.print(" target");
+        }
+        writer.print(") {");
+        if (create) {
+            writer.println();
+            Utils.printIndent(writer, INDENT, 2);
+            getTargetType().printType(writer, this, true, false);
+            writer.print(" target = ");
+            printBeanProviderGetInstance(writer, targetType, BeanUsage.CONVERT_BACK, "this", false);
+            writer.print(";");
+        }
         for (Property property : getProperties()) {
             if (property.isWriteable() || property.isLombokWritable(samePackage)) {
                 if (!viewOf.getWriteExcludes().contains(property.getName())) {
-                    hasSetter = true;
                     writer.println();
                     Utils.printIndent(writer, INDENT, 2);
                     if (property.isWriteMethod()) {
@@ -1379,10 +1408,13 @@ public class ViewContext extends Context {
                 }
             }
         }
-        if (hasSetter) {
+        if (create) {
             writer.println();
-            Utils.printIndent(writer, INDENT, 1);
+            Utils.printIndent(writer, INDENT, 2);
+            writer.print("return target;");
         }
+        writer.println();
+        Utils.printIndent(writer, INDENT, 1);
         writer.println("}");
         writer.println();
         return false;

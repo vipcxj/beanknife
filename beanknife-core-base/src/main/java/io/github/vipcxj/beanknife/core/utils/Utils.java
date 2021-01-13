@@ -114,8 +114,10 @@ public class Utils {
         return modifier;
     }
 
-    public static ExecutableElement getSetterMethod(Elements elements, String setterName, TypeMirror type, List<? extends Element> members) {
+    public static ExecutableElement getSetterMethod(ProcessingEnvironment environment, String setterName, TypeMirror type, List<? extends Element> members) {
         ExecutableElement find = null;
+        Elements elements = environment.getElementUtils();
+        Types types = environment.getTypeUtils();
         for (Element member : members) {
             Set<Modifier> modifiers = member.getModifiers();
             if (member.getKind() == ElementKind.METHOD
@@ -129,7 +131,7 @@ public class Utils {
                     continue;
                 }
                 VariableElement variableElement = parameters.get(0);
-                if (!variableElement.asType().equals(type)) {
+                if (!types.isSameType(variableElement.asType(), type)) {
                     continue;
                 }
                 if (setter.getReturnType().getKind() == TypeKind.VOID) {

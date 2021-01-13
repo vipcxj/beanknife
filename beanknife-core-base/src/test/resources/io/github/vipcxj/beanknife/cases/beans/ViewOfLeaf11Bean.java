@@ -2,6 +2,7 @@ package io.github.vipcxj.beanknife.cases.beans;
 
 import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedView;
 import java.io.Serializable;
+import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -14,9 +15,9 @@ import java.util.Stack;
 public class ViewOfLeaf11Bean implements Serializable {
     private static final long serialVersionUID = 0L;
 
-    private Class<?> b;
+    private Class<? extends Annotation> b;
 
-    private List<?> c;
+    private List<? extends String> c;
 
     private long d;
 
@@ -25,8 +26,8 @@ public class ViewOfLeaf11Bean implements Serializable {
     public ViewOfLeaf11Bean() { }
 
     public ViewOfLeaf11Bean(
-        Class<?> b,
-        List<?> c,
+        Class<? extends Annotation> b,
+        List<? extends String> c,
         long d,
         String e
     ) {
@@ -110,11 +111,11 @@ public class ViewOfLeaf11Bean implements Serializable {
         return results;
     }
 
-    public Class<?> getB() {
+    public Class<? extends Annotation> getB() {
         return this.b;
     }
 
-    public List<?> getC() {
+    public List<? extends String> getC() {
         return this.c;
     }
 
@@ -126,11 +127,11 @@ public class ViewOfLeaf11Bean implements Serializable {
         return this.e;
     }
 
-    protected void setB(Class<?> b) {
+    protected void setB(Class<? extends Annotation> b) {
         this.b = b;
     }
 
-    protected void setC(List<?> c) {
+    protected void setC(List<? extends String> c) {
         this.c = c;
     }
 

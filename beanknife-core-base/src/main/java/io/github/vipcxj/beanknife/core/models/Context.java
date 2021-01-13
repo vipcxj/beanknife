@@ -231,7 +231,7 @@ public class Context {
             for (String anImport : imports) {
                 if ((!anImport.startsWith(packageName)
                         || (anImport.length() > packageName.length() + 1 && anImport.substring(packageName.length() + 1).indexOf('.') != -1))
-                        && !anImport.startsWith("java.lang")
+                        && !(anImport.startsWith("java.lang.") && anImport.indexOf('.', 10) == -1)
                 ) {
                     if (!imported) {
                         imported = true;

@@ -20,7 +20,7 @@ public class ExtraProperties2BeanView {
 
     private String y;
 
-    private Class<?> z;
+    private Class<? extends String> z;
 
     public ExtraProperties2BeanView() { }
 
@@ -29,7 +29,7 @@ public class ExtraProperties2BeanView {
         Integer b,
         long c,
         String y,
-        Class<?> z
+        Class<? extends String> z
     ) {
         this.a = a;
         this.b = b;
@@ -46,7 +46,7 @@ public class ExtraProperties2BeanView {
         this.z = source.z;
     }
 
-    public ExtraProperties2BeanView(SimpleBean source, String y, Class<?> z) {
+    public ExtraProperties2BeanView(SimpleBean source, String y, Class<? extends String> z) {
         if (source == null) {
             throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.ExtraProperties2BeanView should not be null.");
         }
@@ -57,7 +57,7 @@ public class ExtraProperties2BeanView {
         this.z = z;
     }
 
-    public static ExtraProperties2BeanView read(SimpleBean source, String y, Class<?> z) {
+    public static ExtraProperties2BeanView read(SimpleBean source, String y, Class<? extends String> z) {
         if (source == null) {
             return null;
         }
@@ -80,7 +80,7 @@ public class ExtraProperties2BeanView {
         return this.y;
     }
 
-    public Class<?> getZ() {
+    public Class<? extends String> getZ() {
         return this.z;
     }
 

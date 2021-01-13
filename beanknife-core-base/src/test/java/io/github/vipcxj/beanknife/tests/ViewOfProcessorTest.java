@@ -102,4 +102,12 @@ public class ViewOfProcessorTest {
                 "io.github.vipcxj.beanknife.cases.beans.WriteableBeanView"
         );
     }
+
+    @Test
+    public void testConfigurationInheritance() {
+        testViewCase(
+                "io.github.vipcxj.beanknife.cases.beans.Leaf11BeanViewConfigure",
+                "io.github.vipcxj.beanknife.cases.beans.ViewOfLeaf11Bean"
+        );
+    }
 }

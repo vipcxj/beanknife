@@ -1047,31 +1047,31 @@ public class Type {
         writer.println("}");
     }
 
-    public void printType(@NonNull PrintWriter writer, @CheckForNull Context context, boolean generic, boolean withBound) {
+    public void printType(@NonNull PrintWriter writer, @CheckForNull Context context, boolean generic, boolean full) {
         if (isStatic() || !generic) {
             writer.print(context != null ? context.relativeName(this) : getQualifiedName());
             if (generic) {
-                printGenericParameters(writer, context, withBound);
+                printGenericParameters(writer, context, full);
             }
         } else {
             if (container == null) {
                 throw new IllegalStateException("This is impossible!");
             }
-            container.printType(writer, context, true, withBound);
+            container.printType(writer, context, true, full);
             writer.print(".");
             writer.print(simpleName);
-            printGenericParameters(writer, context, withBound);
+            printGenericParameters(writer, context, full);
         }
         for (int i = 0; i < array; ++i) {
             writer.print("[]");
         }
     }
 
-    public void printGenericParameters(@NonNull PrintWriter writer, @CheckForNull Context context, boolean withBound) {
-        printGenericParameters(writer, context, withBound, true);
+    public void printGenericParameters(@NonNull PrintWriter writer, @CheckForNull Context context, boolean full) {
+        printGenericParameters(writer, context, full, true);
     }
 
-    public void printGenericParameters(@NonNull PrintWriter writer, @CheckForNull Context context, boolean withBound, boolean withAngleBrackets) {
+    public void printGenericParameters(@NonNull PrintWriter writer, @CheckForNull Context context, boolean full, boolean withAngleBrackets) {
         if (parameters.isEmpty()) {
             return;
         }
@@ -1083,8 +1083,8 @@ public class Type {
             if (!start) {
                 writer.print(", ");
             }
-            parameter.printType(writer, context, true, withBound);
-            if (withBound) {
+            parameter.printType(writer, context, true, full);
+            if (full || !parameter.isTypeVar()) {
                 List<Type> upperBounds = parameter.upperBounds;
                 List<Type> lowerBounds = parameter.lowerBounds;
                 if (!upperBounds.isEmpty()) {

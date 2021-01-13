@@ -1,6 +1,8 @@
 package io.github.vipcxj.beanknife.cases.beans;
 
+import io.github.vipcxj.beanknife.runtime.BeanProviders;
 import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedView;
+import io.github.vipcxj.beanknife.runtime.utils.BeanUsage;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -16,7 +18,7 @@ public class WriteableBeanView<T> {
 
     private boolean b;
 
-    private List<?> c;
+    private List<? extends Set<? extends T>> c;
 
     private List<SimpleBean> d;
 
@@ -25,7 +27,7 @@ public class WriteableBeanView<T> {
     public WriteableBeanView(
         String a,
         boolean b,
-        List<?> c,
+        List<? extends Set<? extends T>> c,
         List<SimpleBean> d
     ) {
         this.a = a;
@@ -116,7 +118,17 @@ public class WriteableBeanView<T> {
     public void writeBack(WriteableBean<T> target) {
         target.setA(this.getA());
         target.setB(this.isB());
-        target.d = this.getD();
+        target.setC(this.getC());
+        target.setD(this.getD());
+    }
+
+    protected WriteableBean<T> createAndWriteBack() {
+        WriteableBean<T> target = BeanProviders.INSTANCE.get(WriteableBean.class, BeanUsage.CONVERT_BACK, this, false, false);
+        target.setA(this.getA());
+        target.setB(this.isB());
+        target.setC(this.getC());
+        target.setD(this.getD());
+        return target;
     }
 
     public String getA() {
@@ -127,7 +139,7 @@ public class WriteableBeanView<T> {
         return this.b;
     }
 
-    public List<?> getC() {
+    public List<? extends Set<? extends T>> getC() {
         return this.c;
     }
 

@@ -14,12 +14,12 @@ import java.util.Stack;
 public class Leaf21BeanDto implements Serializable {
     private static final long serialVersionUID = 0L;
 
-    private List<?> c;
+    private List<? extends String> c;
 
     public Leaf21BeanDto() { }
 
     public Leaf21BeanDto(
-        List<?> c
+        List<? extends String> c
     ) {
         this.c = c;
     }
@@ -92,7 +92,7 @@ public class Leaf21BeanDto implements Serializable {
         return results;
     }
 
-    public List<?> getC() {
+    public List<? extends String> getC() {
         return this.c;
     }
 

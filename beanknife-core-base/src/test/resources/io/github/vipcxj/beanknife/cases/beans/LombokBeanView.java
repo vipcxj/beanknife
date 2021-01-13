@@ -19,14 +19,14 @@ public class LombokBeanView {
 
     private int b;
 
-    private List<?> c;
+    private List<? extends Class<? extends Data>> c;
 
     public LombokBeanView() { }
 
     public LombokBeanView(
         String a,
         int b,
-        List<?> c
+        List<? extends Class<? extends Data>> c
     ) {
         this.a = a;
         this.b = b;
@@ -121,7 +121,7 @@ public class LombokBeanView {
     }
 
     @PropertyAnnotation1
-    public List<?> getC() {
+    public List<? extends Class<? extends Data>> getC() {
         return this.c;
     }
 

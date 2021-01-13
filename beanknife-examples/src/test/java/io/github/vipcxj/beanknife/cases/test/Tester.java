@@ -20,7 +20,7 @@ public class Tester {
     }
 
     private static void checkView(Class<?> type, List<String> errorMessages) {
-        errorMessages = new ArrayList<>(errorMessages);
+        List<String> newErrorMessages = new ArrayList<>(errorMessages);
         System.out.println("Checking generated view type: " + type);
         Assertions.assertTrue(Utils.isGeneratedView(type), "The type " + type.getName() + " is not a generated view class.");
         for (Method method : type.getDeclaredMethods()) {
@@ -38,7 +38,9 @@ public class Tester {
                 if (isError) {
                     try {
                         String error = (String) method.invoke(null);
-                        if (!errorMessages.removeIf(error::matches)) {
+                        if (errorMessages.stream().anyMatch(error::matches)) {
+                            newErrorMessages.removeIf(error::matches);
+                        } else {
                             Assertions.fail("The generated class " + type.getName() + " has some error: " + error);
                         }
                     } catch (IllegalAccessException | InvocationTargetException e) {
@@ -47,8 +49,8 @@ public class Tester {
                 }
             }
         }
-        String messages = errorMessages.stream().map(m -> "\"" + m + "\"").collect(Collectors.joining(", "));
-        Assertions.assertTrue(errorMessages.isEmpty(), "The generated class " + type.getName() + " should has some errors which match " + messages + ".");
+        String messages = newErrorMessages.stream().map(m -> "\"" + m + "\"").collect(Collectors.joining(", "));
+        Assertions.assertTrue(newErrorMessages.isEmpty(), "The generated class " + type.getName() + " should has some errors which match " + messages + ".");
     }
 
     @Test
@@ -94,5 +96,9 @@ public class Tester {
         checkView(ViewOfInNestBean$Bean2$Bean1View.class);
         checkView(ViewPropertyBeanWithoutParent.class);
         checkView(ViewPropertyContainerBeanView.class);
+        checkView(ViewPropertyWithExtraBeanView.class, Collections.singletonList(
+                "Unable to convert from .+ to its view type .+\\. Because it has extra properties or extra params\\."
+        ));
+        checkView(WriteableBeanView.class);
     }
 }
