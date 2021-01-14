@@ -6,7 +6,7 @@
     <artifactId>beanknife-parent</artifactId>
     <packaging>pom</packaging>
     <name>BeanKnife Parent</name>
-    <version>1.4.1-SNAPSHOT</version>
+    <version>1.4.1</version>
     <url>https://github.com/vipcxj/beanknife</url>
     <description>
         The annotation processor to generate the data transfer object (DTO).
@@ -22,7 +22,7 @@
         <url>https://github.com/vipcxj/beanknife</url>
         <connection>scm:git:git://github.com/vipcxj/beanknife.git</connection>
         <developerConnection>scm:git:https://github.com/vipcxj/beanknife.git</developerConnection>
-      <tag>HEAD</tag>
+      <tag>V1.4.1</tag>
   </scm>
     <developers>
         <developer>
