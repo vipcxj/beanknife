@@ -128,19 +128,19 @@ public class WriteableBeanView<T> {
     }
 
     public void writeBack(WriteableBean<T> target) {
-        target.setA(this.getA());
-        target.setB(this.isB());
-        target.setC(this.getC());
-        target.setD(this.getD());
+        target.setA(this.a);
+        target.setB(this.b);
+        target.setC(this.c);
+        target.setD(this.d);
         target.e = this.e;
     }
 
     protected WriteableBean<T> createAndWriteBack() {
         WriteableBean<T> target = BeanProviders.INSTANCE.get(WriteableBean.class, BeanUsage.CONVERT_BACK, this, false, false);
-        target.setA(this.getA());
-        target.setB(this.isB());
-        target.setC(this.getC());
-        target.setD(this.getD());
+        target.setA(this.a);
+        target.setB(this.b);
+        target.setC(this.c);
+        target.setD(this.d);
         target.e = this.e;
         return target;
     }
