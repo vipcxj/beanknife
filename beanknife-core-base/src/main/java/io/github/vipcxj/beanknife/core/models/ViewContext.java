@@ -1356,6 +1356,20 @@ public class ViewContext extends Context {
         return false;
     }
 
+    private void printWriteBackField(@NonNull PrintWriter writer, @NonNull Property property) {
+        if (property.getConverter() != null) {
+            writer.print("new ");
+            property.getConverter().printType(writer, this, false, false);
+            writer.print("().convertBack(");
+            writer.print("this.");
+            writer.print(getMappedFieldName(property));
+            writer.println(");");
+        } else {
+            writer.print("this.");
+            writer.print(getMappedFieldName(property));
+        }
+    }
+
     private boolean printWriteBack(@NonNull PrintWriter writer, boolean empty, boolean create) {
         if (!create && viewOf.getWriteBackMethod() == Access.NONE) {
             return empty;
@@ -1396,13 +1410,13 @@ public class ViewContext extends Context {
                         writer.print("target.");
                         writer.print(property.getSetterName());
                         writer.print("(");
-                        writer.print(property.getValueString(this, "this"));
+                        printWriteBackField(writer, property);
                         writer.print(");");
                     } else {
                         writer.print("target.");
                         writer.print(Objects.requireNonNull(property.getField()).getName());
                         writer.print(" = ");
-                        writer.print(property.getValueString(this, "this"));
+                        printWriteBackField(writer, property);
                         writer.print(";");
                     }
                 }
