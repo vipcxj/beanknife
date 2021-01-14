@@ -3,6 +3,8 @@ BeanKnife
 
 [![Maven Release][maven-shield]][maven-link]
 
+[中文版](/README_CN.md)
+
 An annotation processor library to automatically generate the data transfer objects (DTO).
 
 ## Docs
