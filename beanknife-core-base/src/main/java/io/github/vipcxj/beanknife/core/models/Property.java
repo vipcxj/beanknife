@@ -409,7 +409,7 @@ public class Property {
         Utils.printIndent(writer, indent, indentNum + 1);
         writer.print("return ");
         if (isDynamic()) {
-            extractor.print(writer, null, indent, indentNum + 1);
+            ((DynamicMethodExtractor) extractor).print(writer);
         } else {
             writer.print("this.");
             writer.print(context.getMappedFieldName(this));

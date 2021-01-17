@@ -1,0 +1,1 @@
+mvn -Dtest=%1 -Dmaven.surefire.debug test

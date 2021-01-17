@@ -819,6 +819,14 @@ public class Type {
         return "java.lang".equals(packageName);
     }
 
+    public boolean isMap() {
+        return canAssignTo(Type.extract(context, Map.class));
+    }
+
+    public boolean isCollection() {
+        return canAssignTo(Type.extract(context, Collection.class));
+    }
+
     public boolean isBoolean() {
         return packageName.isEmpty() && "boolean".equals(simpleName);
     }

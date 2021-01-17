@@ -1,6 +1,5 @@
 package io.github.vipcxj.beanknife.core;
 
-import com.google.auto.service.AutoService;
 import com.sun.source.util.Trees;
 import io.github.vipcxj.beanknife.core.models.ProcessorData;
 import io.github.vipcxj.beanknife.core.models.ViewContext;
@@ -18,17 +17,15 @@ import java.util.Map;
 import java.util.Set;
 
 @SupportedAnnotationTypes({"io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedMeta"})
-@AutoService(Processor.class)
 public class GeneratedMetaProcessor extends AbstractProcessor {
 
-    private Trees trees;
     private ProcessorData processorData;
 
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
-        this.trees = Trees.instance(processingEnv);
-        this.processorData = new ProcessorData(this.trees, processingEnv);
+        Trees trees = Trees.instance(processingEnv);
+        this.processorData = new ProcessorData(trees, processingEnv);
     }
 
     @Override

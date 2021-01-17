@@ -1,6 +1,5 @@
 package io.github.vipcxj.beanknife.core;
 
-import com.google.auto.service.AutoService;
 import com.sun.source.util.Trees;
 import io.github.vipcxj.beanknife.core.models.MetaContext;
 import io.github.vipcxj.beanknife.core.models.ViewMetaData;
@@ -20,7 +19,6 @@ import java.util.*;
 
 @SupportedAnnotationTypes({"io.github.vipcxj.beanknife.runtime.annotations.ViewMeta", "io.github.vipcxj.beanknife.runtime.annotations.ViewMetas"})
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
-@AutoService(Processor.class)
 public class ViewMetaProcessor extends AbstractProcessor {
 
     private Trees trees;

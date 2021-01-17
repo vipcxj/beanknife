@@ -2,8 +2,10 @@ package io.github.vipcxj.beanknife.cases.beans;
 
 import io.github.vipcxj.beanknife.runtime.annotations.*;
 
-@ViewOf(value = SimpleBean.class, genName = "StaticMethodPropertyBeanView", includes = {SimpleBeanMeta.a, SimpleBeanMeta.b})
-public class StaticMethodPropertyBeanViewConfig {
+import java.math.BigInteger;
+
+@ViewOf(value = SimpleBean.class, genName = "StaticMethodPropertyBeanView")
+public class StaticMethodPropertyBeanViewConfig extends IncludeAllBaseConfigure {
 
     @NewViewProperty("one")
     public static int getOne(){
@@ -15,14 +17,24 @@ public class StaticMethodPropertyBeanViewConfig {
         return null;
     }
 
-    @NewViewProperty("c")
-    public static Integer getC(SimpleBean bean) {
-        return bean.getB();
-    }
-
     @NewViewProperty("d")
     public static Integer getD(SimpleBean bean) {
         return bean.getB();
+    }
+
+    @NewViewProperty("e")
+    public static Integer getE(SimpleBean bean) {
+        return bean.getB();
+    }
+
+    @MapViewProperty(name = "newA", map = SimpleBeanMeta.a)
+    public static String newA(@InjectProperty(SimpleBeanMeta.a) String a) {
+        return a != null ? a + "-new" : "new";
+    }
+
+    @MapViewProperty(name = "newC", map = SimpleBeanMeta.c)
+    public BigInteger newC(@InjectProperty(SimpleBeanMeta.b) Integer b, @InjectProperty(SimpleBeanMeta.c) long c) {
+        return BigInteger.valueOf((b != null ? b : 0) + c);
     }
 
     /**

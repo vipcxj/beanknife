@@ -33,11 +33,6 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.google.auto.service</groupId>
-            <artifactId>auto-service-annotations</artifactId>
-            <version>${auto-service.version}</version>
-        </dependency>
-        <dependency>
             <groupId>com.google.testing.compile</groupId>
             <artifactId>compile-testing</artifactId>
             <version>0.19</version>

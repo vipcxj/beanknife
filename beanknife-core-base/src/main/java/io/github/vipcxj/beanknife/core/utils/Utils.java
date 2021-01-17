@@ -332,6 +332,17 @@ public class Utils {
         return arrayValue.stream().map(value -> (String) value.getValue()).collect(Collectors.toList());
     }
 
+    @CheckForNull
+    public static List<TypeMirror> getTypeArrayAnnotationValue(@NonNull AnnotationMirror annotation, @NonNull String name) {
+        AnnotationValue annotationValue = getAnnotationValue(annotation, name);
+        if (annotationValue == null) {
+            return null;
+        }
+        //noinspection unchecked
+        List<? extends AnnotationValue> arrayValue = (List<? extends AnnotationValue>) annotationValue.getValue();
+        return arrayValue.stream().map(value -> (TypeMirror) value.getValue()).collect(Collectors.toList());
+    }
+
     public static AnnotationValue getAnnotationValue(AnnotationMirror annotation, @NonNull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues, @NonNull String name) {
         for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : annotationValues.entrySet()) {
             if (name.equals(entry.getKey().getSimpleName().toString())) {

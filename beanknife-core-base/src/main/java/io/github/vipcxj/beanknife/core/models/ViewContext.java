@@ -3,6 +3,8 @@ package io.github.vipcxj.beanknife.core.models;
 import com.sun.source.util.Trees;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import io.github.vipcxj.beanknife.core.ViewCodeGenerators;
+import io.github.vipcxj.beanknife.core.spi.ViewCodeGenerator;
 import io.github.vipcxj.beanknife.core.utils.LombokUtils;
 import io.github.vipcxj.beanknife.core.utils.ParamInfo;
 import io.github.vipcxj.beanknife.core.utils.Utils;
@@ -26,6 +28,7 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import java.io.PrintWriter;
 import java.io.Serializable;
+import java.io.StringWriter;
 import java.lang.annotation.Annotation;
 import java.util.*;
 import java.util.regex.Pattern;
@@ -41,6 +44,7 @@ public class ViewContext extends Context {
     private final Type genType;
     private final Type generatedType;
     private final boolean samePackage;
+    private List<Property> baseProperties;
     private List<Property> extraProperties;
     private final Map<String, ParamInfo> extraParams;
     private boolean useConfigureBeanVarInRead;
@@ -83,8 +87,20 @@ public class ViewContext extends Context {
         return trees;
     }
 
+    public List<Property> getBaseProperties() {
+        return baseProperties;
+    }
+
+    public List<Property> getExtraProperties() {
+        return extraProperties;
+    }
+
     public boolean hasExtraProperties() {
         return !extraProperties.isEmpty();
+    }
+
+    public Map<String, ParamInfo> getExtraParams() {
+        return extraParams;
     }
 
     public boolean hasExtraParams() {
@@ -140,6 +156,8 @@ public class ViewContext extends Context {
                 addProperty(property, false);
             }
         }
+        getProperties().removeIf(property -> Utils.canNotSeeFromOtherClass(property, samePackage));
+        this.baseProperties = new ArrayList<>(getProperties());
         List<Pattern> includePatterns = new ArrayList<>();
         for (String p : viewOf.getIncludePattern().split(",\\s")) {
             try {
@@ -166,12 +184,13 @@ public class ViewContext extends Context {
                 );
             }
         }
-        getProperties().removeIf(property -> Utils.canNotSeeFromOtherClass(property, samePackage)
-                || (includePatterns.stream().noneMatch(pattern -> pattern.matcher(property.getName()).matches())
-                && Arrays.stream(viewOf.getIncludes()).noneMatch(include -> include.equals(property.getName())))
-                || excludePatterns.stream().anyMatch(pattern -> pattern.matcher(property.getName()).matches())
-                || Arrays.stream(viewOf.getExcludes()).anyMatch(exclude -> exclude.equals(property.getName()))
-                || viewOf.getExtraExcludes().contains(property.getName()));
+        getProperties().removeIf(
+                property -> (includePatterns.stream().noneMatch(pattern -> pattern.matcher(property.getName()).matches())
+                        && Arrays.stream(viewOf.getIncludes()).noneMatch(include -> include.equals(property.getName())))
+                        || excludePatterns.stream().anyMatch(pattern -> pattern.matcher(property.getName()).matches())
+                        || Arrays.stream(viewOf.getExcludes()).anyMatch(exclude -> exclude.equals(property.getName()))
+                        || viewOf.getExtraExcludes().contains(property.getName())
+        );
         getProperties().replaceAll(property -> {
             Property base = property.getBase();
             if (base != null) {
@@ -186,7 +205,7 @@ public class ViewContext extends Context {
             }
         });
         List<Property> baseProperties = new ArrayList<>(getProperties());
-        if (configElement != targetElement) {
+        if (!Objects.equals(configElement, targetElement)) {
             List<? extends Element> configMembers = elementUtils.getAllMembers(configElement);
             for (Element member : configMembers) {
                 NewViewProperty newViewProperty = member.getAnnotation(NewViewProperty.class);
@@ -249,7 +268,7 @@ public class ViewContext extends Context {
                                     }
                                 }
                                 boolean isView = matchViewType(p.getType(), newType);
-                                if (!newType.canBeAssignedBy(p.getTypeMirror())  && converter == null) {
+                                if (!p.getType().canAssignTo(newType) && converter == null) {
                                     if (!isView) {
                                         error("The property " + p.getName() + " can not be override because type mismatched.");
                                         return null;
@@ -430,6 +449,11 @@ public class ViewContext extends Context {
                 .stream()
                 .filter(p -> !p.isDynamic() && !p.isCustomMethod() && p.getBase() == null)
                 .collect(Collectors.toList());
+
+        for (ViewCodeGenerator generator : ViewCodeGenerators.INSTANCE.getGenerators()) {
+            generator.ready(this);
+        }
+
         lock();
     }
 
@@ -795,6 +819,22 @@ public class ViewContext extends Context {
                 writer.println();
             }
         }
+
+        for (ViewCodeGenerator generator : ViewCodeGenerators.INSTANCE.getGenerators()) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            generator.print(pw, this, INDENT, 1);
+            pw.flush();
+            String generated = sw.toString();
+            if (!generated.isEmpty()) {
+                if (empty) {
+                    empty = false;
+                    writer.println();
+                }
+                writer.print(generated);
+            }
+        }
+
         printErrors(writer, empty);
         exit();
         genType.closeClass(writer, INDENT, 0);
@@ -1130,7 +1170,7 @@ public class ViewContext extends Context {
                 writer.print(this.getMappedFieldName(property));
                 writer.print(" = ");
                 if (property.isCustomMethod() && property.getExtractor() != null) {
-                    property.getExtractor().print(writer, varMapper, INDENT, 2);
+                    ((StaticMethodExtractor) property.getExtractor()).print(writer, varMapper, true, INDENT, 2);
                     writer.println(";");
                 } else {
                     Property baseProperty = property.getBase();
@@ -1149,7 +1189,7 @@ public class ViewContext extends Context {
                             writer.println(";");
                         }
                     } else {
-                        writer.print(varMapper.getVar(property.getName()));
+                        writer.print(varMapper.getVar(property, property.getName()));
                         writer.println(";");
                     }
                 }
@@ -1170,7 +1210,7 @@ public class ViewContext extends Context {
                 Utils.printIndent(writer, INDENT, 2);
                 extraProperty.printType(writer, this, true, false);
                 writer.print(" ");
-                writer.print(varMapper.getVar(extraProperty.getName()));
+                writer.print(varMapper.getVar(extraProperty, extraProperty.getName()));
             }
             for (ParamInfo paramInfo : extraParams.values()) {
                 writer.println(",");
@@ -1178,7 +1218,7 @@ public class ViewContext extends Context {
                 Type type = Type.extract(this, paramInfo.getVar());
                 type.printType(writer, this, true, false);
                 writer.print(" ");
-                writer.print(varMapper.getVar(paramInfo.getExtraParamName()));
+                writer.print(varMapper.getVar(paramInfo, paramInfo.getExtraParamName()));
             }
             writer.println();
             Utils.printIndent(writer, INDENT, 1);
@@ -1189,14 +1229,14 @@ public class ViewContext extends Context {
                 writer.print(", ");
                 extraProperty.printType(writer, this, true, false);
                 writer.print(" ");
-                writer.print(varMapper.getVar(extraProperty.getName()));
+                writer.print(varMapper.getVar(extraProperty, extraProperty.getName()));
             }
             for (ParamInfo paramInfo : extraParams.values()) {
                 writer.print(", ");
                 Type type = Type.extract(this, paramInfo.getVar());
                 type.printType(writer, this, true, false);
                 writer.print(" ");
-                writer.print(varMapper.getVar(paramInfo.getExtraParamName()));
+                writer.print(varMapper.getVar(paramInfo, paramInfo.getExtraParamName()));
             }
         }
         return varMapper;
@@ -1213,12 +1253,12 @@ public class ViewContext extends Context {
             for (Property extraProperty : extraProperties) {
                 writer.println(",");
                 Utils.printIndent(writer, INDENT, 2);
-                writer.print(varMapper.getVar(extraProperty.getName()));
+                writer.print(varMapper.getVar(extraProperty, extraProperty.getName()));
             }
             for (ParamInfo paramInfo : extraParams.values()) {
                 writer.println(",");
                 Utils.printIndent(writer, INDENT, 2);
-                writer.print(varMapper.getVar(paramInfo.getExtraParamName()));
+                writer.print(varMapper.getVar(paramInfo, paramInfo.getExtraParamName()));
             }
             writer.println(",");
             Utils.printIndent(writer, INDENT, 2);
@@ -1226,11 +1266,11 @@ public class ViewContext extends Context {
             writer.print("source");
             for (Property extraProperty : extraProperties) {
                 writer.print(", ");
-                writer.print(varMapper.getVar(extraProperty.getName()));
+                writer.print(varMapper.getVar(extraProperty, extraProperty.getName()));
             }
             for (ParamInfo paramInfo : extraParams.values()) {
                 writer.print(", ");
-                writer.print(varMapper.getVar(paramInfo.getExtraParamName()));
+                writer.print(varMapper.getVar(paramInfo, paramInfo.getExtraParamName()));
             }
         }
     }
@@ -1294,7 +1334,7 @@ public class ViewContext extends Context {
                     Type converter = property.getConverter();
                     Utils.printIndent(writer, INDENT, 3);
                     if (property.isCustomMethod() && property.getExtractor() != null) {
-                        property.getExtractor().print(writer, varMapper, INDENT, 3);
+                        ((StaticMethodExtractor) property.getExtractor()).print(writer, varMapper, true, INDENT, 3);
                     } else {
                         boolean isViewType = property.isView();
                         if (converter != null) {

@@ -20,7 +20,6 @@ public interface Extractor {
     Type getContainer();
     @NonNull
     ExecutableElement getExecutableElement();
-    void print(PrintWriter writer, @CheckForNull VarMapper varMapper, @NonNull String indent, int indentNum);
     boolean isDynamic();
     default boolean useBeanProvider() {
         return !getExecutableElement().getModifiers().contains(Modifier.STATIC);

@@ -37,12 +37,13 @@
     </developers>
     <modules>
         <module>beanknife-core-base</module>
-        <module>beanknife-core-module-info</module>
         <module>beanknife-examples</module>
         <module>beanknife-runtime</module>
         <module>tools-dependency-maven-plugin</module>
         <module>beanknife-core</module>
         <module>beanknife-spring</module>
+        <module>beanknife-jpa</module>
+        <module>beanknife-jpa-runtime</module>
     </modules>
 
     <properties>
@@ -52,6 +53,18 @@
         <maven.compiler.target>9</maven.compiler.target>
         <auto-service.version>1.0-rc7</auto-service.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>5.7.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <dependency>

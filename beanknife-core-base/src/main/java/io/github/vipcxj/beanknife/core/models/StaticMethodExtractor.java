@@ -7,6 +7,7 @@ import io.github.vipcxj.beanknife.core.utils.ParamInfo;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 import io.github.vipcxj.beanknife.core.utils.VarMapper;
 import io.github.vipcxj.beanknife.runtime.annotations.ExtraParam;
+import io.github.vipcxj.beanknife.runtime.annotations.InjectProperty;
 
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
@@ -15,12 +16,13 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class StaticMethodExtractor implements Extractor {
 
     @NonNull
-    private ViewContext context;
+    private final ViewContext context;
     @CheckForNull
     private final Type container;
     @NonNull
@@ -47,10 +49,25 @@ public class StaticMethodExtractor implements Extractor {
         List<ParamInfo> paramInfoList = new ArrayList<>();
         for (VariableElement parameter : executableElement.getParameters()) {
             ExtraParam extraParam = parameter.getAnnotation(ExtraParam.class);
-            if (isSourceParam(context, parameter)) {
-                paramInfoList.add(ParamInfo.sourceParam(parameter));
+            InjectProperty injectProperty = parameter.getAnnotation(InjectProperty.class);
+            if (extraParam != null && injectProperty != null) {
+                context.error("@ExtraParam and @InjectProperty can not be put on the same parameter: " + executableElement.getSimpleName() + "#" + parameter.getSimpleName() + ". The @ExtraParam is ignored.");
+            }
+            if (injectProperty != null) {
+                Property injectedProperty = context.getBaseProperties().stream().filter(property -> property.getName().equals(injectProperty.value())).findAny().orElse(null);
+                if (injectedProperty == null) {
+                    context.error("Unable to inject the property " +
+                            injectProperty.value() + ", No property named " +
+                            injectProperty.value() + " in the original class " + context.getTargetType() + "."
+                    );
+                    paramInfoList.add(ParamInfo.unknown(parameter));
+                } else {
+                    paramInfoList.add(ParamInfo.propertyParam(parameter, injectedProperty));
+                }
             } else if (extraParam != null) {
                 paramInfoList.add(ParamInfo.extraParam(parameter, extraParam.value()));
+            } else if (isSourceParam(context, parameter)) {
+                paramInfoList.add(ParamInfo.sourceParam(parameter));
             } else {
                 paramInfoList.add(ParamInfo.unknown(parameter));
             }
@@ -79,21 +96,6 @@ public class StaticMethodExtractor implements Extractor {
             return false;
         }
         Name name = executableElement.getSimpleName();
-/*        if (!executableElement.getModifiers().contains(Modifier.STATIC)) {
-            context.error("The static property method \"" + name + "\" should be static.");
-            return false;
-        }*/
-        List<? extends VariableElement> parameters = executableElement.getParameters();
-        String sign = "\"public static " + returnType + " " + name + "()\" or \"public static <S extends " + context.getTargetType() + "> " + returnType + " " + name + "(S " + " source)\"";
-        if (parameters.size() > 1) {
-            context.error("The static property method \"" +
-                    name +
-                    "\" has to many parameters. " +
-                    "It should look like " +
-                    sign + "."
-            );
-            return false;
-        }
         if (paramInfoList.stream().filter(ParamInfo::isSource).count() > 1) {
             String params = paramInfoList.stream().filter(ParamInfo::isSource).map(ParamInfo::getParameterName).collect(Collectors.joining(", "));
             context.error("There should be at most one source type parameter in the static property method \"" + name + "\". No there are many: " + params + ".");
@@ -116,6 +118,24 @@ public class StaticMethodExtractor implements Extractor {
             }
             return false;
         }
+        for (ParamInfo paramInfo : paramInfoList) {
+            if (paramInfo.isPropertyParam()) {
+                Property injectedProperty = paramInfo.getInjectedProperty();
+                Type type = Type.extract(context, paramInfo.getVar());
+                if (!injectedProperty.getType().canAssignTo(type)) {
+                    context.error("The type of the inject property parameter " +
+                            paramInfo.getParameterName() +
+                            " in the static property method " +
+                            name +
+                            " is illegal. The binding property " +
+                            injectedProperty.getName() +
+                            " can not be injected into it."
+                    );
+                    return false;
+                }
+            }
+        }
+
         return true;
     }
 
@@ -152,29 +172,44 @@ public class StaticMethodExtractor implements Extractor {
         return paramInfoList;
     }
 
-    private void printParameter(@NonNull PrintWriter writer, @NonNull ParamInfo paramInfo, @NonNull VarMapper varMapper) {
+    private void printParameter(@NonNull PrintWriter writer, @NonNull ParamInfo paramInfo, @NonNull VarMapper varMapper, boolean useSource) {
         if (paramInfo.isSource()) {
             writer.print("source");
         } else if (paramInfo.isExtraParam()) {
-            writer.print(varMapper.getVar(paramInfo.getExtraParamName()));
+            Object key = Objects.requireNonNull(getParamInfoKey(paramInfo));
+            writer.print(varMapper.getVar(key, paramInfo.getExtraParamName()));
+        } else if (paramInfo.isPropertyParam()) {
+            Property injectedProperty = paramInfo.getInjectedProperty();
+            if (useSource) {
+                writer.print(injectedProperty.getValueString(context, "source"));
+            } else {
+                writer.print(varMapper.getVar(injectedProperty, injectedProperty.getName()));
+            }
         } else {
             writer.print("null");
         }
     }
 
-    @Override
-    public void print(PrintWriter writer, @CheckForNull VarMapper varMapper, @NonNull String indent, int indentNum) {
+    private Object getParamInfoKey(ParamInfo info) {
+        if (info.isExtraParam()) {
+            return context.getExtraParams().get(info.getExtraParamName());
+        } else {
+            return null;
+        }
+    }
+
+    public void print(PrintWriter writer, @CheckForNull VarMapper varMapper, boolean useSource, @NonNull String indent, int indentNum) {
         if (varMapper == null) {
             throw new NullPointerException("This is impossible!");
         }
-        printConfigBean(writer, "source");
+        printConfigBean(writer, useSource ? "source" : "this");
         writer.print(".");
         writer.print(executableElement.getSimpleName());
         if (paramInfoList.size() < 5) {
             writer.print("(");
             int i = 0;
             for (ParamInfo paramInfo : paramInfoList) {
-                printParameter(writer, paramInfo, varMapper);
+                printParameter(writer, paramInfo, varMapper, useSource);
                 if (i++ != paramInfoList.size() - 1) {
                     writer.print(", ");
                 }
@@ -186,7 +221,7 @@ public class StaticMethodExtractor implements Extractor {
             for (ParamInfo paramInfo : paramInfoList) {
                 writer.println();
                 Utils.printIndent(writer, indent, indentNum + 1);
-                printParameter(writer, paramInfo, varMapper);
+                printParameter(writer, paramInfo, varMapper, useSource);
                 if (i++ != paramInfoList.size() - 1) {
                     writer.print(", ");
                 }

@@ -3,46 +3,33 @@ package io.github.vipcxj.beanknife.core.utils;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class VarMapper {
 
-    private final Map<String, String> mapper;
+    private final Set<String> initVars;
+    private final IdentityHashMap<Object, String> mapper;
 
     public VarMapper(String... initVars) {
         this(Arrays.asList(initVars));
     }
 
     public VarMapper(@CheckForNull Collection<String> initVars) {
-        mapper = new HashMap<>();
-        if (initVars != null) {
-            for (String initVar : initVars) {
-                if (initVar != null) {
-                    mapper.put(initVar, initVar);
-                }
-            }
-        }
+        this.initVars = initVars != null ? new HashSet<>(initVars) : Collections.emptySet();
+        this.mapper = new IdentityHashMap<>();
     }
 
     @NonNull
-    private String calcVar(@NonNull String name, @NonNull String var) {
-        String result = mapper.get(name);
+    public String getVar(@NonNull Object key, @NonNull String name) {
+        String result = mapper.get(key);
         if (result != null) {
             return result;
         }
-        if (!mapper.containsValue(var)) {
-            mapper.put(name, var);
-            return var;
+        if (!initVars.contains(name) && !mapper.containsValue(name)) {
+            mapper.put(key, name);
+            return name;
         } else {
-            return calcVar(name, var + "_");
+            return getVar(key, name + "_");
         }
-    }
-
-    @NonNull
-    public String getVar(@NonNull String name) {
-        return calcVar(name, name);
     }
 }

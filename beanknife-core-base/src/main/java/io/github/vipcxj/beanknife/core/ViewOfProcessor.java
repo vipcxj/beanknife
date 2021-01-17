@@ -1,6 +1,5 @@
 package io.github.vipcxj.beanknife.core;
 
-import com.google.auto.service.AutoService;
 import com.sun.source.util.Trees;
 import io.github.vipcxj.beanknife.core.models.MetaContext;
 import io.github.vipcxj.beanknife.core.models.ViewMetaData;
@@ -22,7 +21,6 @@ import java.util.*;
 
 @SupportedAnnotationTypes({"io.github.vipcxj.beanknife.runtime.annotations.ViewOf", "io.github.vipcxj.beanknife.runtime.annotations.ViewOfs"})
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
-@AutoService(Processor.class)
 public class ViewOfProcessor extends AbstractProcessor {
 
     private Trees trees;

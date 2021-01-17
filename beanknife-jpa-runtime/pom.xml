@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>beanknife-parent</artifactId>
+        <groupId>io.github.vipcxj</groupId>
+        <version>1.4.1-SNAPSHOT</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>beanknife-jpa-runtime</artifactId>
+    <name>BeanKnife JPA Runtime</name>
+    <url>https://github.com/vipcxj/beanknife</url>
+    <description>
+        The annotation processor to generate the data transfer object (DTO).
+        This is the runtime of the jpa plugin for BeanKnife.
+    </description>
+    <licenses>
+        <license>
+            <name>Apache 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+    <developers>
+        <developer>
+            <name>XiaoJing Chen</name>
+            <id>vipcxj</id>
+            <email>vipcxj@126.com</email>
+            <roles>
+                <role>Developer</role>
+            </roles>
+            <timezone>+8</timezone>
+        </developer>
+    </developers>
+    <dependencies>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>beanknife-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-compile</id>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                        <configuration>
+                            <jdkToolchain>
+                                <version>[9, )</version>
+                            </jdkToolchain>
+                            <release>9</release>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>basic-compile</id>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                        <configuration>
+                            <jdkToolchain>
+                                <version>1.8</version>
+                            </jdkToolchain>
+                            <source>1.8</source>
+                            <target>1.8</target>
+                            <excludes>
+                                <exclude>**/module-info.java</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <failOnError>false</failOnError>
+                    <quiet>true</quiet>
+                    <jdkToolchain>
+                        <version>[9, )</version>
+                    </jdkToolchain>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-source-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

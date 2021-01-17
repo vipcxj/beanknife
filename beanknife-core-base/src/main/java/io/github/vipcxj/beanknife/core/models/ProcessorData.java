@@ -168,9 +168,9 @@ public class ProcessorData {
         String genTypeName = getGenTypeName(viewOf);
         ViewContext viewContext = viewContextMap.get(genTypeName);
         if (viewContext == null) {
-            viewContext =new ViewContext(trees, processingEnv, this, viewOf);
-            viewContext.collectData();
+            viewContext = new ViewContext(trees, processingEnv, this, viewOf);
             viewContextMap.put(genTypeName, viewContext);
+            viewContext.collectData();
         }
         return viewContext;
     }

@@ -24,7 +24,7 @@ public class Context {
 
     private final List<String> imports;
     private final Set<String> symbols;
-    private final Map<String, String> fields;
+    private final Map<Property, String> fields;
     protected final Trees trees;
     protected final ProcessingEnvironment processingEnv;
     protected final ProcessorData processorData;
@@ -35,11 +35,12 @@ public class Context {
     private String configureBeanFieldVar;
     private String configureBeanGetterVar;
     private boolean locked;
+    private final Map<String, Object> subContexts;
 
     public Context(@NonNull Trees trees, @NonNull ProcessingEnvironment processingEnv, ProcessorData processorData) {
         this.imports = new ArrayList<>();
         this.symbols = new HashSet<>();
-        this.fields = new HashMap<>();
+        this.fields = new IdentityHashMap<>();
         this.trees = trees;
         this.processingEnv = processingEnv;
         this.processorData = processorData;
@@ -47,6 +48,7 @@ public class Context {
         this.containers = new Stack<>();
         this.errors = new ArrayList<>();
         this.locked = false;
+        this.subContexts = new HashMap<>();
     }
 
     public void enter(Type type) {
@@ -60,33 +62,46 @@ public class Context {
         containers.pop();
     }
 
+    public void setContext(String key, Object ctx) {
+        subContexts.put(key, ctx);
+    }
+
+    public <T> T getContext(String key) {
+        //noinspection unchecked
+        return (T) subContexts.get(key);
+    }
+
     public Type getContainer() {
         return containers.peek();
     }
 
-    public Map<String, String> getFields() {
-        return fields;
-    }
-
-    public String getMappedFieldName(@NonNull String property) {
-        return getMappedFieldName(property, property);
-    }
-
     public String getMappedFieldName(@NonNull Property property) {
-        return getMappedFieldName(property.getName(), property.getName());
+        return getMappedFieldName(property, property.getName());
     }
 
-    private String getMappedFieldName(@NonNull String property, @NonNull String name) {
-        String mappedName = getFields().get(property);
+    private String getMappedFieldName(@NonNull Property property, @NonNull String name) {
+        String mappedName = fields.get(property);
         if (mappedName != null) {
             return mappedName;
         }
-        if (SourceVersion.isKeyword(name) || getFields().containsKey(name)) {
+        if (SourceVersion.isKeyword(name) || fields.containsValue(name)) {
             return getMappedFieldName(property, name + "_");
         } else {
-            getFields().put(property, name);
+            fields.put(property, name);
             return name;
         }
+    }
+
+    public boolean importVariable(String importName, String symbol) {
+        boolean imported;
+        if (symbols.contains(symbol)) {
+            imported = imports.contains(importName);
+        } else {
+            imported = true;
+            imports.add(importName);
+            symbols.add(symbol);
+        }
+        return imported;
     }
 
     public boolean importVariable(Type name) {
@@ -210,6 +225,10 @@ public class Context {
             }
         }
         return methodName;
+    }
+
+    public boolean hasImport(String importedName) {
+        return imports.contains(importedName);
     }
 
     public String relativeName(Type name) {

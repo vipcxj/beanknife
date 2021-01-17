@@ -39,12 +39,6 @@
         </dependency>
         <dependency>
             <groupId>io.github.vipcxj</groupId>
-            <artifactId>beanknife-core-module-info</artifactId>
-            <version>${project.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.github.vipcxj</groupId>
             <artifactId>beanknife-runtime</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -57,25 +51,57 @@
     <build>
         <plugins>
             <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.3.0</version>
+                <artifactId>maven-toolchains-plugin</artifactId>
                 <executions>
                     <execution>
-                        <id>jar</id>
-                        <phase>package</phase>
+                        <phase>initialize</phase>
                         <goals>
-                            <goal>single</goal>
+                            <goal>toolchain</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <toolchains>
+                        <jdk>
+                            <version>[9, )</version>
+                        </jdk>
+                    </toolchains>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.0.0</version>
+                <executions>
+                    <execution>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>run</goal>
                         </goals>
                         <configuration>
-                            <appendAssemblyId>false</appendAssemblyId>
-                            <descriptors>
-                                <descriptor>src/assembly/mrjar.xml</descriptor>
-                            </descriptors>
-                            <archive>
-                                <manifestEntries>
-                                    <Multi-Release>true</Multi-Release>
-                                </manifestEntries>
-                            </archive>
+                            <target name="copy classes of core-base">
+                                <copy todir="${project.build.outputDirectory}">
+                                    <fileset dir="${project.basedir}/../beanknife-core-base/target/classes"/>
+                                </copy>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.2.0</version>
+                <executions>
+                    <execution>
+                        <id>add-source</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.basedir}/../beanknife-core-base/src/main/java</source>
+                            </sources>
                         </configuration>
                     </execution>
                 </executions>
@@ -92,6 +118,9 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <sourceFileExcludes>
+                        <exclude>/test/**/*.*</exclude>
+                    </sourceFileExcludes>
                     <failOnError>false</failOnError>
                     <includeDependencySources>false</includeDependencySources>
                     <detectLinks>false</detectLinks>
@@ -113,39 +142,6 @@
                 <configuration>
                     <includePom>false</includePom>
                 </configuration>
-            </plugin>
-            <plugin>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>copy</goal>
-                        </goals>
-                        <configuration>
-                            <artifactItems>
-                                <artifactItem>
-                                    <groupId>io.github.vipcxj</groupId>
-                                    <artifactId>beanknife-core-base</artifactId>
-                                    <version>${project.version}</version>
-                                    <classifier>sources</classifier>
-                                    <overWrite>true</overWrite>
-                                    <outputDirectory>${project.build.directory}</outputDirectory>
-                                    <destFileName>beanknife-core-${project.version}-sources.jar</destFileName>
-                                </artifactItem>
-                                <artifactItem>
-                                    <groupId>io.github.vipcxj</groupId>
-                                    <artifactId>beanknife-core-base</artifactId>
-                                    <version>${project.version}</version>
-                                    <classifier>javadoc</classifier>
-                                    <overWrite>true</overWrite>
-                                    <outputDirectory>${project.build.directory}</outputDirectory>
-                                    <destFileName>beanknife-core-${project.version}-javadoc.jar</destFileName>
-                                </artifactItem>
-                            </artifactItems>
-                        </configuration>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>

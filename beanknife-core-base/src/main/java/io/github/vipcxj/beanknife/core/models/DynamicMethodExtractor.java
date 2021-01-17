@@ -2,7 +2,6 @@ package io.github.vipcxj.beanknife.core.models;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import io.github.vipcxj.beanknife.core.utils.VarMapper;
 import io.github.vipcxj.beanknife.runtime.annotations.InjectProperty;
 import io.github.vipcxj.beanknife.runtime.annotations.InjectSelf;
 
@@ -15,7 +14,7 @@ import java.util.List;
 public class DynamicMethodExtractor implements Extractor {
 
     @NonNull
-    private ViewContext context;
+    private final ViewContext context;
     @CheckForNull
     private final Type container;
     @NonNull
@@ -115,8 +114,7 @@ public class DynamicMethodExtractor implements Extractor {
         return true;
     }
 
-    @Override
-    public void print(PrintWriter writer, @CheckForNull VarMapper varMapper, @NonNull String indent, int indentNum) {
+    public void print(PrintWriter writer) {
         printConfigBean(writer, "this");
         writer.print(".");
         writer.print(executableElement.getSimpleName());
@@ -137,7 +135,7 @@ public class DynamicMethodExtractor implements Extractor {
                     writer.print(property.getGetterName());
                     writer.print("()");
                 } else {
-                    writer.print(context.getMappedFieldName(propertyName));
+                    writer.print(context.getMappedFieldName(property));
                 }
             } else {
                 writer.print("null");
