@@ -9,34 +9,13 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>beanknife-jpa</artifactId>
-    <name>BeanKnife JPA</name>
-    <url>https://github.com/vipcxj/beanknife</url>
-    <description>
-        The annotation processor to generate the data transfer object (DTO).
-        This is the jpa plugin for BeanKnife.
-    </description>
-    <licenses>
-        <license>
-            <name>Apache 2.0</name>
-            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-        </license>
-    </licenses>
-    <developers>
-        <developer>
-            <name>XiaoJing Chen</name>
-            <id>vipcxj</id>
-            <email>vipcxj@126.com</email>
-            <roles>
-                <role>Developer</role>
-            </roles>
-            <timezone>+8</timezone>
-        </developer>
-    </developers>
+    <artifactId>beanknife-jpa-examples</artifactId>
+    <name>Beanknife JPA Examples</name>
+
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>beanknife-core</artifactId>
+            <artifactId>beanknife-runtime</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -45,15 +24,25 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-text</artifactId>
-            <version>1.9</version>
-        </dependency>
-        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>1.18.16</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.data</groupId>
+            <artifactId>spring-data-jpa</artifactId>
+            <version>2.3.6.RELEASE</version>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>1.4.200</version>
+        </dependency>
+        <dependency>
+            <groupId>org.hibernate</groupId>
+            <artifactId>hibernate-core</artifactId>
+            <version>5.4.27.Final</version>
         </dependency>
         <dependency>
             <groupId>org.springframework</groupId>
@@ -62,33 +51,15 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.springframework.data</groupId>
-            <artifactId>spring-data-jpa</artifactId>
-            <version>2.3.6.RELEASE</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
-            <version>1.4.200</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.hibernate.javax.persistence</groupId>
-            <artifactId>hibernate-jpa-2.1-api</artifactId>
-            <version>1.0.2.Final</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.hibernate</groupId>
-            <artifactId>hibernate-core</artifactId>
-            <version>5.4.27.Final</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.vipcxj</groupId>
+            <artifactId>beanknife-jpa</artifactId>
+            <version>1.4.1-SNAPSHOT</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
     <build>
@@ -97,34 +68,6 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <executions>
-                    <execution>
-                        <id>default-compile</id>
-                        <goals>
-                            <goal>compile</goal>
-                        </goals>
-                        <configuration>
-                            <jdkToolchain>
-                                <version>[9, )</version>
-                            </jdkToolchain>
-                            <release>9</release>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>basic-compile</id>
-                        <goals>
-                            <goal>compile</goal>
-                        </goals>
-                        <configuration>
-                            <jdkToolchain>
-                                <version>1.8</version>
-                            </jdkToolchain>
-                            <source>1.8</source>
-                            <target>1.8</target>
-                            <excludes>
-                                <exclude>**/module-info.java</exclude>
-                            </excludes>
-                        </configuration>
-                    </execution>
                     <execution>
                         <id>default-testCompile</id>
                         <goals>
@@ -145,6 +88,11 @@
                             <version>${project.version}</version>
                         </path>
                         <path>
+                            <groupId>${project.groupId}</groupId>
+                            <artifactId>beanknife-jpa</artifactId>
+                            <version>${project.version}</version>
+                        </path>
+                        <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
                             <version>1.18.16</version>
@@ -156,9 +104,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <argLine>
-                        --add-opens beanknife.jpa/io.github.vipcxj.beanknife.jpa=ALL-UNNAMED
-                        --add-opens beanknife.jpa/io.github.vipcxj.beanknife.jpa.models=ALL-UNNAMED
-                        --add-reads beanknife.jpa=java.sql
+                        --add-reads beanknife.jpa.examples=java.sql
                     </argLine>
                 </configuration>
             </plugin>
@@ -167,9 +113,6 @@
                 <configuration>
                     <failOnError>false</failOnError>
                     <quiet>true</quiet>
-                    <jdkToolchain>
-                        <version>[9, )</version>
-                    </jdkToolchain>
                 </configuration>
             </plugin>
             <plugin>

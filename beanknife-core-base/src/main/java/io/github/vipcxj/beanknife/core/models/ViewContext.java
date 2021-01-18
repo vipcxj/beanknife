@@ -118,6 +118,7 @@ public class ViewContext extends Context {
     }
 
     public void collectData() {
+        System.out.println("collecting data...");
         TypeElement targetElement = viewOf.getTargetElement();
         TypeElement configElement = viewOf.getConfigElement();
         getProperties().clear();
@@ -450,9 +451,12 @@ public class ViewContext extends Context {
                 .filter(p -> !p.isDynamic() && !p.isCustomMethod() && p.getBase() == null)
                 .collect(Collectors.toList());
 
+        System.out.println("ready generators...");
         for (ViewCodeGenerator generator : ViewCodeGenerators.INSTANCE.getGenerators()) {
+            System.out.println("Find generator " + generator.getClass().getName() + ".");
             generator.ready(this);
         }
+        System.out.println("All generators have been ready.");
 
         lock();
     }

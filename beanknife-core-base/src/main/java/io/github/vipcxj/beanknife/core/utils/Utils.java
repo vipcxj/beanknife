@@ -959,6 +959,11 @@ public class Utils {
         return element.getQualifiedName().toString().equals(type.getCanonicalName());
     }
 
+    public static boolean isThisAnnotation(@NonNull AnnotationMirror annotation, @NonNull String typeName) {
+        TypeElement element = (TypeElement) annotation.getAnnotationType().asElement();
+        return element.getQualifiedName().toString().equals(typeName);
+    }
+
     public static List<AnnotationMirror> getAnnotationsOn(@NonNull Elements elements, @NonNull Element element, @NonNull Class<?> type, @CheckForNull Class<?> repeatContainerType) {
         return getAnnotationsOn(elements, element, type, repeatContainerType, new HashSet<>(), true, true);
     }
@@ -971,7 +976,15 @@ public class Utils {
         return getAnnotationsOn(elements, element, type, repeatContainerType, new HashSet<>(), indirect, metaExtends);
     }
 
+    public static List<AnnotationMirror> getAnnotationsOn(@NonNull Elements elements, @NonNull Element element, @NonNull String typeName, @CheckForNull String repeatContainerTypeName, boolean indirect, boolean metaExtends) {
+        return getAnnotationsOn(elements, element, typeName, repeatContainerTypeName, new HashSet<>(), indirect, metaExtends);
+    }
+
     private static List<AnnotationMirror> getAnnotationsOn(@NonNull Elements elements,  @NonNull Element element, @NonNull Class<?> type, @CheckForNull Class<?> repeatContainerType, @NonNull Set<Element> visited, boolean indirect, boolean metaExtends) {
+        return getAnnotationsOn(elements, element, type.getName(), repeatContainerType != null ? repeatContainerType.getName() : null, visited, indirect, metaExtends);
+    }
+
+    private static List<AnnotationMirror> getAnnotationsOn(@NonNull Elements elements,  @NonNull Element element, @NonNull String typeName, @CheckForNull String repeatContainerTypeName, @NonNull Set<Element> visited, boolean indirect, boolean metaExtends) {
         if (visited.contains(element)) {
             return Collections.emptyList();
         }
@@ -979,14 +992,14 @@ public class Utils {
         List<AnnotationMirror> result = new ArrayList<>();
         List<? extends AnnotationMirror> allAnnotations = indirect ? getAllAnnotationMirrors(elements, element) : element.getAnnotationMirrors();
         for (AnnotationMirror annotation : allAnnotations) {
-            if (isThisAnnotation(annotation, type)) {
+            if (isThisAnnotation(annotation, typeName)) {
                 result.add(annotation);
-            } else if (repeatContainerType != null && isThisAnnotation(annotation, repeatContainerType)){
+            } else if (repeatContainerTypeName != null && isThisAnnotation(annotation, repeatContainerTypeName)){
                 Map<? extends ExecutableElement, ? extends AnnotationValue> attributes = elements.getElementValuesWithDefaults(annotation);
                 List<AnnotationMirror> annotations = getAnnotationElement(annotation, attributes);
                 result.addAll(annotations);
             } else if (metaExtends) {
-                result.addAll(getAnnotationsOn(elements, annotation.getAnnotationType().asElement(), type, repeatContainerType, visited, indirect, true));
+                result.addAll(getAnnotationsOn(elements, annotation.getAnnotationType().asElement(), typeName, repeatContainerTypeName, visited, indirect, true));
             }
         }
         return result;

@@ -819,14 +819,6 @@ public class Type {
         return "java.lang".equals(packageName);
     }
 
-    public boolean isMap() {
-        return canAssignTo(Type.extract(context, Map.class));
-    }
-
-    public boolean isCollection() {
-        return canAssignTo(Type.extract(context, Collection.class));
-    }
-
     public boolean isBoolean() {
         return packageName.isEmpty() && "boolean".equals(simpleName);
     }
@@ -867,6 +859,10 @@ public class Type {
         return simpleName.isEmpty();
     }
 
+    public boolean isObject() {
+        return !isPackage() && !isArray() && !isPrimate() && !isWildcard() && !isTypeVar();
+    }
+
     public boolean isPrimate() {
         return packageName.isEmpty()
                 && !typeVar
@@ -899,6 +895,10 @@ public class Type {
     }
 
     public boolean sameType(@NonNull Type type) {
+        return sameType(type, false);
+    }
+
+    public boolean sameType(@NonNull Type type, boolean erasure) {
         if (array != type.array) {
             return false;
         }
@@ -919,37 +919,41 @@ public class Type {
         }
         if (container == null && type.container != null) {
             return false;
-        } else if (container != null && !container.sameType(type.container)){
+        } else if (container != null && type.container == null) {
+            return false;
+        } else if (container != null && !container.sameType(type.container, erasure)){
             return false;
         }
-        if (parameters.size() != type.parameters.size()) {
-            return false;
-        }
-        for (int i = 0; i < parameters.size(); ++i) {
-            Type parameter = parameters.get(i);
-            Type otherParameter = type.parameters.get(i);
-            if (!parameter.sameType(otherParameter)) {
+        if (!erasure) {
+            if (parameters.size() != type.parameters.size()) {
                 return false;
             }
-        }
-        if (upperBounds.size() != type.upperBounds.size()) {
-            return false;
-        }
-        for (int i = 0; i < upperBounds.size(); ++i) {
-            Type bound = upperBounds.get(i);
-            Type otherParameter = type.upperBounds.get(i);
-            if (!bound.sameType(otherParameter)) {
+            for (int i = 0; i < parameters.size(); ++i) {
+                Type parameter = parameters.get(i);
+                Type otherParameter = type.parameters.get(i);
+                if (!parameter.sameType(otherParameter)) {
+                    return false;
+                }
+            }
+            if (upperBounds.size() != type.upperBounds.size()) {
                 return false;
             }
-        }
-        if (lowerBounds.size() != type.lowerBounds.size()) {
-            return false;
-        }
-        for (int i = 0; i < lowerBounds.size(); ++i) {
-            Type bound = lowerBounds.get(i);
-            Type otherParameter = type.lowerBounds.get(i);
-            if (!bound.sameType(otherParameter)) {
+            for (int i = 0; i < upperBounds.size(); ++i) {
+                Type bound = upperBounds.get(i);
+                Type otherParameter = type.upperBounds.get(i);
+                if (!bound.sameType(otherParameter)) {
+                    return false;
+                }
+            }
+            if (lowerBounds.size() != type.lowerBounds.size()) {
                 return false;
+            }
+            for (int i = 0; i < lowerBounds.size(); ++i) {
+                Type bound = lowerBounds.get(i);
+                Type otherParameter = type.lowerBounds.get(i);
+                if (!bound.sameType(otherParameter)) {
+                    return false;
+                }
             }
         }
         return true;

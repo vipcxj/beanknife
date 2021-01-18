@@ -9,6 +9,7 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.element.TypeElement;
 import java.util.*;
+import java.util.function.Supplier;
 
 public class ProcessorData {
     private final Trees trees;
@@ -18,6 +19,7 @@ public class ProcessorData {
     private final Map<String, List<ViewOfData>> viewOfDataByTargetTypeName;
     private final Map<String, List<ViewOfData>> viewOfDataByConfigTypeName;
     private final Map<String, ViewContext> viewContextMap;
+    private final Map<String, Object> subContexts;
 
     public ProcessorData(@NonNull Trees trees, @NonNull ProcessingEnvironment processingEnv) {
         this.trees = trees;
@@ -27,6 +29,7 @@ public class ProcessorData {
         this.viewOfDataByTargetTypeName = new HashMap<>();
         this.viewOfDataByConfigTypeName = new HashMap<>();
         this.viewContextMap = new HashMap<>();
+        this.subContexts = new HashMap<>();
     }
 
     @NonNull
@@ -49,6 +52,16 @@ public class ProcessorData {
     public List<ViewOfData> getByConfigElement(@NonNull TypeElement config) {
         List<ViewOfData> viewOfDataList = viewOfDataByConfigTypeName.get(config.getQualifiedName().toString());
         return viewOfDataList != null ? viewOfDataList : Collections.emptyList();
+    }
+
+    public <T> T getOrCreateSubContext(String key, Supplier<T> creator) {
+        Object o = subContexts.get(key);
+        if (o == null) {
+            o = creator.get();
+            subContexts.put(key, o);
+        }
+        //noinspection unchecked
+        return (T) o;
     }
 
     private String tryCompleteTypeName(Set<String> imports, String type) {

@@ -44,6 +44,7 @@
         <module>beanknife-spring</module>
         <module>beanknife-jpa</module>
         <module>beanknife-jpa-runtime</module>
+        <module>beanknife-jpa-examples</module>
     </modules>
 
     <properties>

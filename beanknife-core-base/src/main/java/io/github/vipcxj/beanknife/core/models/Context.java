@@ -16,6 +16,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import java.io.PrintWriter;
 import java.util.*;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class Context {
@@ -69,6 +70,10 @@ public class Context {
     public <T> T getContext(String key) {
         //noinspection unchecked
         return (T) subContexts.get(key);
+    }
+
+    public <T> T getOrCreateLongTermContext(String key, Supplier<T> creator) {
+        return processorData.getOrCreateSubContext(key, creator);
     }
 
     public Type getContainer() {

@@ -5,9 +5,9 @@ import io.github.vipcxj.beanknife.core.spi.ViewCodeGenerator;
 import io.github.vipcxj.beanknife.core.utils.ParamInfo;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 import io.github.vipcxj.beanknife.core.utils.VarMapper;
+import org.apache.commons.text.StringEscapeUtils;
 
 import java.io.PrintWriter;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -34,16 +34,23 @@ public class JpaViewCodeGenerator implements ViewCodeGenerator {
         JpaContext jpaContext = context.getContext(JpaContext.class.getName());
         if (jpaContext.isEnabled()) {
             printConstructor(writer, context, jpaContext, indent, indentNum);
-
+            printToSelection(writer, context, jpaContext, indent, indentNum);
         }
     }
 
     private void printParameterPrefix(PrintWriter writer, boolean breakLine, String indent, int indentNum) {
+        printParameterPrefix(writer, breakLine, false, indent, indentNum);
+    }
+
+    private void printParameterPrefix(PrintWriter writer, boolean breakLine, boolean start, String indent, int indentNum) {
+        if (!start) {
+            writer.print(",");
+        }
         if (breakLine) {
-            writer.println(",");
+            writer.println();
             Utils.printIndent(writer, indent, indentNum);
-        } else {
-            writer.print(", ");
+        } else if (!start) {
+            writer.print(" ");
         }
     }
 
@@ -51,10 +58,11 @@ public class JpaViewCodeGenerator implements ViewCodeGenerator {
             PrintWriter writer, Context context,
             Object key, VarMapper varMapper,
             boolean breakLine,
+            boolean start,
             Type type, String name,
             String indent, int indentNum
     ) {
-        printParameterPrefix(writer, breakLine, indent, indentNum);
+        printParameterPrefix(writer, breakLine, start, indent, indentNum);
         String varName = varMapper != null ? varMapper.getVar(key, name) : name;
         type.printType(writer, context, true, false);
         writer.print(" ");
@@ -70,59 +78,50 @@ public class JpaViewCodeGenerator implements ViewCodeGenerator {
     }
 
     private void printConstructor(PrintWriter writer, ViewContext context, JpaContext jpaContext, String indent, int indentNum) {
-        VarMapper varMapper = jpaContext.isUseSource() ? jpaContext.isFixConstructor() ? new VarMapper("source", "preventConflictArg") : new VarMapper("source") : new VarMapper();
+        VarMapper varMapper = jpaContext.getConstructorVarMapper();
         boolean breakLine = jpaContext.getArgsNum() > 6;
         Utils.printIndent(writer, indent, indentNum);
         writer.print("public ");
         writer.print(context.getGenType().getSimpleName());
         writer.print(" (");
+        boolean start = true;
         if (jpaContext.isUseSource()) {
             printParameter(
                     writer, context,
-                    null, null, breakLine,
+                    null, null, breakLine, true,
                     context.getTargetType(), "source",
                     indent, indentNum + 1
             );
-            for (Property property : jpaContext.getViewProperties()) {
-                printParameter(
-                        writer, context,
-                        property, varMapper, breakLine,
-                        property.getType(), property.getName(),
-                        indent, indentNum + 1
-                );
-            }
-        } else {
-            for (Property property : jpaContext.getProperties()) {
-                printParameter(
-                        writer, context,
-                        property, varMapper, breakLine,
-                        property.getType(), property.getName(),
-                        indent, indentNum + 1
-                );
-            }
+            start = false;
         }
-        for (Property extraProperty : jpaContext.getExtraProperties()) {
+        for (Property property : jpaContext.getProperties()) {
             printParameter(
                     writer, context,
-                    extraProperty, varMapper, breakLine,
-                    extraProperty.getType(), extraProperty.getName(),
+                    property, varMapper, breakLine, start,
+                    property.getType(), property.getName(),
                     indent, indentNum + 1
             );
+            if (start) {
+                start = false;
+            }
         }
         for (ParamInfo paramInfo : jpaContext.getParamInfos()) {
             Type type = Type.extract(context, paramInfo.getVar());
             printParameter(
                     writer, context,
-                    paramInfo, varMapper, breakLine,
+                    paramInfo, varMapper, breakLine, start,
                     type, paramInfo.getExtraParamName(),
                     indent, indentNum + 1
             );
+            if (start) {
+                start = false;
+            }
         }
         if (jpaContext.isFixConstructor()) {
             printParameter(
                     writer, context,
-                    null, null, breakLine,
-                    context.getTargetType(), "preventConflictArg",
+                    null, null, breakLine, start,
+                    Type.create(context, "", "int", 0, false), jpaContext.getPreventConflictArgVar(),
                     indent, indentNum + 1
             );
         }
@@ -132,36 +131,34 @@ public class JpaViewCodeGenerator implements ViewCodeGenerator {
         }
         writer.println(") {");
         for (Property property : context.getProperties()) {
-            if (!property.isDynamic()) {
-                if (property.isBase()) {
-                    Utils.printIndent(writer, indent, indentNum + 1);
-                    writer.print("this.");
-                    writer.print(context.getMappedFieldName(property));
-                    writer.print(" = ");
-                    if (property.isCustomMethod() && property.getExtractor() != null) {
-                        ((StaticMethodExtractor) property.getExtractor()).print(writer, varMapper, jpaContext.isUseSource(), indent, indentNum + 1);
-                        writer.println(";");
-                    } else {
-                        Property baseProperty = property.getBase();
-                        if (baseProperty != null) {
-                            Type converter = property.getConverter();
-                            if (converter != null) {
-                                writer.print("new ");
-                                converter.printType(writer, context, false, false);
-                                writer.print("().convert(");
-                                printValueString(writer, jpaContext, context, varMapper, baseProperty);
-                                writer.println(");");
-                            } else if (property.isView()) {
-                                writer.print(varMapper.getVar(property, property.getName()));
-                                writer.println(";");
-                            } else {
-                                printValueString(writer, jpaContext, context, varMapper, baseProperty);
-                                writer.println(";");
-                            }
-                        } else {
+            if (!property.isDynamic() && JpaContext.supportType(property.getType())) {
+                Utils.printIndent(writer, indent, indentNum + 1);
+                writer.print("this.");
+                writer.print(context.getMappedFieldName(property));
+                writer.print(" = ");
+                if (property.isCustomMethod() && property.getExtractor() != null) {
+                    ((StaticMethodExtractor) property.getExtractor()).print(writer, varMapper, jpaContext.isUseSource(), indent, indentNum + 1);
+                    writer.println(";");
+                } else {
+                    Property baseProperty = property.getBase();
+                    if (baseProperty != null) {
+                        Type converter = property.getConverter();
+                        if (converter != null) {
+                            writer.print("new ");
+                            converter.printType(writer, context, false, false);
+                            writer.print("().convert(");
+                            printValueString(writer, jpaContext, context, varMapper, baseProperty);
+                            writer.println(");");
+                        } else if (property.isView()) {
                             writer.print(varMapper.getVar(property, property.getName()));
                             writer.println(";");
+                        } else {
+                            printValueString(writer, jpaContext, context, varMapper, baseProperty);
+                            writer.println(";");
                         }
+                    } else {
+                        writer.print(varMapper.getVar(property, property.getName()));
+                        writer.println(";");
                     }
                 }
             }
@@ -172,12 +169,12 @@ public class JpaViewCodeGenerator implements ViewCodeGenerator {
     }
 
     private void printToSelection(PrintWriter writer, ViewContext context, JpaContext jpaContext, String indent, int indentNum) {
-        VarMapper varMapper = new VarMapper("cb", "root");
+        VarMapper varMapper = new VarMapper("cb", "from");
         List<Property> extraProperties = context.getExtraProperties();
         Map<String, ParamInfo> extraParams = context.getExtraParams();
         boolean breakLine = extraProperties.size() + extraParams.size() > 3;
         Utils.printIndent(writer, indent, indentNum);
-        writer.print("public static ");
+        writer.print("public static <T> ");
         printSelectionType(writer, context, context.getGenType());
         writer.print(" toJpaSelection(");
         if (breakLine) {
@@ -196,28 +193,22 @@ public class JpaViewCodeGenerator implements ViewCodeGenerator {
         } else {
             writer.print(", ");
         }
-        if (context.hasImport(JpaContext.TYPE_ROOT)) {
-            writer.print(JpaContext.SIMPLE_TYPE_ROOT);
+        if (context.hasImport(JpaContext.TYPE_FROM)) {
+            writer.print(JpaContext.SIMPLE_TYPE_FROM);
         } else {
-            writer.print(JpaContext.TYPE_ROOT);
+            writer.print(JpaContext.TYPE_FROM);
         }
-        writer.print("<");
+        writer.print("<T, ");
         context.getTargetType().printType(writer, context, true, false);
-        writer.print("> root");
-        for (Property property : jpaContext.getViewProperties()) {
-            String var = varMapper.getVar(property, property.getName());
-            printParameterPrefix(writer, breakLine, indent, indentNum + 1);
-            printSelectionType(writer, context, property.getType());
-            writer.print(" ");
-            writer.print(var);
-        }
-
-        for (Property extraProperty : jpaContext.getExtraProperties()) {
-            String var = varMapper.getVar(extraProperty, extraProperty.getName());
-            printParameterPrefix(writer, breakLine, indent, indentNum + 1);
-            printSelectionType(writer, context, extraProperty.getType());
-            writer.print(" ");
-            writer.print(var);
+        writer.print("> from");
+        for (Property property : jpaContext.getProperties()) {
+            if ((property.getConverter() == null && property.isView()) || !property.isBase()) {
+                String var = varMapper.getVar(property, property.getName());
+                printParameterPrefix(writer, breakLine, indent, indentNum + 1);
+                printSelectionType(writer, context, property.getType());
+                writer.print(" ");
+                writer.print(var);
+            }
         }
         for (ParamInfo paramInfo : jpaContext.getParamInfos()) {
             String var = varMapper.getVar(paramInfo, paramInfo.getExtraParamName());
@@ -232,26 +223,45 @@ public class JpaViewCodeGenerator implements ViewCodeGenerator {
             Utils.printIndent(writer, indent, indentNum);
         }
         writer.println(") {");
+
         Utils.printIndent(writer, indent, indentNum + 1);
         writer.println("return cb.construct(");
+
         Utils.printIndent(writer, indent, indentNum + 2);
         context.getGenType().printType(writer, context, false, false);
         writer.print(".class");
         if (jpaContext.isUseSource()) {
             writer.println(",");
             Utils.printIndent(writer, indent, indentNum + 2);
-            writer.print("source");
-            for (Property property : jpaContext.getViewProperties()) {
-                writer.println(",");
-                Utils.printIndent(writer, indent, indentNum + 2);
-                writer.print(varMapper.getVar(property, property.getName()));
-            }
-        } else {
-            for (Property property : context.getProperties()) {
-                writer.println(",");
-                Utils.printIndent(writer, indent, indentNum + 2);
+            writer.print("from");
+        }
+        for (Property property : jpaContext.getProperties()) {
+            writer.println(",");
+            Utils.printIndent(writer, indent, indentNum + 2);
+            if (property.isBase()) {
+                writer.print("from.get(\"");
+                writer.print(StringEscapeUtils.escapeJava(property.getName()));
+                writer.print("\")");
+            } else {
                 writer.print(varMapper.getVar(property, property.getName()));
             }
         }
+        for (ParamInfo paramInfo : jpaContext.getParamInfos()) {
+            writer.println(",");
+            Utils.printIndent(writer, indent, indentNum + 2);
+            writer.print(varMapper.getVar(paramInfo, paramInfo.getExtraParamName()));
+        }
+        if (jpaContext.isFixConstructor()) {
+            writer.println(",");
+            Utils.printIndent(writer, indent, indentNum + 2);
+            writer.print("cb.literal(0)");
+        }
+
+        Utils.printIndent(writer, indent, indentNum + 1);
+        writer.println(");");
+
+        Utils.printIndent(writer, indent, indentNum);
+        writer.println("}");
+        writer.println();
     }
 }
