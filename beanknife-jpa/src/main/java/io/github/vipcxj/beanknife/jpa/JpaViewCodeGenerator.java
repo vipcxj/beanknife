@@ -70,7 +70,7 @@ public class JpaViewCodeGenerator implements ViewCodeGenerator {
     }
 
     private void printValueString(PrintWriter writer, JpaContext jpaContext, Context context, VarMapper varMapper, Property property) {
-        if (jpaContext.isUseSource()) {
+        if (jpaContext.isProvideSource()) {
             writer.print(property.getValueString(context, "source"));
         } else {
             writer.print(varMapper.getVar(property, property.getName()));
@@ -85,7 +85,7 @@ public class JpaViewCodeGenerator implements ViewCodeGenerator {
         writer.print(context.getGenType().getSimpleName());
         writer.print(" (");
         boolean start = true;
-        if (jpaContext.isUseSource()) {
+        if (jpaContext.isProvideSource()) {
             printParameter(
                     writer, context,
                     null, null, breakLine, true,
@@ -137,7 +137,7 @@ public class JpaViewCodeGenerator implements ViewCodeGenerator {
                 writer.print(context.getMappedFieldName(property));
                 writer.print(" = ");
                 if (property.isCustomMethod() && property.getExtractor() != null) {
-                    ((StaticMethodExtractor) property.getExtractor()).print(writer, varMapper, jpaContext.isUseSource(), indent, indentNum + 1);
+                    ((StaticMethodExtractor) property.getExtractor()).print(writer, varMapper, jpaContext.isProvideSource(), indent, indentNum + 1);
                     writer.println(";");
                 } else {
                     Property baseProperty = property.getBase();
@@ -230,7 +230,7 @@ public class JpaViewCodeGenerator implements ViewCodeGenerator {
         Utils.printIndent(writer, indent, indentNum + 2);
         context.getGenType().printType(writer, context, false, false);
         writer.print(".class");
-        if (jpaContext.isUseSource()) {
+        if (jpaContext.isProvideSource()) {
             writer.println(",");
             Utils.printIndent(writer, indent, indentNum + 2);
             writer.print("from");

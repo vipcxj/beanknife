@@ -24,25 +24,4 @@ public interface Extractor {
     default boolean useBeanProvider() {
         return !getExecutableElement().getModifiers().contains(Modifier.STATIC);
     }
-    default void printConfigBean(PrintWriter writer, @NonNull String requester) {
-        if (getContainer() == null) {
-            throw new IllegalStateException("This is impossible!");
-        }
-        if (getExecutableElement().getModifiers().contains(Modifier.STATIC)) {
-            getContainer().printType(writer, getContext(), false, false);
-        } else {
-            CacheType cacheType = getContext().getViewOf().getConfigureBeanCacheType();
-            if (isDynamic()) {
-                if (cacheType == CacheType.LOCAL) {
-                    writer.print("this.");
-                    writer.print(getContext().getConfigureBeanGetterVar());
-                    writer.print("()");
-                } else {
-                    getContext().printInitConfigureBean(writer, requester, false);
-                }
-            } else {
-                getContext().printInitConfigureBean(writer, requester, true);
-            }
-        }
-    }
 }

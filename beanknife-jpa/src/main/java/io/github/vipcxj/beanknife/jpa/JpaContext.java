@@ -24,24 +24,29 @@ public class JpaContext {
     public static final String SIMPLE_TYPE_SELECTION = "Selection";
     public static final String TYPE_FROM = "javax.persistence.criteria.From";
     public static final String SIMPLE_TYPE_FROM = "From";
+    public static final String ARG_SOURCE = "source";
     private static final String TYPE_ADD_JPA_SUPPORT = "io.github.vipcxj.beanknife.jpa.runtime.annotations.AddJpaSupport";
     private final ViewContext viewContext;
     private boolean enabled;
     private boolean fixConstructor;
-    private boolean useSource;
+    private boolean provideSource;
     private long argsNum;
     private String preventConflictArgVar = "preventConflictArg";
     private final VarMapper constructorVarMapper;
+    private final VarMapper selectionMethodVarMapper;
     private final Map<Property, String> propertiesMap;
     private final List<Property> properties;
     private final List<ParamInfo> paramInfos;
+    private final Map<String, String> viewBeanVarMap;
 
     public JpaContext(ViewContext viewContext) {
         this.viewContext = viewContext;
         this.constructorVarMapper = new VarMapper();
+        this.selectionMethodVarMapper = new VarMapper();
         this.propertiesMap = new IdentityHashMap<>();
         this.properties = new ArrayList<>();
         this.paramInfos = new ArrayList<>();
+        this.viewBeanVarMap = new HashMap<>();
         checkEnabled();
     }
 
@@ -84,7 +89,7 @@ public class JpaContext {
                 }
                 return false;
             })) {
-                useSource = true;
+                provideSource = true;
                 constructorVarMapper.addInitVar("source");
             }
             for (Property property : viewContext.getProperties()) {
@@ -92,7 +97,7 @@ public class JpaContext {
                     if (property.isCustomMethod() && property.getExtractor() != null) {
                         List<ParamInfo> paramInfoList = ((StaticMethodExtractor) property.getExtractor()).getParamInfoList();
                         for (ParamInfo paramInfo : paramInfoList) {
-                            if (!useSource && paramInfo.isPropertyParam()) {
+                            if (!provideSource && paramInfo.isPropertyParam()) {
                                 Property injectedProperty = paramInfo.getInjectedProperty();
                                 Type type = injectedProperty.getType();
                                 if (supportType(type)) {
@@ -172,9 +177,9 @@ public class JpaContext {
 
     private void checkConstructor() {
         long fieldsCount = viewContext.getProperties().size() - viewContext.getProperties().stream().filter(Property::isDynamic).count();
-        argsNum = propertiesMap.size() + paramInfos.size() + (useSource ? 1 : 0);
+        argsNum = propertiesMap.size() + paramInfos.size() + (provideSource ? 1 : 0);
         List<Type> types = new ArrayList<>();
-        if (useSource) {
+        if (provideSource) {
             types.add(viewContext.getTargetType());
         }
         for (Property property : properties) {
@@ -195,6 +200,8 @@ public class JpaContext {
                     }
                 }
             }
+        } else {
+            fixConstructor = false;
         }
         if (fixConstructor) {
             argsNum += 1;
@@ -204,6 +211,10 @@ public class JpaContext {
 
     public VarMapper getConstructorVarMapper() {
         return constructorVarMapper;
+    }
+
+    public VarMapper getSelectionMethodVarMapper() {
+        return selectionMethodVarMapper;
     }
 
     public boolean isEnabled() {
@@ -222,8 +233,8 @@ public class JpaContext {
         return preventConflictArgVar;
     }
 
-    public boolean isUseSource() {
-        return useSource;
+    public boolean isProvideSource() {
+        return provideSource;
     }
 
     public boolean isFixConstructor() {
@@ -232,5 +243,9 @@ public class JpaContext {
 
     public long getArgsNum() {
         return argsNum;
+    }
+
+    public ViewContext getViewContext() {
+        return viewContext;
     }
 }

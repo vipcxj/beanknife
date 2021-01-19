@@ -214,6 +214,15 @@ public class Property {
         return setter != Access.NONE;
     }
 
+    public boolean setterCanSeeFrom(@NonNull String fromPackage) {
+        boolean samePackage = fromPackage.equals(type.getContext().packageName);
+        if (samePackage) {
+            return setter != Access.NONE && setter != Access.PRIVATE;
+        } else {
+            return setter == Access.PUBLIC;
+        }
+    }
+
     public Type getType() {
         return type;
     }
@@ -380,7 +389,7 @@ public class Property {
         if (isMethod() || hasLombokGetter()) {
             return sourceVar + "." + base.getGetterName() + "()";
         } else {
-            return sourceVar + "." + context.getMappedFieldName(base);
+            return sourceVar + "." + base.getName();
         }
     }
 

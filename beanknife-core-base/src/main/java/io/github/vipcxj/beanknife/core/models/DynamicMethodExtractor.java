@@ -4,8 +4,10 @@ import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.github.vipcxj.beanknife.runtime.annotations.InjectProperty;
 import io.github.vipcxj.beanknife.runtime.annotations.InjectSelf;
+import io.github.vipcxj.beanknife.runtime.utils.CacheType;
 
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.VariableElement;
 import java.io.PrintWriter;
@@ -112,6 +114,24 @@ public class DynamicMethodExtractor implements Extractor {
     @Override
     public boolean isDynamic() {
         return true;
+    }
+
+    private void printConfigBean(PrintWriter writer, @NonNull String requester) {
+        if (getContainer() == null) {
+            throw new IllegalStateException("This is impossible!");
+        }
+        if (getExecutableElement().getModifiers().contains(Modifier.STATIC)) {
+            getContainer().printType(writer, getContext(), false, false);
+        } else {
+            CacheType cacheType = getContext().getViewOf().getConfigureBeanCacheType();
+            if (cacheType == CacheType.LOCAL) {
+                writer.print("this.");
+                writer.print(getContext().getConfigureBeanGetterVar());
+                writer.print("()");
+            } else {
+                getContext().printInitConfigureBean(writer, requester, false);
+            }
+        }
     }
 
     public void print(PrintWriter writer) {

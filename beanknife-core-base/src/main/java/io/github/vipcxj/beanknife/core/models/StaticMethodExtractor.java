@@ -10,10 +10,10 @@ import io.github.vipcxj.beanknife.runtime.annotations.ExtraParam;
 import io.github.vipcxj.beanknife.runtime.annotations.InjectProperty;
 
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.VariableElement;
 import java.io.PrintWriter;
-import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -196,6 +196,17 @@ public class StaticMethodExtractor implements Extractor {
             return context.getExtraParams().get(info.getExtraParamName());
         } else {
             return null;
+        }
+    }
+
+    private void printConfigBean(PrintWriter writer, @NonNull String requester) {
+        if (getContainer() == null) {
+            throw new IllegalStateException("This is impossible!");
+        }
+        if (getExecutableElement().getModifiers().contains(Modifier.STATIC)) {
+            getContainer().printType(writer, context, false, false);
+        } else {
+            getContext().printInitConfigureBean(writer, requester, true);
         }
     }
 

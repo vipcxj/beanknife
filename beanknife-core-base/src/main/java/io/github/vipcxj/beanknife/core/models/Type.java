@@ -775,6 +775,10 @@ public class Type {
         );
     }
 
+    public Context getContext() {
+        return context;
+    }
+
     public int getArray() {
         return array;
     }

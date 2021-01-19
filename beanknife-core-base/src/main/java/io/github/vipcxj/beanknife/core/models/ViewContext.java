@@ -38,6 +38,10 @@ import java.util.stream.Collectors;
 public class ViewContext extends Context {
 
     public final static String READ_CONFIG_BEAN_VAR = "configureBean";
+    private final static String TYPE_BEAN_PROVIDERS = "io.github.vipcxj.beanknife.runtime.BeanProviders";
+    private final static String SIMPLE_TYPE_BEAN_PROVIDERS = "BeanProviders";
+    private final static String TYPE_BEAN_USAGE = "io.github.vipcxj.beanknife.runtime.utils.BeanUsage";
+    private final static String SIMPLE_TYPE_BEAN_USAGE = "BeanUsage";
     private final ViewOfData viewOf;
     private final Type targetType;
     private final Type configType;
@@ -105,6 +109,19 @@ public class ViewContext extends Context {
 
     public boolean hasExtraParams() {
         return !extraParams.isEmpty();
+    }
+
+    public boolean hasFieldsConstructor() {
+        return viewOf.getFieldsConstructor() != null;
+    }
+
+    public boolean canSeeFieldsConstructor(@NonNull String fromPackage) {
+        boolean samePackage = fromPackage.equals(genType.getPackageName());
+        if (samePackage) {
+            return viewOf.getFieldsConstructor() != Modifier.PRIVATE;
+        } else {
+            return viewOf.getFieldsConstructor() == Modifier.PUBLIC;
+        }
     }
 
     private int checkAnnConflict(
@@ -278,6 +295,9 @@ public class ViewContext extends Context {
                                         if (viewContext == null) {
                                             throw new NullPointerException("This is impossible!");
                                         }
+                                        if (!viewContext.isLocked()) {
+                                            error("There exists  circular reference on the property " + p.getName() + ". This may cause the generated class not stable and produce unpredictable behavior.");
+                                        }
                                         if (viewContext.hasExtraProperties() || viewContext.hasExtraParams()) {
                                             error("Unable to convert from " +
                                                     viewContext.getTargetType() +
@@ -420,8 +440,8 @@ public class ViewContext extends Context {
                 }
             }
             if (extractor != null && extractor.useBeanProvider()) {
-                importVariable(Type.extract(this, BeanProviders.class));
-                importVariable(Type.extract(this, BeanUsage.class));
+                importVariable(TYPE_BEAN_PROVIDERS, SIMPLE_TYPE_BEAN_PROVIDERS);
+                importVariable(TYPE_BEAN_USAGE, SIMPLE_TYPE_BEAN_USAGE);
                 if (extractor.isDynamic() && viewOf.getConfigureBeanCacheType() == CacheType.LOCAL) {
                     useCachedConfigureBeanField = true;
                 }
@@ -462,7 +482,7 @@ public class ViewContext extends Context {
     }
 
     @CheckForNull
-    private ViewContext getViewContext(@NonNull Type type) {
+    public ViewContext getViewContext(@NonNull Type type) {
         if (isViewType(type)) {
             return processorData.getViewContext(getViewData(type));
         }
@@ -633,11 +653,11 @@ public class ViewContext extends Context {
 
     private void printBeanProviderGetInstance(@NonNull PrintWriter writer, @NonNull Type type, @NonNull BeanUsage usage, @NonNull String requester, boolean cache) {
         boolean useDefaultBeanProvider = viewOf.isUseDefaultBeanProvider();
-        writer.print(BeanProviders.class.getSimpleName());
+        writer.print(getImportedName(TYPE_BEAN_PROVIDERS, SIMPLE_TYPE_BEAN_PROVIDERS));
         writer.print(".INSTANCE.get(");
         type.printType(writer, this, false, false);
         writer.print(".class, ");
-        writer.print(BeanUsage.class.getSimpleName());
+        writer.print(getImportedName(TYPE_BEAN_USAGE, SIMPLE_TYPE_BEAN_USAGE));
         writer.print(".");
         writer.print(usage.name());
         writer.print(", ");
@@ -727,47 +747,31 @@ public class ViewContext extends Context {
             writer.println(";");
             writer.println();
         }
-        boolean hasEmptyConstructor = false;
-        boolean hasFieldsConstructor = false;
         modifier = viewOf.getEmptyConstructor();
-        if (modifier != null) {
-            hasEmptyConstructor = true;
-            if (empty) {
-                empty = false;
-                writer.println();
-            }
-            genType.emptyConstructor(writer, modifier, INDENT, 1);
+        if (modifier == null) {
+            modifier = Modifier.PRIVATE;
+        }
+        if (empty) {
             writer.println();
         }
+        genType.emptyConstructor(writer, modifier, INDENT, 1);
+        writer.println();
         modifier = viewOf.getFieldsConstructor();
         if (modifier != null && !properties.isEmpty()) {
-            hasFieldsConstructor = true;
-            if (empty) {
-                empty = false;
-                writer.println();
-            }
             genType.fieldsConstructor(writer, this, modifier, properties, INDENT, 1);
             writer.println();
         }
         modifier = viewOf.getCopyConstructor();
         if (modifier != null) {
-            if (empty) {
-                empty = false;
-                writer.println();
-            }
             genType.copyConstructor(writer, this, modifier, properties, INDENT, 1);
             writer.println();
         }
-        empty = printReadConstructor(writer, empty);
-        empty = printReader(writer, empty, hasEmptyConstructor, hasFieldsConstructor);
-        empty = printWriteBack(writer, empty, false);
-        empty = printWriteBack(writer, empty, true);
+        printReadConstructor(writer);
+        printReader(writer);
+        printWriteBack(writer, false);
+        printWriteBack(writer, true);
         for (Property property : properties) {
             if (property.hasGetter()) {
-                if (empty) {
-                    empty = false;
-                    writer.println();
-                }
                 for (AnnotationMirror annotationMirror : property.collectAnnotations(this, AnnotationDest.GETTER)) {
                     Utils.printIndent(writer, INDENT, 1);
                     Utils.printAnnotation(writer, annotationMirror, this, INDENT, 1);
@@ -778,10 +782,6 @@ public class ViewContext extends Context {
             }
         }
         if (useCachedConfigureBeanField) {
-            if (empty) {
-                empty = false;
-                writer.println();
-            }
             Utils.printIndent(writer, INDENT, 1);
             writer.print("public ");
             configType.printType(writer, this, true, false);
@@ -810,10 +810,6 @@ public class ViewContext extends Context {
         }
         for (Property property : properties) {
             if (!property.isDynamic() && property.hasSetter()) {
-                if (empty) {
-                    empty = false;
-                    writer.println();
-                }
                 for (AnnotationMirror annotationMirror : property.collectAnnotations(this, AnnotationDest.SETTER)) {
                     Utils.printIndent(writer, INDENT, 1);
                     Utils.printAnnotation(writer, annotationMirror, this, INDENT, 1);
@@ -831,26 +827,19 @@ public class ViewContext extends Context {
             pw.flush();
             String generated = sw.toString();
             if (!generated.isEmpty()) {
-                if (empty) {
-                    empty = false;
-                    writer.println();
-                }
                 writer.print(generated);
             }
         }
 
-        printErrors(writer, empty);
+        printErrors(writer);
         exit();
         genType.closeClass(writer, INDENT, 0);
         return true;
     }
 
-    private void printErrors(@NonNull PrintWriter writer, boolean empty) {
+    private void printErrors(@NonNull PrintWriter writer) {
         if (!viewOf.isErrorMethods()) {
             return;
-        }
-        if (empty) {
-            writer.println();
         }
         int i = 0;
         for (String error : errors) {
@@ -1279,15 +1268,7 @@ public class ViewContext extends Context {
         }
     }
 
-    private boolean printReader(
-            @NonNull PrintWriter writer,
-            boolean empty,
-            boolean hasEmptyConstructor,
-            boolean hasFieldsConstructor
-    ) {
-        if (empty) {
-            writer.println();
-        }
+    private void printReader(@NonNull PrintWriter writer) {
         Utils.printIndent(writer, INDENT, 1);
         Utils.printModifier(writer, Modifier.PUBLIC);
         writer.print("static ");
@@ -1312,57 +1293,17 @@ public class ViewContext extends Context {
             writer.println(");");
         } else {
             Map<String, String> varMap = prepareRead(writer);
-            if (hasEmptyConstructor) {
-                Utils.printIndent(writer, INDENT, 2);
-                genType.printType(writer, this, true, false);
-                writer.print(" out = new ");
-                writer.print(genType.getSimpleName());
-                if (!genType.getParameters().isEmpty()) {
-                    writer.print("<>");
-                }
-                writer.println("();");
-                printAssignFields(writer, varMap, varMapper, "out");
-                Utils.printIndent(writer, INDENT, 2);
-                writer.println("return out;");
-            } else if (hasFieldsConstructor) {
-                Utils.printIndent(writer, INDENT, 2);
-                writer.print("return new ");
-                writer.print(genType.getSimpleName());
-                if (!genType.getParameters().isEmpty()) {
-                    writer.print("<>");
-                }
-                writer.println("(");
-                int i = 0;
-                List<Property> properties = getProperties().stream().filter(p -> !p.isDynamic()).collect(Collectors.toList());
-                for (Property property : properties) {
-                    Type converter = property.getConverter();
-                    Utils.printIndent(writer, INDENT, 3);
-                    if (property.isCustomMethod() && property.getExtractor() != null) {
-                        ((StaticMethodExtractor) property.getExtractor()).print(writer, varMapper, true, INDENT, 3);
-                    } else {
-                        boolean isViewType = property.isView();
-                        if (converter != null) {
-                            writer.print("new ");
-                            converter.printType(writer, this, false, false);
-                            writer.print("().convert(");
-                            writer.print(property.getValueString(this, "source"));
-                            writer.println(")");
-                        } else if (isViewType) {
-                            writer.print(varMap.get(property.getName()));
-                        } else {
-                            writer.print(property.getValueString(this, "source"));
-                        }
-                    }
-                    if (i != properties.size() - 1) {
-                        writer.println(",");
-                    } else {
-                        writer.println();
-                    }
-                    ++i;
-                }
-                Utils.printIndent(writer, INDENT, 2);
-                writer.println(");");
+            Utils.printIndent(writer, INDENT, 2);
+            genType.printType(writer, this, true, false);
+            writer.print(" out = new ");
+            writer.print(genType.getSimpleName());
+            if (!genType.getParameters().isEmpty()) {
+                writer.print("<>");
             }
+            writer.println("();");
+            printAssignFields(writer, varMap, varMapper, "out");
+            Utils.printIndent(writer, INDENT, 2);
+            writer.println("return out;");
         }
         Utils.printIndent(writer, INDENT, 1);
         writer.println("}");
@@ -1374,15 +1315,11 @@ public class ViewContext extends Context {
             printCollectionReader(writer, "Stack", "Stack");
             printCollectionReader(writer, "Map", "HashMap");
         }
-        return false;
     }
 
-    private boolean printReadConstructor(@NonNull PrintWriter writer, boolean empty) {
+    private void printReadConstructor(@NonNull PrintWriter writer) {
         if (viewOf.getReadConstructor() == null) {
-            return empty;
-        }
-        if (empty) {
-            writer.println();
+            return;
         }
         Utils.printIndent(writer, INDENT, 1);
         Utils.printModifier(writer, viewOf.getReadConstructor());
@@ -1397,7 +1334,6 @@ public class ViewContext extends Context {
         Utils.printIndent(writer, INDENT, 1);
         writer.println("}");
         writer.println();
-        return false;
     }
 
     private void printWriteBackField(@NonNull PrintWriter writer, @NonNull Property property) {
@@ -1414,15 +1350,12 @@ public class ViewContext extends Context {
         }
     }
 
-    private boolean printWriteBack(@NonNull PrintWriter writer, boolean empty, boolean create) {
+    private void printWriteBack(@NonNull PrintWriter writer, boolean create) {
         if (!create && viewOf.getWriteBackMethod() == Access.NONE) {
-            return empty;
+            return;
         }
         if (create && viewOf.getCreateAndWriteBackMethod() == Access.NONE) {
-            return empty;
-        }
-        if (empty) {
-            writer.println();
+            return;
         }
         Utils.printIndent(writer, INDENT, 1);
         Utils.printAccess(writer, create ? viewOf.getCreateAndWriteBackMethod() : viewOf.getWriteBackMethod());
@@ -1475,6 +1408,5 @@ public class ViewContext extends Context {
         Utils.printIndent(writer, INDENT, 1);
         writer.println("}");
         writer.println();
-        return false;
     }
 }

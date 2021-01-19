@@ -236,6 +236,14 @@ public class Context {
         return imports.contains(importedName);
     }
 
+    public String getImportedName(String importedName, String simpleName) {
+        if (hasImport(importedName)) {
+            return simpleName;
+        } else {
+            return importedName;
+        }
+    }
+
     public String relativeName(Type name) {
         return getContainer().relativeName(name, importVariable(name));
     }
