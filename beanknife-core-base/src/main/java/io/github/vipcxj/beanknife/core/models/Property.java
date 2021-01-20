@@ -206,6 +206,15 @@ public class Property {
         return getter != Access.NONE;
     }
 
+    public boolean sourceCanSeeFrom(@NonNull String fromPackage) {
+        boolean samePackage = fromPackage.equals(type.getContext().packageName);
+        if (samePackage) {
+            return modifier != null && modifier != Modifier.PRIVATE;
+        } else {
+            return modifier == Modifier.PUBLIC;
+        }
+    }
+
     public Access getSetter() {
         return setter;
     }
@@ -381,7 +390,7 @@ public class Property {
         return annotationMirrors;
     }
 
-    public String getValueString(@NonNull Context context, @NonNull String sourceVar) {
+    public String getValueString(@NonNull String sourceVar) {
         Property base = getBase();
         if (base == null) {
             throw new IllegalArgumentException("This is impossible!");

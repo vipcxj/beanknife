@@ -33,6 +33,7 @@ import java.lang.annotation.Repeatable;
 import java.lang.annotation.Target;
 import java.lang.reflect.Array;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class Utils {
@@ -1376,6 +1377,20 @@ public class Utils {
             }
         }
         return null;
+    }
 
+    public static boolean appendMethodArg(PrintWriter writer, Consumer<PrintWriter> varWriter, boolean start, boolean breakLine, String indent, int indentNum) {
+        if (breakLine) {
+            if (start) {
+                writer.println();
+            } else {
+                writer.println(",");
+            }
+            Utils.printIndent(writer, indent, indentNum);
+        } else if (!start) {
+            writer.print(", ");
+        }
+        varWriter.accept(writer);
+        return false;
     }
 }

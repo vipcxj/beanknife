@@ -19,7 +19,7 @@ public class Company {
     @Id
     private String code;
     private String name;
-    private double money;
+    private Double money;
     private Address address;
     @OneToMany(mappedBy = "company")
     private List<Department> departments;

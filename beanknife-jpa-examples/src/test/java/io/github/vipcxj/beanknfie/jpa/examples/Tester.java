@@ -27,7 +27,7 @@ public class Tester {
     @Transactional
     public void test() {
         CriteriaBuilder cb = em.getCriteriaBuilder();
-        Company company = new Company("001", "", 10000, new Address("Shanhai", "SanQuan Road", "888"), new ArrayList<>(), new ArrayList<>());
+        Company company = new Company("001", "", 10000.0, new Address("Shanhai", "SanQuan Road", "888"), new ArrayList<>(), new ArrayList<>());
         em.persist(company);
         Department department = new Department("001001", company, new ArrayList<>());
         company.getDepartments().add(department);

@@ -97,19 +97,21 @@ public class Context {
         }
     }
 
-    public boolean importVariable(String importName, String symbol) {
-        boolean imported;
-        if (symbols.contains(symbol)) {
-            imported = imports.contains(importName);
-        } else {
-            imported = true;
+    public boolean isImported(String importName) {
+        return imports.contains(importName);
+    }
+
+    public void importVariable(String importName, String symbol) {
+        if (!symbols.contains(symbol)) {
             imports.add(importName);
             symbols.add(symbol);
         }
-        return imported;
     }
 
-    public boolean importVariable(Type name) {
+    public boolean isImported(Type name) {
+        if (name.getPackageName().equals(packageName)) {
+            return true;
+        }
         boolean imported = false;
         if (!name.isTypeVar() && !name.isWildcard()) {
             Type topmostEnclosingType = name.getTopmostEnclosingType();
@@ -117,8 +119,18 @@ public class Context {
             String importName = topmostEnclosingType.getQualifiedName();
             if (symbols.contains(symbol)) {
                 imported = imports.contains(importName);
-            } else if (!name.getPackageName().isEmpty()) {
-                imported = true;
+            }
+        }
+        return imported;
+    }
+
+    public void importVariable(Type name) {
+        boolean imported = false;
+        if (!name.isTypeVar() && !name.isWildcard()) {
+            Type topmostEnclosingType = name.getTopmostEnclosingType();
+            String symbol = topmostEnclosingType.getSimpleName();
+            String importName = topmostEnclosingType.getQualifiedName();
+            if (!symbols.contains(symbol) && !name.getPackageName().isEmpty()) {
                 imports.add(importName);
                 symbols.add(symbol);
             }
@@ -132,7 +144,6 @@ public class Context {
         for (Type lowerBound : name.getLowerBounds()) {
             importVariable(lowerBound);
         }
-        return imported;
     }
 
     public void addProperty(Property property, boolean override) {
@@ -245,7 +256,7 @@ public class Context {
     }
 
     public String relativeName(Type name) {
-        return getContainer().relativeName(name, importVariable(name));
+        return getContainer().relativeName(name, isImported(name));
     }
 
     public boolean print(@NonNull PrintWriter writer) {

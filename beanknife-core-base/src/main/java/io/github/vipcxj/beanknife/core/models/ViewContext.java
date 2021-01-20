@@ -87,6 +87,10 @@ public class ViewContext extends Context {
         return genType;
     }
 
+    public Type getConfigType() {
+        return configType;
+    }
+
     public Trees getTrees() {
         return trees;
     }
@@ -115,10 +119,28 @@ public class ViewContext extends Context {
         return viewOf.getFieldsConstructor() != null;
     }
 
+    public boolean canSeeReadConstructor(@NonNull String fromPackage) {
+        boolean samePackage = fromPackage.equals(genType.getPackageName());
+        if (samePackage) {
+            return viewOf.getReadConstructor() != null && viewOf.getReadConstructor() != Modifier.PRIVATE;
+        } else {
+            return viewOf.getReadConstructor() == Modifier.PUBLIC;
+        }
+    }
+
     public boolean canSeeFieldsConstructor(@NonNull String fromPackage) {
         boolean samePackage = fromPackage.equals(genType.getPackageName());
         if (samePackage) {
-            return viewOf.getFieldsConstructor() != Modifier.PRIVATE;
+            return viewOf.getFieldsConstructor() != null && viewOf.getFieldsConstructor() != Modifier.PRIVATE;
+        } else {
+            return viewOf.getFieldsConstructor() == Modifier.PUBLIC;
+        }
+    }
+
+    public boolean canSeeEmptyConstructor(@NonNull String fromPackage) {
+        boolean samePackage = fromPackage.equals(genType.getPackageName());
+        if (samePackage) {
+            return viewOf.getEmptyConstructor() != null && viewOf.getEmptyConstructor() != Modifier.PRIVATE;
         } else {
             return viewOf.getFieldsConstructor() == Modifier.PUBLIC;
         }
@@ -651,7 +673,7 @@ public class ViewContext extends Context {
         }
     }
 
-    private void printBeanProviderGetInstance(@NonNull PrintWriter writer, @NonNull Type type, @NonNull BeanUsage usage, @NonNull String requester, boolean cache) {
+    public void printBeanProviderGetInstance(@NonNull PrintWriter writer, @NonNull Type type, @NonNull BeanUsage usage, @NonNull String requester, boolean cache) {
         boolean useDefaultBeanProvider = viewOf.isUseDefaultBeanProvider();
         writer.print(getImportedName(TYPE_BEAN_PROVIDERS, SIMPLE_TYPE_BEAN_PROVIDERS));
         writer.print(".INSTANCE.get(");
@@ -998,7 +1020,7 @@ public class ViewContext extends Context {
         Property baseProperty = property.getBase();
         if (!property.isCustomMethod() && baseProperty != null && converter == null && property.isView()) {
             String var = "p" + varMap.size();
-            prepareView(writer, property.getType(), var, baseProperty.getType(), property.getValueString(this, "source"), 2, 0);
+            prepareView(writer, property.getType(), var, baseProperty.getType(), property.getValueString("source"), 2, 0);
             varMap.put(property.getName(), var);
         }
     }
@@ -1172,13 +1194,13 @@ public class ViewContext extends Context {
                             writer.print("new ");
                             converter.printType(writer, this, false, false);
                             writer.print("().convert(");
-                            writer.print(baseProperty.getValueString(this, "source"));
+                            writer.print(baseProperty.getValueString("source"));
                             writer.println(");");
                         } else if (property.isView()) {
                             writer.print(varMap.get(property.getName()));
                             writer.println(";");
                         } else {
-                            writer.print(baseProperty.getValueString(this, "source"));
+                            writer.print(baseProperty.getValueString("source"));
                             writer.println(";");
                         }
                     } else {

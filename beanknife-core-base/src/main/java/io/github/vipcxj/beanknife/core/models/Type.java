@@ -1083,6 +1083,19 @@ public class Type {
         }
     }
 
+    public void startInvokeNew(@NonNull PrintWriter writer, @CheckForNull Context context) {
+        writer.print("new ");
+        printType(writer, context, false, false);
+        if (!getParameters().isEmpty()) {
+            writer.print("<>");
+        }
+        writer.print("(");
+    }
+
+    public void endInvokeNew(@NonNull PrintWriter writer) {
+        writer.print(")");
+    }
+
     public void printGenericParameters(@NonNull PrintWriter writer, @CheckForNull Context context, boolean full) {
         printGenericParameters(writer, context, full, true);
     }
