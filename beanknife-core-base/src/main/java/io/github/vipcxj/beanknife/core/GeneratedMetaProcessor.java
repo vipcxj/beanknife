@@ -23,6 +23,7 @@ public class GeneratedMetaProcessor extends AbstractProcessor {
 
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
+        System.out.println("GeneratedMetaProcessor Init");
         super.init(processingEnv);
         Trees trees = Trees.instance(processingEnv);
         this.processorData = new ProcessorData(trees, processingEnv);

@@ -56,9 +56,18 @@ public class PropertyData {
         return dataList;
     }
 
+    private void cleanBasePropertyArg() {
+        if (propertyType == PropertyType.VIEW) {
+            for (Property baseProperty : subContext.getBaseProperties()) {
+                jpaContext.getConstructorVarMapper().removeVar(baseProperty);
+            }
+        }
+    }
+
     private void markParentProvideSource() {
         if (parent != null) {
             parent.provideAsSource = true;
+            parent.cleanBasePropertyArg();
         } else {
             jpaContext.markProvideSource();
         }
@@ -97,12 +106,13 @@ public class PropertyData {
             for (ParamInfo paramInfo : paramInfoList) {
                 if (!propertyData.parentProvideSource() && paramInfo.isPropertyParam()) {
                     Property injectedProperty = paramInfo.getInjectedProperty();
-                    jpaContext.getConstructorVarMapper().getVar(injectedProperty, propertyData.fixName(injectedProperty.getName()));
+                    String name = injectedProperty.getName();
+                    jpaContext.newConstructorVar(injectedProperty, propertyData.fixName(name), ArgData.pathVar(propertyData.getPath(name)));
                 }
                 if (paramInfo.isExtraParam()) {
                     paramInfo = propertyData.normParamInfo(paramInfo);
                     String name = propertyData.fixName(paramInfo.getExtraParamName());
-                    jpaContext.getConstructorVarMapper().getVar(paramInfo, name);
+                    jpaContext.newConstructorVar(paramInfo, name, ArgData.extraVar(paramInfo));
                     jpaContext.getSelectionMethodVarMapper().getVar(paramInfo, name);
                 }
             }
@@ -112,28 +122,30 @@ public class PropertyData {
                 boolean unSupportType = JpaContext.unSupportType(base.getType());
                 if (property.isView()) {
                     propertyData.propertyType = PropertyType.VIEW;
+                    propertyData.subContext = context.getViewContext(property.getType());
+                    assert propertyData.subContext != null;
                     if (unSupportType) {
-                        propertyData.ignore = true;
-                    }
-                    if (!propertyData.ignore) {
-                        ViewContext subContext = context.getViewContext(property.getType());
-                        if (subContext == null) {
-                            throw new IllegalStateException("This is impossible.");
+                        if (!propertyData.subContext.hasExtraParams() && !propertyData.subContext.hasExtraProperties()) {
+                            propertyData.markParentProvideSource();
+                            propertyData.useReaderMethod = true;
+                        } else {
+                            propertyData.ignore = true;
                         }
-                        propertyData.subContext = subContext;
-                        propertyData.viewPropertyData = collectData(jpaContext, subContext, typePool, propertyData);
+                    }
+                    if (!propertyData.ignore && !propertyData.useReaderMethod) {
+                        propertyData.viewPropertyData = collectData(jpaContext, propertyData.subContext, typePool, propertyData);
                         propertyData.useReaderMethod = (propertyData.parentProvideSource() || propertyData.provideAsSource) && propertyData.viewPropertyData
                                 .stream()
                                 .noneMatch(data -> data.ignore && data.propertyType != PropertyType.BASEABLE && data.propertyType != PropertyType.EXTRA);
                         if (!propertyData.parentProvideSource() && propertyData.provideAsSource) {
-                            jpaContext.getConstructorVarMapper().getVar(base, propertyData.fixName(base.getName()));
+                            jpaContext.newConstructorVar(base, propertyData.fixName(base.getName()), ArgData.pathVar(propertyData.getPath(base.getName())));
                         }
                         if (!propertyData.useReaderMethod) {
-                            if (subContext.hasFieldsConstructor()) {
+                            if (propertyData.subContext.hasFieldsConstructor()) {
                                 propertyData.useFieldsConstructor = true;
-                                propertyData.constructNeedReflect = !subContext.canSeeFieldsConstructor(jpaContext.getViewContext().getPackageName());
+                                propertyData.constructNeedReflect = !propertyData.subContext.canSeeFieldsConstructor(jpaContext.getViewContext().getPackageName());
                             } else {
-                                propertyData.constructNeedReflect = !subContext.canSeeEmptyConstructor(jpaContext.getViewContext().getPackageName());
+                                propertyData.constructNeedReflect = !propertyData.subContext.canSeeEmptyConstructor(jpaContext.getViewContext().getPackageName());
                             }
                             if (propertyData.constructNeedReflect) {
                                 jpaContext.importReflect();
@@ -147,7 +159,7 @@ public class PropertyData {
                         propertyData.markParentProvideSource();
                     }
                     if (!propertyData.parentProvideSource()) {
-                        jpaContext.getConstructorVarMapper().getVar(base, propertyData.fixName(base.getName()));
+                        jpaContext.newConstructorVar(base, propertyData.fixName(base.getName()), ArgData.pathVar(propertyData.getPath(base.getName())));
                     }
                 }
                 if (propertyData.parentProvideSource() && !canAccessFromProperty(jpaContext, base)) {
@@ -160,7 +172,7 @@ public class PropertyData {
                 }
                 if (!propertyData.ignore) {
                     String name = propertyData.fixName(property.getName());
-                    jpaContext.getConstructorVarMapper().getVar(property, name);
+                    jpaContext.newConstructorVar(property, name, ArgData.extraVar(property));
                     jpaContext.getSelectionMethodVarMapper().getVar(property, name);
                 }
             }
@@ -206,9 +218,28 @@ public class PropertyData {
         return Character.toUpperCase(value.charAt(0)) + value.substring(1);
     }
 
+    public List<String> getPath() {
+        return getPath(null);
+    }
+
+    public List<String> getPath(String name) {
+        if (name == null) {
+            name = target.getBase() != null ? target.getBase().getName() : target.getName();
+        }
+        if (parent == null) {
+            return Collections.singletonList(name);
+        } else {
+            List<String> path = new ArrayList<>(parent.getPath());
+            path.add(name);
+            return path;
+        }
+    }
+
     private String fixName(String name) {
         if (parent != null) {
-            return parent.getTarget().getName() + capitalizeHeader(name);
+            List<String> path = parent.getPath();
+            Optional<String> parentName = path.stream().reduce((n1, n2) -> n1 + capitalizeHeader(n2));
+            return parentName.map(s -> (s + capitalizeHeader(name))).orElse(name);
         } else {
             return name;
         }
@@ -276,7 +307,7 @@ public class PropertyData {
     }
 
     private String getParentSourceVar() {
-        return parent != null ? parent.getSourceVarInConstructor() : jpaContext.getConstructorVarMapper().getVar(jpaContext.getViewContext().getTargetType().getQualifiedName());
+        return parent != null ? parent.getSourceVarInConstructor() : jpaContext.getConstructorVarMapper().getVar(JpaContext.SOURCE_ARG_KEY);
     }
 
     private String getConfigBeanVar() {
@@ -364,6 +395,23 @@ public class PropertyData {
         }
     }
 
+    private Type getViewType(Type from) {
+        if (from.isView()) {
+            return from;
+        }
+        if (from.isType(List.class) || from.isType(Set.class) || from.isType(Stack.class)) {
+            return getViewType(from.getParameters().get(0));
+        } else if (from.isType(Map.class)) {
+            return getViewType(from.getParameters().get(1));
+        } else if (from.isArray()) {
+            Type componentType = from.getComponentType();
+            assert componentType != null;
+            return getViewType(componentType);
+        } else {
+            throw new IllegalArgumentException("Unsupported view collection type: " + from + ".");
+        }
+    }
+
     public void prepareConstructor(PrintWriter writer, String indent, int indentNum) {
         if (ignore) {
             return;
@@ -373,7 +421,7 @@ public class PropertyData {
             if (useReaderMethod) {
                 String tempVar = varMapper.getVar(target, "viewVar", true);
                 jpaContext.startAssignVar(writer, target.getType(), tempVar, indent, indentNum);
-                target.printType(writer, jpaContext.getViewContext(), false, false);
+                getViewType(target.getType()).printType(writer, jpaContext.getViewContext(), false, false);
                 writer.print(".read(");
                 List<Property> extraProperties = subContext.getExtraProperties();
                 Map<String, ParamInfo> extraParams = subContext.getExtraParams();

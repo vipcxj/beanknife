@@ -27,6 +27,7 @@ public class ViewOfProcessor extends AbstractProcessor {
 
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
+        System.out.println("ViewOfProcessor Init");
         super.init(processingEnv);
         this.trees = Trees.instance(processingEnv);
     }

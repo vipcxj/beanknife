@@ -25,6 +25,7 @@ public class VarMapper {
         this.used = false;
     }
 
+    @SuppressWarnings("IncompleteCopyConstructor")
     public VarMapper(VarMapper other) {
         this.initVars = new HashSet<>(other.initVars);
         this.mapper = new IdentityHashMap<>(other.mapper);
@@ -45,6 +46,11 @@ public class VarMapper {
             return appendVar(var + "_");
         }
         return var;
+    }
+
+    public void removeVar(Object key) {
+        mapper.remove(key);
+        keys.remove(key);
     }
 
     public String nextVar(String name) {

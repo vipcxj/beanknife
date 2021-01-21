@@ -197,6 +197,19 @@ public class ViewContext extends Context {
             }
         }
         getProperties().removeIf(property -> Utils.canNotSeeFromOtherClass(property, samePackage));
+        getProperties().replaceAll(property -> {
+            Property base = property.getBase();
+            if (base != null) {
+                Property field = property.getField();
+                boolean fieldWriteable = field != null && Utils.canSeeFromOtherClass(field.getElement(), samePackage);
+                ExecutableElement setterMethod = Utils.getSetterMethod(processingEnv, base.getSetterName(), base.getTypeMirror(), targetMembers);
+                boolean writeMethod = setterMethod != null;
+                boolean writeable = writeMethod ? Utils.canSeeFromOtherClass(setterMethod, samePackage) : fieldWriteable;
+                return property.withWriteInfo(writeable, writeMethod);
+            } else {
+                return property;
+            }
+        });
         this.baseProperties = new ArrayList<>(getProperties());
         List<Pattern> includePatterns = new ArrayList<>();
         for (String p : viewOf.getIncludePattern().split(",\\s")) {
@@ -231,19 +244,6 @@ public class ViewContext extends Context {
                         || Arrays.stream(viewOf.getExcludes()).anyMatch(exclude -> exclude.equals(property.getName()))
                         || viewOf.getExtraExcludes().contains(property.getName())
         );
-        getProperties().replaceAll(property -> {
-            Property base = property.getBase();
-            if (base != null) {
-                Property field = property.getField();
-                boolean fieldWriteable = field != null && Utils.canSeeFromOtherClass(field.getElement(), samePackage);
-                ExecutableElement setterMethod = Utils.getSetterMethod(processingEnv, base.getSetterName(), base.getTypeMirror(), targetMembers);
-                boolean writeMethod = setterMethod != null;
-                boolean writeable = writeMethod ? Utils.canSeeFromOtherClass(setterMethod, samePackage) : fieldWriteable;
-                return property.withWriteInfo(writeable, writeMethod);
-            } else {
-                return property;
-            }
-        });
         List<Property> baseProperties = new ArrayList<>(getProperties());
         if (!Objects.equals(configElement, targetElement)) {
             List<? extends Element> configMembers = elementUtils.getAllMembers(configElement);
