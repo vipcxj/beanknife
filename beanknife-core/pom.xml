@@ -3,7 +3,7 @@
     <parent>
         <artifactId>beanknife-parent</artifactId>
         <groupId>io.github.vipcxj</groupId>
-        <version>1.4.1-SNAPSHOT</version>
+        <version>1.5.0</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>beanknife-core</artifactId>
@@ -80,7 +80,7 @@
                         <configuration>
                             <target name="copy classes of core-base">
                                 <copy todir="${project.build.outputDirectory}">
-                                    <fileset dir="${project.basedir}/../beanknife-core-base/target/classes"/>
+                                    <fileset dir="${project.basedir}/../beanknife-core-base/target/classes" />
                                 </copy>
                             </target>
                         </configuration>
