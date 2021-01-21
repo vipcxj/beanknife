@@ -30,9 +30,13 @@ BeanKnife
 * [使用需求](#使用需求)
 * [快速上手](#快速上手)
 * [基础知识](#基础知识)
-  *[属性](#属性)
+  * [属性](#属性)
 * [配置注解](#配置注解)
 * [场景用例](#场景用例)
+* [JPA插件](#JPA插件)
+* [自定义编译时插件](#自定义编译时插件)
+* [Spring插件](#Spring插件)
+* [自定义运行时插件](#自定义运行时插件)
 
 ### 使用需求
 Jdk 1.8+ (包含 jdk 1.8)
@@ -243,6 +247,18 @@ public class SimpleBeanView {
 施工中...
 
 ### 场景用例
+施工中...
+
+### JPA插件
+施工中...
+
+### 自定义编译时插件
+施工中...
+
+### Spring插件
+施工中...
+
+### 自定义运行时插件
 施工中...
 
 [maven-shield]: https://img.shields.io/maven-central/v/io.github.vipcxj/beanknife-core.png
