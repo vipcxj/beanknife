@@ -8,8 +8,7 @@ import io.github.vipcxj.beanknife.runtime.annotations.RemoveViewProperty;
 import io.github.vipcxj.beanknife.runtime.annotations.ViewOf;
 
 @ViewOf(Company.class)
-@RemoveViewProperty("departments")
-@RemoveViewProperty("employees")
+@RemoveViewProperty({CompanyMeta.departments, CompanyMeta.employees})
 public class CompanyInfoConfiguration extends BaseDtoConfiguration {
 
     @OverrideViewProperty(CompanyMeta.money)

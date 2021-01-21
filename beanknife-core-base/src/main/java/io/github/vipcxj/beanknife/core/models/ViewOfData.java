@@ -95,8 +95,8 @@ public class ViewOfData {
         List<AnnotationMirror> removeViewProperties = Utils.getAnnotationsOn(elements, configElement, RemoveViewProperty.class, RemoveViewProperties.class);
         for (AnnotationMirror removeViewProperty : removeViewProperties) {
             Map<? extends ExecutableElement, ? extends AnnotationValue> values = elements.getElementValuesWithDefaults(removeViewProperty);
-            String exclude = Utils.getStringAnnotationValue(removeViewProperty, values, "value");
-            this.extraExcludes.add(exclude);
+            String[] exclude = Utils.getStringArrayAnnotationValue(removeViewProperty, values, "value");
+            this.extraExcludes.addAll(Arrays.asList(exclude));
         }
         this.writeExcludes = new HashSet<>();
         List<AnnotationMirror> writeBackExcludes = Utils.getAnnotationsOn(elements, configElement, ViewWriteBackExclude.class, ViewWriteBackExcludes.class);

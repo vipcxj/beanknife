@@ -7,5 +7,5 @@ import java.lang.annotation.*;
 @Repeatable(RemoveViewProperties.class)
 @Inherited
 public @interface RemoveViewProperty {
-    String value();
+    String[] value();
 }
