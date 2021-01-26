@@ -38,6 +38,8 @@ BeanKnife
   * [ViewOf注解](#ViewOf注解)
   * [扩展属性](#扩展属性)
   * [配置继承](#配置继承)
+  * [属性转换器](#属性转换器)
+  * [自动嵌套转换机制](#自动嵌套转换机制)
 * [配置注解](#配置注解)
 * [场景用例](#场景用例)
 * [JPA插件](#JPA插件)
@@ -575,6 +577,157 @@ public class Parent2ViewConfigure {
 public class Leaf21BeanViewConfigure {
 }
 ```
+
+[PropertyConverter]: /beanknife-runtime/src/main/java/io/github/vipcxj/beanknife/runtime/PropertyConverter.java
+#### 属性转换器
+在定义[映射或覆盖扩展字段属性](#扩展属性)时，若定义的字段类型与原类中目标字段的类型不同，则要么符合自动转换要求，要么使用属性转换器。
+前者稍候会进行讨论，这里主要说明后者。
+
+属性转换器是一个普通的非泛型，非抽象类，实现了[PropertyConverter]接口。然而[PropertyConverter]是泛型的，具有泛型参数`From`和`To`。
+所以转换器实现该接口时需要通过泛型参数指定所支持的具体的转换类型。当前版本不支持转换泛型类型，未来可能支持。
+
+以下是一个属性转换器的例子
+```java
+public class NullStringAsEmptyConverter implements PropertyConverter<String, String> {
+    @Override
+    public String convert(String value) {
+        return value != null ? value : "";
+    }
+
+    @Override
+    public String convertBack(String value) {
+        return value;
+    }
+}
+```
+[NullStringAsEmptyConverter]: /beanknife-runtime/src/main/java/io/github/vipcxj/beanknife/runtime/converters/NullStringAsEmptyConverter.java
+[UsePropertyConverter]: /beanknife-runtime/src/main/java/io/github/vipcxj/beanknife/runtime/annotations/UsePropertyConverter.java
+[NullNumberAsZero]: /beanknife-runtime/src/main/java/io/github/vipcxj/beanknife/runtime/annotations/NullNumberAsZero.java
+[NullIntegerAsZeroConverter]: /beanknife-runtime/src/main/java/io/github/vipcxj/beanknife/runtime/converters/NullIntegerAsZeroConverter.java
+[NullStringAsEmptyConverter]实现[PropertyConverter]时，把泛型`From`和`To`都设置为了`String`，这代表这个属性转换器支持`String`到`String`的双向转换。
+本例中，[NullStringAsEmptyConverter]会将值为`null`的字段转换为空字符串，反向转换时则原样返回。这里的`convert`指从原类字段转换到生成类的对应字段。，而`convertBack`则正相反。
+
+有多种激活属性转换器的方法。
+1. 使用注解[UsePropertyConverter]，像这样`@UsePropertyConverter(NullStringAsEmptyConverter.class)`.
+2. `UsePropertyConverter`是可以注释注解的，同时也是可重复的，即同时存在多个`UsePropertyConverter`实例。于是可以自建一个新的注解，然后使用`UsePropertyConverter`注释自建的注解，让自建的注解获得`UsePropertyConverter`等同的功能。
+比如这样
+```java
+@Target(ElementType.FIELD)
+@Retention(RetentionPolicy.SOURCE)
+@UsePropertyConverter(NullBigDecimalAsZeroConverter.class)
+@UsePropertyConverter(NullBigIntegerAsZeroConverter.class)
+@UsePropertyConverter(NullByteAsZeroConverter.class)
+@UsePropertyConverter(NullDoubleAsZeroConverter.class)
+@UsePropertyConverter(NullFloatAsZeroConverter.class)
+@UsePropertyConverter(NullIntegerAsZeroConverter.class)
+@UsePropertyConverter(NullLongAsZeroConverter.class)
+@UsePropertyConverter(NullShortAsZeroConverter.class)
+public @interface NullNumberAsZero { }
+```
+被[NullNumberAsZero]所注释的字段，会自动从`NullBigDecimalAsZeroConverter`,`NullBigIntegerAsZeroConverter`,`NullByteAsZeroConverter`,
+`NullDoubleAsZeroConverter`,`NullFloatAsZeroConverter`,`NullIntegerAsZeroConverter`,`NullLongAsZeroConverter`和`NullShortAsZeroConverter`
+中匹配最合适的转换器。即多个`@UsePropertyConverter`之间是或的关系。当然不自建注解，直接将多个`@UsePropertyConverter`直接用在目标字段上也是可以的。
+
+扩展字段属性使用了属性转换器后将获得类似静态扩展方法属性类似的效果，属性转换器将在字段初始化阶段被使用，并不影响之后的`getter`和`setter`。
+对于
+```java
+@NullNumberAsZero
+@OverrideViewProperty("a")
+private int a;
+```
+假设原类`a`字段是`Integer`类型的，Beanknife会自动选择并使用[NullIntegerAsZeroConverter]，在生成类中产生如下代码
+```java
+public static GeneratedBean read(OriginalBean source) {
+    GeneratedBean out = new GeneratedBean();
+    // other initialize statement.
+    out.a = new NullIntegerAsZeroConverter().convert(source.getA());
+    // other initialize statement.
+    return out;
+}
+```
+
+#### 自动嵌套转换机制
+Beanknife的一个重要的使用场景是基于原类，在保留尽可能多的信息的前提下，生成一个无循环引用版本的DTO。所以生成类的某个属性是另一个生成类，或生成类的集合的情况是非常常见的。
+所以Beanknife对于某个属性的类型，从原类到生成类的转换提供了内置的自动机制。
+--------
+注意
+
+自动嵌套转换机制只在扩展字段属性上生效。因为扩展方法属性已经完全自定义了属性的生成。另一方面，属性转换器的优先级高于自动转换机制。即如果使用了属性转换器，则会禁用自动转换机制。
+
+--------
+```java
+@Entity
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class Employee {
+    @Id
+    private String number;
+    private String name;
+    private String sex;
+    @ManyToOne
+    private Department department;
+}
+
+@Entity
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class Department {
+    @Id
+    private String number;
+    @OneToMany(mappedBy = "department")
+    private List<Employee> employees;
+}
+```
+[Employee]: /beanknife-jpa-examples/src/main/java/io/github/vipcxj/beanknfie/jpa/examples/models/Employee.java
+[Department]: /beanknife-jpa-examples/src/main/java/io/github/vipcxj/beanknfie/jpa/examples/models/Department.java
+上面是两个很常见的JPA实体，[Employee]具有多对一关系`department`，同时另一边[Department]具有一对多关系`employees`，它们共同构成了双向关系的两边。
+显然他们之间存在循环引用，所以无法直接进行json序列化，一般需要通过配置，忽略掉特定的属性，来解除循环引用。
+对于上例，有两个选择：
+1. 忽略`Employee.department`
+2. 忽略`Department.employees`
+
+而Beanknife为用户带了了新的选择。我们可以选择全都要。Beanknfie可以很方便地通过生成一对没有循环引用版本的新类来规避循环引用，更重要的是Beanknife并不限制生成类的数量。
+基于同一个类，可以生成任意多个生成类，只要生成类的全限定名各不相同就行。
+1. 从`Department`的角度来看，`Department.employees.department`永远指向自身，所以可以毫无顾虑地除去。
+   ```java
+   @ViewPropertiesIncludePattern(".*")
+   class BaseConfiguration {}
+   ```
+   基类配置，包含所有原类可见属性
+   ```java
+   @ViewOf(value = Employee.class, genName = "EmployeeInfo")
+   @RemoveViewProperty("department")
+   class EmployeeInfoConfiguration extends BaseConfiguration {} 
+   ```
+   生成`EmployeeInfo`，相比原类，去除了`department`属性
+   ```java
+   @ViewOf(value = Department.class, genName = "DepartmentDetail")
+   class DepartmentDetailConfiguration extends BaseConfiguration {
+       @OverrideViewProperty("employees")
+       private List<EmployeeInfo> employees;
+   } 
+   ```
+   生成`DepartmentDetail`，相比原类，`employees`的类型从`List<Employee>`变为了`List<EmployeeInfo>`。
+   此处正是使用了[自动嵌套转换机制](#自动嵌套转换机制)。类型的转换被工具自动支持，不需要另写属性转换器。
+
+2. 从`Employee`的角度看来，从`Employee.department.employees`开始，同样会造成上面提到的循环引用。
+常规方案是去除`Department.employees`属性，但假设客户端还希望同时查询雇员的同事，即`department.employees`。
+为了保留`Department.employees`，我们可以直接使用上面的生成类`DepartmentDetail`。于是有如下配置：
+   ```java
+   @ViewOf(value = Employee.class, genName = "EmployeeDetail")
+   class EmployeeDetailConfiguration extends BaseConfiguration {
+       @OverrideViewProperty("department")
+       private DepartmentDetail department;
+   }
+   ```
+   多亏[自动嵌套转换机制](#自动嵌套转换机制)，我们将`Employee.department`属性的类型从`Department`换成了它的生成类`DepartmentDetail`。
+   `EmployeeDetail.department.employees`不再会造成循环引用。
+   
+   在这个例子中，我们对多级使用了生成类自动转换，*嵌套*因此而得名。
 
 ### 配置注解
 施工中...
