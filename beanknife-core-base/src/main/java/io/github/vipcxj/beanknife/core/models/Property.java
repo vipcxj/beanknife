@@ -179,7 +179,9 @@ public class Property {
     }
 
     public boolean isLombokWritable(boolean samePackage) {
-        return lombokInfo != null && lombokInfo.isWritable(samePackage);
+        Property field = getField();
+        boolean isFinal = Objects.requireNonNull(field).getElement().getModifiers().contains(Modifier.FINAL);
+        return !isFinal && field.lombokInfo != null && field.lombokInfo.isWritable(samePackage);
     }
 
     public boolean hasLombokGetter() {

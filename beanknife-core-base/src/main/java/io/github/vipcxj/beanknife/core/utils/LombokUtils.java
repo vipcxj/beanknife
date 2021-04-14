@@ -30,15 +30,21 @@ public class LombokUtils {
     }
 
     private static Access getGetterOrSetterAccess(@NonNull Element element, String annotationType, @CheckForNull Access baseAccess) {
+        boolean hasData = hasDataAnnotation(element);
         AnnotationMirror annotationMirror = Utils.getAnnotationDirectOn(element, annotationType);
+        Access defaultAccess = baseAccess != null ? baseAccess : (hasData ? Access.PUBLIC : Access.NONE);
         if (annotationMirror == null) {
-            return baseAccess != null ? baseAccess : Access.NONE;
+            return defaultAccess;
         }
         String value = Utils.getEnumAnnotationValue(annotationMirror, "value");
         if (value == null) {
             return Access.PUBLIC;
         }
         return fromLombokAccessLevel(value);
+    }
+
+    private static boolean hasDataAnnotation(@NonNull Element element) {
+        return Utils.getAnnotationDirectOn(element, "lombok.Data") != null;
     }
 
     public static Access getGetterAccess(@NonNull Element element, @CheckForNull Access baseAccess) {
