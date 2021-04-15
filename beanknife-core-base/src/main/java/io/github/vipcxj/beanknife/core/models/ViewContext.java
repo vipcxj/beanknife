@@ -186,6 +186,9 @@ public class ViewContext extends Context {
         Access typeGetterAccess = LombokUtils.getGetterAccess(targetElement, null);
         Access typeSetterAccess = LombokUtils.getSetterAccess(targetElement, null);
         for (Element member : targetMembers) {
+            if (member.getModifiers().contains(Modifier.STATIC)) {
+                continue;
+            }
             Property property = null;
             if (member.getKind() == ElementKind.FIELD) {
                 property = Utils.createPropertyFromBase(this, viewOf, (VariableElement) member, typeGetterAccess, typeSetterAccess);

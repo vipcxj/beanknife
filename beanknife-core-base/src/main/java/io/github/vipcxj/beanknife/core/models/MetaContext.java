@@ -55,6 +55,9 @@ public class MetaContext extends Context {
         Access typeGetterAccess = LombokUtils.getGetterAccess(element, null);
         Access typeSetterAccess = LombokUtils.getSetterAccess(element, null);
         for (Element member : members) {
+            if (member.getModifiers().contains(Modifier.STATIC)) {
+                continue;
+            }
             Property property = null;
             if (member.getKind() == ElementKind.FIELD) {
                 property = Utils.createPropertyFromBase(this, null, (VariableElement) member, typeGetterAccess, typeSetterAccess);
