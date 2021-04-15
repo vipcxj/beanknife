@@ -162,38 +162,43 @@ public class ViewOfData {
     }
 
     private String[] loadStringArray(Elements elements, String name, Class<? extends Annotation> annotationType, Class<? extends Annotation> annotationsType) {
-        List<String> values = Utils.getStringArrayAnnotationValue(viewOf, name);
-        if (values == null) {
-            values = new ArrayList<>();
-            List<AnnotationMirror> annotations = Utils.getAnnotationsOn(elements, configElement, annotationType, annotationsType, true, false);
-            for (AnnotationMirror annotation : annotations) {
-                List<String> value = Utils.getStringArrayAnnotationValue(annotation, "value");
-                if (value != null) {
-                    values.addAll(value);
-                }
+        List<String> values = new ArrayList<>();
+        List<AnnotationMirror> annotations = Utils.getAnnotationsOn(elements, configElement, annotationType, annotationsType, true, false);
+        for (AnnotationMirror annotation : annotations) {
+            List<String> value = Utils.getStringArrayAnnotationValue(annotation, "value");
+            if (value != null) {
+                values.addAll(value);
             }
+        }
+        List<String> curValues = Utils.getStringArrayAnnotationValue(viewOf, name);
+        if (curValues != null) {
+            values.addAll(curValues);
         }
         return values.toArray(new String[0]);
     }
 
     private String loadPattern(Elements elements, String name, Class<? extends Annotation> annotationType, Class<? extends Annotation> annotationsType) {
-        String value = Utils.getStringAnnotationValue(viewOf, name);
-        if (value == null) {
-            StringBuilder sb = new StringBuilder();
-            List<AnnotationMirror> annotations = Utils.getAnnotationsOn(elements, configElement, annotationType, annotationsType, true, false);
-            for (AnnotationMirror annotation : annotations) {
-                String part = Utils.getStringAnnotationValue(annotation, "value");
-                if (part != null) {
-                    if (sb.length() == 0) {
-                        sb.append(part);
-                    } else {
-                        sb.append(" ").append(part);
-                    }
+        StringBuilder sb = new StringBuilder();
+        List<AnnotationMirror> annotations = Utils.getAnnotationsOn(elements, configElement, annotationType, annotationsType, true, false);
+        for (AnnotationMirror annotation : annotations) {
+            String part = Utils.getStringAnnotationValue(annotation, "value");
+            if (part != null) {
+                if (sb.length() == 0) {
+                    sb.append(part);
+                } else {
+                    sb.append(" ").append(part);
                 }
             }
-            value = sb.toString();
         }
-        return value;
+        String part = Utils.getStringAnnotationValue(viewOf, name);
+        if (part != null) {
+            if (sb.length() == 0) {
+                sb.append(part);
+            } else {
+                sb.append(" ").append(part);
+            }
+        }
+        return sb.toString();
     }
 
     private void addAnnotation(@NonNull Elements elements, @NonNull AnnotationMirror annotationMirror, AnnotationSource source) {

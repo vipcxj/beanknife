@@ -215,7 +215,7 @@ public class ViewContext extends Context {
         });
         this.baseProperties = new ArrayList<>(getProperties());
         List<Pattern> includePatterns = new ArrayList<>();
-        for (String p : viewOf.getIncludePattern().split(",\\s")) {
+        for (String p : viewOf.getIncludePattern().split(",\\s*|\\s+")) {
             try {
                 Pattern pattern = Pattern.compile(p);
                 includePatterns.add(pattern);
@@ -228,7 +228,7 @@ public class ViewContext extends Context {
             }
         }
         List<Pattern> excludePatterns = new ArrayList<>();
-        for (String p : viewOf.getExcludePattern().split(",\\s")) {
+        for (String p : viewOf.getExcludePattern().split(",\\s*|\\s+")) {
             try {
                 Pattern pattern = Pattern.compile(p);
                 excludePatterns.add(pattern);

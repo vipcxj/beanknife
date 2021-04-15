@@ -110,4 +110,18 @@ public class ViewOfProcessorTest {
                 "io.github.vipcxj.beanknife.cases.beans.ViewOfLeaf11Bean"
         );
     }
+
+    @Test
+    public void testViewPropertyContainerBean() {
+        testViewCase(
+                Arrays.asList(
+                        "io.github.vipcxj.beanknife.cases.beans.ViewPropertyBeanViewConfig",
+                        "io.github.vipcxj.beanknife.cases.beans.ViewPropertyContainerBeanViewConfig"
+                ),
+                Arrays.asList(
+                        "io.github.vipcxj.beanknife.cases.beans.ViewPropertyBeanWithoutParent",
+                        "io.github.vipcxj.beanknife.cases.beans.ViewPropertyContainerBeanView"
+                )
+        );
+    }
 }
