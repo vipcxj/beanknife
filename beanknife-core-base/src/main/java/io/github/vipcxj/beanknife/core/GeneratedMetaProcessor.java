@@ -4,6 +4,7 @@ import com.sun.source.util.Trees;
 import io.github.vipcxj.beanknife.core.models.ProcessorData;
 import io.github.vipcxj.beanknife.core.models.ViewContext;
 import io.github.vipcxj.beanknife.core.models.ViewOfData;
+import io.github.vipcxj.beanknife.core.utils.JetbrainUtils;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedMeta;
 
@@ -25,8 +26,9 @@ public class GeneratedMetaProcessor extends AbstractProcessor {
     public synchronized void init(ProcessingEnvironment processingEnv) {
         System.out.println("GeneratedMetaProcessor Init");
         super.init(processingEnv);
-        Trees trees = Trees.instance(processingEnv);
-        this.processorData = new ProcessorData(trees, processingEnv);
+        ProcessingEnvironment unwrappedProcessingEnv = JetbrainUtils.jbUnwrap(ProcessingEnvironment.class, this.processingEnv);
+        Trees trees = Trees.instance(unwrappedProcessingEnv);
+        this.processorData = new ProcessorData(trees, unwrappedProcessingEnv);
     }
 
     @Override

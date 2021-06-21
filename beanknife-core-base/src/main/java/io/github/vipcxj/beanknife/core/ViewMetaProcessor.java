@@ -4,6 +4,7 @@ import com.sun.source.util.Trees;
 import io.github.vipcxj.beanknife.core.models.MetaContext;
 import io.github.vipcxj.beanknife.core.models.ViewMetaData;
 import io.github.vipcxj.beanknife.core.models.ViewOfData;
+import io.github.vipcxj.beanknife.core.utils.JetbrainUtils;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 import io.github.vipcxj.beanknife.runtime.annotations.ViewMeta;
 import io.github.vipcxj.beanknife.runtime.annotations.ViewMetas;
@@ -26,7 +27,8 @@ public class ViewMetaProcessor extends AbstractProcessor {
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
-        this.trees = Trees.instance(processingEnv);
+        ProcessingEnvironment unwrappedProcessingEnv = JetbrainUtils.jbUnwrap(ProcessingEnvironment.class, this.processingEnv);
+        this.trees = Trees.instance(unwrappedProcessingEnv);
     }
 
     @Override

@@ -13,7 +13,7 @@ public enum ViewCodeGenerators {
 
     INSTANCE;
 
-    private List<ViewCodeGenerator> generators;
+    private final List<ViewCodeGenerator> generators;
 
     ViewCodeGenerators() {
         this.generators = new ArrayList<>();
