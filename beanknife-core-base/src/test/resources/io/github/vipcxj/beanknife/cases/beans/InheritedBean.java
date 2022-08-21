@@ -11,4 +11,9 @@ public class InheritedBean extends MixedAllBean {
     public String getNewProperty() {
         return newProperty;
     }
+
+    @Override
+    public String getIf() {
+        return "if";
+    }
 }

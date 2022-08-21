@@ -9,7 +9,7 @@ import java.util.Set;
 
 @ViewMeta
 @ViewOf(includes = {GenericBeanMeta.a, GenericBeanMeta.b, GenericBeanMeta.c, GenericBeanMeta.d, GenericBeanMeta.e})
-public class GenericBean<T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> {
+public class GenericBean<T1 extends Exception & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> {
 
     private T1 a;
     private T2 b;

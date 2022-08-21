@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Set;
 
 @ViewOf(includePattern = ".*")
-public class NestedGenericBean<T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> {
+public class NestedGenericBean<T1 extends Exception & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> {
 
     private T1 a;
     private T2 b;

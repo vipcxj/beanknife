@@ -62,7 +62,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.16</version>
+            <version>1.18.24</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -98,9 +98,6 @@
     <profiles>
         <profile>
             <id>java9</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
             <properties>
                 <maven.compiler.release>9</maven.compiler.release>
             </properties>
@@ -137,7 +134,7 @@
                                 <path>
                                     <groupId>org.projectlombok</groupId>
                                     <artifactId>lombok</artifactId>
-                                    <version>1.18.16</version>
+                                    <version>1.18.24</version>
                                 </path>
                             </annotationProcessorPaths>
                         </configuration>
@@ -167,6 +164,21 @@
                             </toolchains>
                         </configuration>
                     </plugin>
+                    <plugin>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <configuration>
+                            <source>1.8</source>
+                            <target>1.8</target>
+                            <excludes>**/module-info.java</excludes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>debug</id>
+            <build>
+                <plugins>
                     <plugin>
                         <artifactId>maven-compiler-plugin</artifactId>
                         <configuration>

@@ -122,4 +122,12 @@ public class ViewOfProcessorTest {
                 )
         );
     }
+
+    @Test
+    public void testInheritedBean() {
+        testViewCase(
+                "io.github.vipcxj.beanknife.cases.beans.InheritedBeanConfigure",
+                "io.github.vipcxj.beanknife.cases.beans.InheritedBeanView"
+        );
+    }
 }

@@ -611,7 +611,7 @@ public class ViewContext extends Context {
             ArrayType beAssignedArrayType = (ArrayType) beAssigned;
             ArrayType toAssignArrayType = (ArrayType) toAssign;
             return calcTypeAssignScore(beAssignedArrayType.getComponentType(), toAssignArrayType.getComponentType());
-        } else if (beAssigned.getKind().isPrimitive()) {
+        } else if (beAssigned.getKind().isPrimitive() || toAssign.getKind().isPrimitive()) {
             return typeUtils.isSameType(beAssigned, toAssign) ? 0 : 1;
         } else if (beAssigned.getKind() == TypeKind.DECLARED) {
             return calcTypeAssignScore((DeclaredType) beAssigned, (DeclaredType) toAssign);
