@@ -7,4 +7,8 @@ public enum Access {
     public String toString() {
         return name().toLowerCase();
     }
+
+    public static boolean canSeeFromSubClass(Access access) {
+        return access != PRIVATE && access != NONE && access != UNKNOWN;
+    }
 }

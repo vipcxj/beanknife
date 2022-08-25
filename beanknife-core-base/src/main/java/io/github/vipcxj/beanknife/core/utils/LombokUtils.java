@@ -73,7 +73,7 @@ public class LombokUtils {
             if (element.getKind() == ElementKind.FIELD) {
                 Access getterAccess = getGetterAccess(element, baseGetterAccess);
                 Access setterAccess = getSetterAccess(element, baseSetterAccess);
-                if (getterAccess != Access.NONE || setterAccess != Access.NONE) {
+                if ((Access.canSeeFromSubClass(getterAccess)) || Access.canSeeFromSubClass(setterAccess)) {
                     fields.add((VariableElement) element);
                 }
             }
