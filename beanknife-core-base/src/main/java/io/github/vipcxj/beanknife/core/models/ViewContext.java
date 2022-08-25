@@ -5,10 +5,7 @@ import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.github.vipcxj.beanknife.core.ViewCodeGenerators;
 import io.github.vipcxj.beanknife.core.spi.ViewCodeGenerator;
-import io.github.vipcxj.beanknife.core.utils.LombokUtils;
-import io.github.vipcxj.beanknife.core.utils.ParamInfo;
-import io.github.vipcxj.beanknife.core.utils.Utils;
-import io.github.vipcxj.beanknife.core.utils.VarMapper;
+import io.github.vipcxj.beanknife.core.utils.*;
 import io.github.vipcxj.beanknife.runtime.BeanProviders;
 import io.github.vipcxj.beanknife.runtime.PropertyConverter;
 import io.github.vipcxj.beanknife.runtime.annotations.*;
@@ -182,7 +179,7 @@ public class ViewContext extends Context {
             Utils.importAnnotation(this, annotationMirror);
         }
         Elements elementUtils = getProcessingEnv().getElementUtils();
-        final List<? extends Element> targetMembers = elementUtils.getAllMembers(targetElement);
+        final List<? extends Element> targetMembers = ElementsCompatible.getAllMembers(elementUtils, targetElement);
         Access typeGetterAccess = LombokUtils.getGetterAccess(targetElement, null);
         Access typeSetterAccess = LombokUtils.getSetterAccess(targetElement, null);
         for (Element member : targetMembers) {
@@ -203,12 +200,22 @@ public class ViewContext extends Context {
         getProperties().replaceAll(property -> {
             Property base = property.getBase();
             if (base != null) {
-                Property field = property.getField();
-                boolean fieldWriteable = field != null && Utils.canSeeFromOtherClass(field.getElement(), samePackage);
                 ExecutableElement setterMethod = Utils.getSetterMethod(processingEnv, base.getSetterName(), base.getTypeMirror(), targetMembers);
-                boolean writeMethod = setterMethod != null;
-                boolean writeable = writeMethod ? Utils.canSeeFromOtherClass(setterMethod, samePackage) : fieldWriteable;
-                return property.withWriteInfo(writeable, writeMethod);
+                if (setterMethod != null) {
+                    boolean writeable = Utils.canSeeFromOtherClass(setterMethod, samePackage);
+                    return property.withWriteInfo(writeable, true);
+                } else {
+                    Property field = property.getField();
+                    if (field != null) {
+                        if (field.isLombokWritable(samePackage)) {
+                            return property.withWriteInfo(true, true);
+                        } else {
+                            return property.withWriteInfo(Utils.canSeeFromOtherClass(field.getElement(), samePackage), false);
+                        }
+                    } else {
+                        return property;
+                    }
+                }
             } else {
                 return property;
             }

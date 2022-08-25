@@ -116,8 +116,6 @@ public class Utils {
     }
 
     public static ExecutableElement getSetterMethod(ProcessingEnvironment environment, String setterName, TypeMirror type, List<? extends Element> members) {
-        ExecutableElement find = null;
-        Elements elements = environment.getElementUtils();
         Types types = environment.getTypeUtils();
         for (Element member : members) {
             Set<Modifier> modifiers = member.getModifiers();
@@ -132,17 +130,16 @@ public class Utils {
                     continue;
                 }
                 VariableElement variableElement = parameters.get(0);
+                // todo: replace types
                 if (!types.isSameType(variableElement.asType(), type)) {
                     continue;
                 }
                 if (setter.getReturnType().getKind() == TypeKind.VOID) {
-                    if (find == null || elements.hides(setter, find)) {
-                        find = setter;
-                    }
+                    return setter;
                 }
             }
         }
-        return find;
+        return null;
     }
 
     public static Access resolveGetterAccess(@CheckForNull ViewOfData viewOf, @NonNull Access access) {
@@ -257,9 +254,13 @@ public class Utils {
         }
     }
 
+    public static boolean isObjectType(Element element) {
+        return element.getKind() == ElementKind.CLASS && ((TypeElement) element).getQualifiedName().contentEquals("java.lang.Object");
+    }
+
     public static boolean isNotObjectProperty(Property property) {
         Element parent = property.getElement().getEnclosingElement();
-        return parent.getKind() != ElementKind.CLASS || !((TypeElement) parent).getQualifiedName().toString().equals("java.lang.Object");
+        return !isObjectType(parent);
     }
 
     @NonNull
@@ -377,7 +378,7 @@ public class Utils {
     public enum AnnotationValueKind {
         BOXED, STRING, TYPE, ENUM, ANNOTATION, ARRAY
     }
-    private static AnnotationValueKind getAnnotationValueType(@NonNull AnnotationValue value) {
+    public static AnnotationValueKind getAnnotationValueType(@NonNull AnnotationValue value) {
         Object v = value.getValue();
         if (v instanceof Boolean
                 || v instanceof Integer
@@ -421,8 +422,6 @@ public class Utils {
                         + "."
         );
     }
-
-
 
     public static String getStringAnnotationValue(@NonNull AnnotationMirror annotation, @NonNull Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues, @NonNull String name) {
         AnnotationValue annotationValue = getAnnotationValue(annotation, annotationValues, name);

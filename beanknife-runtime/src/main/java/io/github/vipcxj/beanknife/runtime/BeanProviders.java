@@ -13,7 +13,7 @@ public enum BeanProviders {
     INSTANCE;
 
     private final ServiceLoader<BeanProvider> loader;
-    private Map<String, WeakReference<?>> cacheMap;
+    private final Map<String, WeakReference<?>> cacheMap;
 
     BeanProviders() {
         loader = ServiceLoader.load(BeanProvider.class);

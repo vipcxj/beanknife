@@ -1,8 +1,9 @@
 package io.github.vipcxj.beanknife.cases.beans;
 
 import io.github.vipcxj.beanknife.cases.annotations.MethodAnnotation1;
-import io.github.vipcxj.beanknife.cases.annotations.PropertyAnnotation1;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.Data;
+import lombok.Getter;
 
 import java.util.List;
 

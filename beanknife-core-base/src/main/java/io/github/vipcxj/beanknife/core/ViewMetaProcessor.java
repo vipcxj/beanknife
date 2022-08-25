@@ -4,10 +4,9 @@ import com.sun.source.util.Trees;
 import io.github.vipcxj.beanknife.core.models.MetaContext;
 import io.github.vipcxj.beanknife.core.models.ViewMetaData;
 import io.github.vipcxj.beanknife.core.models.ViewOfData;
+import io.github.vipcxj.beanknife.core.utils.Constants;
 import io.github.vipcxj.beanknife.core.utils.JetbrainUtils;
 import io.github.vipcxj.beanknife.core.utils.Utils;
-import io.github.vipcxj.beanknife.runtime.annotations.ViewMeta;
-import io.github.vipcxj.beanknife.runtime.annotations.ViewMetas;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -38,7 +37,7 @@ public class ViewMetaProcessor extends AbstractProcessor {
                 Set<? extends Element> elements = roundEnv.getElementsAnnotatedWith(annotation);
                 for (Element element : elements) {
                     if (element.getKind() == ElementKind.CLASS) {
-                        List<AnnotationMirror> annotationMirrors = Utils.getAnnotationsOn(processingEnv.getElementUtils(), element, ViewMeta.class, ViewMetas.class, false, false);
+                        List<AnnotationMirror> annotationMirrors = Utils.getAnnotationsOn(processingEnv.getElementUtils(), element, Constants.VIEW_META_TYPE_NAME, Constants.VIEW_METAS_TYPE_NAME, false, false);
                         TypeElement configElement = (TypeElement) element;
                         Set<String> targetClassNames = new HashSet<>();
                         for (AnnotationMirror annotationMirror : annotationMirrors) {
@@ -96,7 +95,8 @@ public class ViewMetaProcessor extends AbstractProcessor {
     }
 
     private TypeElement getMostImportantViewMetaElement(RoundEnvironment roundEnv, TypeElement targetElement) {
-        Set<? extends Element> candidates = roundEnv.getElementsAnnotatedWith(ViewMeta.class);
+        TypeElement viewMetaTypeElement = processingEnv.getElementUtils().getTypeElement(Constants.VIEW_META_TYPE_NAME);
+        Set<? extends Element> candidates = roundEnv.getElementsAnnotatedWith(viewMetaTypeElement);
         List<TypeElement> out = new ArrayList<>();
         for (Element candidate : candidates) {
             if (Utils.shouldIgnoredElement(candidate)) {
@@ -104,7 +104,7 @@ public class ViewMetaProcessor extends AbstractProcessor {
             }
             List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(candidate);
             for (AnnotationMirror annotationMirror : annotationMirrors) {
-                if (Utils.isThisAnnotation(annotationMirror, ViewMeta.class)) {
+                if (Utils.isThisAnnotation(annotationMirror, Constants.VIEW_META_TYPE_NAME)) {
                     if (Utils.isViewMetaTargetTo(processingEnv, annotationMirror, (TypeElement) candidate, targetElement)) {
                         out.add((TypeElement) candidate);
                         break;
@@ -112,14 +112,15 @@ public class ViewMetaProcessor extends AbstractProcessor {
                 }
             }
         }
-        candidates = roundEnv.getElementsAnnotatedWith(ViewMetas.class);
+        TypeElement viewMetasTypeElement = processingEnv.getElementUtils().getTypeElement(Constants.VIEW_METAS_TYPE_NAME);
+        candidates = roundEnv.getElementsAnnotatedWith(viewMetasTypeElement);
         for (Element candidate : candidates) {
             if (Utils.shouldIgnoredElement(candidate)) {
                 continue;
             }
             List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(candidate);
             for (AnnotationMirror annotationMirror : annotationMirrors) {
-                if (Utils.isThisAnnotation(annotationMirror, ViewMetas.class)) {
+                if (Utils.isThisAnnotation(annotationMirror, Constants.VIEW_METAS_TYPE_NAME)) {
                     Map<? extends ExecutableElement, ? extends AnnotationValue> elementValuesWithDefaults = processingEnv.getElementUtils().getElementValuesWithDefaults(annotationMirror);
                     List<AnnotationMirror> viewMetas = Utils.getAnnotationElement(annotationMirror, elementValuesWithDefaults);
                     for (AnnotationMirror viewMeta : viewMetas) {

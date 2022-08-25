@@ -5,6 +5,7 @@ import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import io.github.vipcxj.beanknife.core.utils.ElementsCompatible;
 import io.github.vipcxj.beanknife.core.utils.TreeUtils;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 
@@ -150,19 +151,18 @@ public class Context {
         if (locked) {
             throw new IllegalStateException("Locked! Add property is not allowed.");
         }
-        Elements elementUtils = processingEnv.getElementUtils();
         boolean done = false;
         ListIterator<Property> iterator = properties.listIterator();
         while (iterator.hasNext()) {
             Property p = iterator.next();
-            if (elementUtils.hides(property.getElement(), p.getElement())) {
+            if (ElementsCompatible.fieldHides(property.getElement(), p.getElement())) {
                 iterator.remove();
                 if (Utils.isNotObjectProperty(property)) {
                     iterator.add(p.overrideBy(property));
                 }
                 done = true;
                 break;
-            } else if (elementUtils.hides(p.getElement(), property.getElement())) {
+            } else if (ElementsCompatible.fieldHides(p.getElement(), property.getElement())) {
                 done = true;
                 break;
             } else if (p.getGetterName().equals(property.getGetterName())) {

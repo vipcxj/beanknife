@@ -98,6 +98,9 @@
     <profiles>
         <profile>
             <id>java9</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
             <properties>
                 <maven.compiler.release>9</maven.compiler.release>
             </properties>
@@ -185,6 +188,13 @@
                             <source>1.8</source>
                             <target>1.8</target>
                             <excludes>**/module-info.java</excludes>
+                            <annotationProcessorPaths>
+                                <path>
+                                    <groupId>io.github.vipcxj</groupId>
+                                    <artifactId>beanknife-core</artifactId>
+                                    <version>${project.version}</version>
+                                </path>
+                            </annotationProcessorPaths>
                         </configuration>
                     </plugin>
                 </plugins>

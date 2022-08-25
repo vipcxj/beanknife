@@ -2,6 +2,7 @@ package io.github.vipcxj.beanknife.core.models;
 
 import com.sun.source.util.Trees;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import io.github.vipcxj.beanknife.core.utils.ElementsCompatible;
 import io.github.vipcxj.beanknife.core.utils.LombokUtils;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 import io.github.vipcxj.beanknife.runtime.annotations.Access;
@@ -51,7 +52,7 @@ public class MetaContext extends Context {
     public void collectData() {
         TypeElement element = viewMeta.getOf();
         Elements elementUtils = getProcessingEnv().getElementUtils();
-        List<? extends Element> members = elementUtils.getAllMembers(element);
+        List<? extends Element> members = ElementsCompatible.getAllMembers(elementUtils, element);
         Access typeGetterAccess = LombokUtils.getGetterAccess(element, null);
         Access typeSetterAccess = LombokUtils.getSetterAccess(element, null);
         for (Element member : members) {

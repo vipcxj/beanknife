@@ -4,11 +4,14 @@ import com.sun.source.util.Trees;
 import io.github.vipcxj.beanknife.core.models.ProcessorData;
 import io.github.vipcxj.beanknife.core.models.ViewContext;
 import io.github.vipcxj.beanknife.core.models.ViewOfData;
+import io.github.vipcxj.beanknife.core.utils.Constants;
 import io.github.vipcxj.beanknife.core.utils.JetbrainUtils;
 import io.github.vipcxj.beanknife.core.utils.Utils;
-import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedMeta;
 
-import javax.annotation.processing.*;
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.annotation.processing.RoundEnvironment;
+import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
@@ -42,7 +45,7 @@ public class GeneratedMetaProcessor extends AbstractProcessor {
                 for (Element element : elements) {
                     List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(element);
                     for (AnnotationMirror annotationMirror : annotationMirrors) {
-                        if (Utils.isThisAnnotation(annotationMirror, GeneratedMeta.class)) {
+                        if (Utils.isThisAnnotation(annotationMirror, Constants.GENERATED_META_TYPE_NAME)) {
                             Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues = processingEnv.getElementUtils().getElementValuesWithDefaults(annotationMirror);
                             TypeElement targetElement = (TypeElement) Utils.getTypeAnnotationValue(annotationMirror, annotationValues, "targetClass").asElement();
                             DeclaredType[] proxies = Utils.getTypeArrayAnnotationValue(annotationMirror, annotationValues, "proxies");
