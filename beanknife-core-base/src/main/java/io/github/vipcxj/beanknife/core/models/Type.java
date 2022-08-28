@@ -964,21 +964,22 @@ public class Type {
     }
 
     public void openClass(@NonNull PrintWriter writer, @NonNull Modifier modifier, @NonNull Context context, String indent, int indentNum) {
-        openClass(writer, modifier, context, null, Collections.emptyList(), indent, indentNum);
+        openClass(writer, modifier, context, null, Collections.emptyList(), null, indent, indentNum);
     }
 
-    public void openClass(@NonNull PrintWriter writer, @NonNull Modifier modifier, @NonNull Context context, @CheckForNull Type extendsType, @NonNull List<Type> implTypes, String indent, int indentNum) {
+    public void openClass(@NonNull PrintWriter writer, @NonNull Modifier modifier, @NonNull Context context, @CheckForNull String extendsTypeString, @NonNull List<Type> implTypes, @CheckForNull String[] implTypeStrings, String indent, int indentNum) {
         Utils.printIndent(writer, indent, indentNum);
         writer.print(modifier);
         writer.print(" ");
         writer.print("class ");
         writer.print(getSimpleName());
         printGenericParameters(writer, context, true);
-        if (extendsType != null) {
+        if (extendsTypeString != null && !extendsTypeString.isEmpty()) {
             writer.print(" extends ");
-            extendsType.printType(writer, context, true, false);
+            writer.print(extendsTypeString);
         }
-        if (!implTypes.isEmpty()) {
+        String joinedImplTypeStrings = implTypeStrings != null ? String.join(", ", implTypeStrings) : "";
+        if (!implTypes.isEmpty() || !joinedImplTypeStrings.isEmpty()) {
             writer.print(" implements ");
             int i = 0;
             for (Type implType : implTypes) {
@@ -986,6 +987,12 @@ public class Type {
                 if (i++ != implTypes.size() - 1) {
                     writer.print(", ");
                 }
+            }
+            if (!joinedImplTypeStrings.isEmpty()) {
+                if (!implTypes.isEmpty()) {
+                    writer.print(", ");
+                }
+                writer.print(joinedImplTypeStrings);
             }
         }
         writer.println(" {");

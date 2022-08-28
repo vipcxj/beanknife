@@ -9,6 +9,7 @@ import java.lang.annotation.*;
 /**
  * Used to generate the DTO type.
  */
+@SuppressWarnings("unused")
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.SOURCE)
 @Repeatable(ViewOfs.class)
@@ -152,4 +153,23 @@ public @interface ViewOf {
      * @return The access level of the generated create-and-write-back method. By default, {@link Access#NONE} is used, it means no method is generated.
      */
     Access createAndWriteBackMethod() default Access.NONE;
+
+    /**
+     * The super class of the generated class. By default, no super class.
+     * Note that wrong parent class will cause compilation errors.
+     * Note that using the full qualified name.
+     * @see ViewExtends
+     * @return the super class
+     */
+    String extendsType() default "";
+
+    /**
+     * The interfaces implemented by the generated class.
+     * By default, no interfaces is implemented.
+     * Note that wrong implemented interfaces will cause compilation errors.
+     * Note that using the full qualified name.
+     * @see ViewImplements
+     * @return the interfaces implemented by the generated class
+     */
+    String[] implementsTypes() default {};
 }

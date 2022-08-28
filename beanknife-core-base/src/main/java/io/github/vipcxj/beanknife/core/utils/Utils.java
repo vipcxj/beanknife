@@ -255,7 +255,7 @@ public class Utils {
     }
 
     public static boolean isObjectType(Element element) {
-        return element.getKind() == ElementKind.CLASS && ((TypeElement) element).getQualifiedName().contentEquals("java.lang.Object");
+        return element.getKind() == ElementKind.CLASS && ((TypeElement) element).getQualifiedName().contentEquals(Constants.TYPE_OBJECT);
     }
 
     public static boolean isNotObjectProperty(Property property) {
@@ -332,6 +332,15 @@ public class Utils {
         //noinspection unchecked
         List<? extends AnnotationValue> arrayValue = (List<? extends AnnotationValue>) annotationValue.getValue();
         return arrayValue.stream().map(value -> (String) value.getValue()).collect(Collectors.toList());
+    }
+
+    @CheckForNull
+    public static TypeMirror getTypeAnnotationValue(@NonNull AnnotationMirror annotation, @NonNull String name) {
+        AnnotationValue annotationValue = getAnnotationValue(annotation, name);
+        if (annotationValue == null) {
+            return null;
+        }
+        return (TypeMirror) annotationValue.getValue();
     }
 
     @CheckForNull

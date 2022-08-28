@@ -23,7 +23,6 @@ public class ViewOfData {
     private AnnotationMirror viewOf;
     private TypeElement targetElement;
     private TypeElement configElement;
-    private TypeElement sourceElement;
     private String genPackage;
     private String genName;
     private Modifier access;
@@ -44,6 +43,8 @@ public class ViewOfData {
     private CacheType configureBeanCacheType;
     private Access writeBackMethod;
     private Access createAndWriteBackMethod;
+    private String extendsType;
+    private String[] implementsTypes;
     private Set<String> extraExcludes;
     private Set<String> writeExcludes;
     private Map<String, AnnotationUsage> useAnnotations;
@@ -60,7 +61,6 @@ public class ViewOfData {
         Elements elements = environment.getElementUtils();
         Map<? extends ExecutableElement, ? extends AnnotationValue> annValues = elements.getElementValuesWithDefaults(viewOf);
         this.viewOf = viewOf;
-        this.sourceElement = sourceElement;
         DeclaredType value = Utils.getTypeAnnotationValue(viewOf, annValues, "value");
         this.targetElement = (TypeElement) value.asElement();
         if (Utils.isThisTypeElement(this.targetElement, Self.class)) {
@@ -71,7 +71,7 @@ public class ViewOfData {
         if (Utils.isThisTypeElement(this.configElement, Self.class)) {
             this.configElement = sourceElement;
         }
-        this.genPackage = Utils.getStringAnnotationValue(viewOf, annValues, "genPackage");
+        this.genPackage = loadString(elements, "genPackage", ViewGenPackage.class);
         this.genName = loadGenName(elements);
         this.access = getModifier(loadEnum(elements, "access", Access.PUBLIC, Access.class, ViewAccess.class));
         this.includes = loadStringArray(elements, "includes", ViewPropertiesInclude.class, ViewPropertiesIncludes.class);
@@ -91,6 +91,8 @@ public class ViewOfData {
         this.configureBeanCacheType = loadEnum(elements, "configureBeanCacheType", CacheType.LOCAL, CacheType.class, ViewConfigureBeanCacheType.class);
         this.writeBackMethod = loadEnum(elements, "writeBackMethod", Access.NONE, Access.class, ViewWriteBackMethod.class);
         this.createAndWriteBackMethod = loadEnum(elements, "createAndWriteBackMethod", Access.NONE, Access.class, ViewCreateAndWriteBackMethod.class);
+        this.extendsType = loadString(elements, "extendsType", ViewExtends.class);
+        this.implementsTypes = loadStringArray(elements, "implementsTypes", ViewImplements.class, null);
         this.extraExcludes = new HashSet<>();
         List<AnnotationMirror> removeViewProperties = Utils.getAnnotationsOn(elements, configElement, RemoveViewProperty.class, RemoveViewProperties.class);
         for (AnnotationMirror removeViewProperty : removeViewProperties) {
@@ -175,6 +177,17 @@ public class ViewOfData {
             values.addAll(curValues);
         }
         return values.toArray(new String[0]);
+    }
+
+    private String loadString(Elements elements, String name, Class<? extends Annotation> annotationType) {
+        String strValue = Utils.getStringAnnotationValue(viewOf, name);
+        if (strValue == null) {
+            List<AnnotationMirror> annotations = Utils.getAnnotationsOn(elements, configElement, annotationType, null, true, false);
+            if (!annotations.isEmpty()) {
+                strValue = Utils.getStringAnnotationValue(annotations.get(annotations.size() - 1), "value");
+            }
+        }
+        return strValue != null ? strValue : "";
     }
 
     private String loadPattern(Elements elements, String name, Class<? extends Annotation> annotationType, Class<? extends Annotation> annotationsType) {
@@ -349,6 +362,14 @@ public class ViewOfData {
 
     public Access getCreateAndWriteBackMethod() {
         return createAndWriteBackMethod;
+    }
+
+    public String getExtendsType() {
+        return extendsType;
+    }
+
+    public String[] getImplementsTypes() {
+        return implementsTypes;
     }
 
     public Set<String> getExtraExcludes() {

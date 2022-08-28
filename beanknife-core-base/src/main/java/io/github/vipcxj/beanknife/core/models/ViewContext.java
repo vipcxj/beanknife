@@ -742,7 +742,7 @@ public class ViewContext extends Context {
         if (viewOf.isSerializable()) {
             implTypes.add(Type.extract(this, Serializable.class));
         }
-        genType.openClass(writer, modifier, this, null, implTypes, INDENT, 0);
+        genType.openClass(writer, modifier, this, viewOf.getExtendsType(), implTypes, viewOf.getImplementsTypes(), INDENT, 0);
         if (viewOf.isSerializable()) {
             empty = false;
             Utils.printIndent(writer, INDENT, 1);
