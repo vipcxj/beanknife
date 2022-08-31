@@ -2,7 +2,9 @@ package io.github.vipcxj.beanknife.core.utils;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import io.github.vipcxj.beanknife.core.ViewCodeGenerators;
 import io.github.vipcxj.beanknife.core.models.*;
+import io.github.vipcxj.beanknife.core.spi.ViewCodeGenerator;
 import io.github.vipcxj.beanknife.runtime.annotations.Access;
 import io.github.vipcxj.beanknife.runtime.annotations.ViewOf;
 import io.github.vipcxj.beanknife.runtime.annotations.ViewOfs;
@@ -12,6 +14,7 @@ import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedView;
 import io.github.vipcxj.beanknife.runtime.utils.Self;
 import org.apache.commons.text.StringEscapeUtils;
 
+import javax.annotation.processing.Filer;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
@@ -23,7 +26,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
-import javax.tools.JavaFileObject;
+import javax.tools.FileObject;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -904,9 +907,37 @@ public class Utils {
             return;
         }
         Element[] dependencies = calcDependencies(context);
-        JavaFileObject sourceFile = context.getProcessingEnv().getFiler().createSourceFile(context.getGenType().getQualifiedName(), dependencies);
-        try (PrintWriter writer = new PrintWriter(sourceFile.openWriter())) {
+        Filer filer = context.getProcessingEnv().getFiler();
+        FileObject fileObject = filer.createSourceFile(context.getGenType().getQualifiedName(), dependencies);
+        try (PrintWriter writer = new PrintWriter(fileObject.openWriter())) {
             context.print(writer);
+        }
+        for (ViewCodeGenerator generator : ViewCodeGenerators.INSTANCE.getGenerators()) {
+            String moduleAndPkg = generator.moduleAndPkg();
+            moduleAndPkg = moduleAndPkg != null ? moduleAndPkg : "";
+            String relativeName = generator.relativeName();
+            if (generator.standalone() && generator.fileType() != null && relativeName != null && !relativeName.isEmpty()) {
+                String name = !moduleAndPkg.isEmpty() ? moduleAndPkg + "." + relativeName : relativeName;
+                fileObject = null;
+                switch (generator.fileType()) {
+                    case SOURCE:
+                        fileObject = filer.createSourceFile(name, dependencies);
+                        break;
+                    case CLASS:
+                        fileObject = filer.createClassFile(name, dependencies);
+                        break;
+                    case RESOURCE:
+                        if (generator.location() != null) {
+                            fileObject = filer.createResource(generator.location(), moduleAndPkg, relativeName, dependencies);
+                        }
+                        break;
+                }
+                if (fileObject != null) {
+                    try (PrintWriter writer = new PrintWriter(fileObject.openWriter())) {
+                        generator.print(writer, context, Context.INDENT, 0);
+                    }
+                }
+            }
         }
     }
 

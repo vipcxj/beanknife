@@ -14,7 +14,6 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.Elements;
 import java.io.PrintWriter;
 import java.util.*;
 import java.util.function.Supplier;
@@ -22,7 +21,7 @@ import java.util.stream.Collectors;
 
 public class Context {
 
-    final static String INDENT = "    ";
+    public final static String INDENT = "    ";
 
     private final List<String> imports;
     private final Set<String> symbols;

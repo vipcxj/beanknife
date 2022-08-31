@@ -853,13 +853,15 @@ public class ViewContext extends Context {
         }
 
         for (ViewCodeGenerator generator : ViewCodeGenerators.INSTANCE.getGenerators()) {
-            StringWriter sw = new StringWriter();
-            PrintWriter pw = new PrintWriter(sw);
-            generator.print(pw, this, INDENT, 1);
-            pw.flush();
-            String generated = sw.toString();
-            if (!generated.isEmpty()) {
-                writer.print(generated);
+            if (!generator.standalone()) {
+                StringWriter sw = new StringWriter();
+                PrintWriter pw = new PrintWriter(sw);
+                generator.print(pw, this, INDENT, 1);
+                pw.flush();
+                String generated = sw.toString();
+                if (!generated.isEmpty()) {
+                    writer.print(generated);
+                }
             }
         }
 
