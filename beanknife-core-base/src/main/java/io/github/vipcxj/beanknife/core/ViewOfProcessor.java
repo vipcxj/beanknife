@@ -44,13 +44,13 @@ public class ViewOfProcessor extends AbstractProcessor {
                         Set<String> metaClassNames = new HashSet<>();
                         for (AnnotationMirror annotationMirror : annotationMirrors) {
                             ViewOfData viewOf = ViewOfData.read(processingEnv, annotationMirror, typeElement);
-                            if (hasMeta(roundEnv, viewOf.getTargetElement())) {
+                            if (hasMeta(roundEnv, viewOf)) {
                                 continue;
                             }
-                            List<ViewOfData> viewOfDataList = Utils.collectViewOfs(processingEnv, roundEnv, viewOf.getTargetElement());
+                            List<ViewOfData> viewOfDataList = Utils.collectViewOfs(processingEnv, roundEnv, viewOf.getTargetElement(), viewOf.getGenPackage());
                             TypeElement mostImportantViewConfigElement = getMostImportantViewConfigElement(viewOfDataList);
                             if (Objects.equals(typeElement, mostImportantViewConfigElement)) {
-                                ViewMetaData viewMetaData = new ViewMetaData("", "", viewOf.getTargetElement(), viewOf.getTargetElement());
+                                ViewMetaData viewMetaData = new ViewMetaData("", viewOf.getGenPackage(), viewOf.getTargetElement(), viewOf.getTargetElement());
                                 MetaContext metaContext = new MetaContext(trees, processingEnv, viewMetaData, viewOfDataList);
                                 String metaClassName = metaContext.getGenType().getQualifiedName();
                                 if (!metaClassNames.contains(metaClassName)) {
@@ -80,7 +80,9 @@ public class ViewOfProcessor extends AbstractProcessor {
         return false;
     }
 
-    private boolean hasMeta(RoundEnvironment roundEnv, TypeElement targetElement) {
+    private boolean hasMeta(RoundEnvironment roundEnv, ViewOfData viewOfData) {
+        TypeElement targetElement = viewOfData.getTargetElement();
+        String genPackage = viewOfData.getGenPackage();
         TypeElement viewMetaTypeElement = processingEnv.getElementUtils().getTypeElement(Constants.VIEW_META_TYPE_NAME);
         Set<? extends Element> candidates = roundEnv.getElementsAnnotatedWith(viewMetaTypeElement);
         for (Element candidate : candidates) {
@@ -90,7 +92,8 @@ public class ViewOfProcessor extends AbstractProcessor {
             List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(candidate);
             for (AnnotationMirror annotationMirror : annotationMirrors) {
                 if (Utils.isThisAnnotation(annotationMirror, Constants.VIEW_META_TYPE_NAME)) {
-                    if (Utils.isViewMetaTargetTo(processingEnv, annotationMirror, (TypeElement) candidate, targetElement)) {
+                    ViewMetaData viewMetaData = ViewMetaData.read(processingEnv, annotationMirror, (TypeElement) candidate);
+                    if (Utils.isViewMetaTargetTo(viewMetaData, targetElement, genPackage)) {
                         return true;
                     }
                 }
@@ -108,7 +111,8 @@ public class ViewOfProcessor extends AbstractProcessor {
                     Map<? extends ExecutableElement, ? extends AnnotationValue> elementValuesWithDefaults = processingEnv.getElementUtils().getElementValuesWithDefaults(annotationMirror);
                     List<AnnotationMirror> viewMetas = AnnotationUtils.getAnnotationElement(annotationMirror, elementValuesWithDefaults);
                     for (AnnotationMirror viewMeta : viewMetas) {
-                        if (Utils.isViewMetaTargetTo(processingEnv, viewMeta, (TypeElement) candidate, targetElement)) {
+                        ViewMetaData viewMetaData = ViewMetaData.read(processingEnv, viewMeta, (TypeElement) candidate);
+                        if (Utils.isViewMetaTargetTo(viewMetaData, targetElement, genPackage)) {
                             return true;
                         }
                     }

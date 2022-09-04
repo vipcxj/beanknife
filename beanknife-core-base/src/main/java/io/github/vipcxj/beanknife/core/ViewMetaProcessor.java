@@ -44,9 +44,10 @@ public class ViewMetaProcessor extends AbstractProcessor {
                         for (AnnotationMirror annotationMirror : annotationMirrors) {
                             ViewMetaData viewMeta = ViewMetaData.read(processingEnv, annotationMirror, configElement);
                             TypeElement targetElement = viewMeta.getOf();
-                            TypeElement mostImportantViewMetaElement = getMostImportantViewMetaElement(roundEnv, targetElement);
+                            String packageName = viewMeta.getPackageName();
+                            TypeElement mostImportantViewMetaElement = getMostImportantViewMetaElement(roundEnv, targetElement, packageName);
                             if (mostImportantViewMetaElement != null && !Objects.equals(configElement, mostImportantViewMetaElement)) {
-                                String genTypeName = Utils.extractGenTypeName(targetElement, viewMeta.getValue(), viewMeta.getPackageName(), "Meta");
+                                String genTypeName = Utils.extractGenTypeName(targetElement, viewMeta.getValue(), packageName, "Meta");
                                 Utils.logWarn(
                                         processingEnv,
                                         "The meta class \"" +
@@ -65,7 +66,7 @@ public class ViewMetaProcessor extends AbstractProcessor {
                                         "This is impossible! We can't find the most important view meta element."
                                 );
                             }
-                            List<ViewOfData> viewOfDataList = Utils.collectViewOfs(processingEnv, roundEnv, targetElement);
+                            List<ViewOfData> viewOfDataList = Utils.collectViewOfs(processingEnv, roundEnv, targetElement, packageName);
                             MetaContext context = new MetaContext(trees, processingEnv, viewMeta, viewOfDataList);
                             String genQualifiedName = context.getGenType().getQualifiedName();
                             if (!targetClassNames.contains(genQualifiedName)) {
@@ -101,7 +102,7 @@ public class ViewMetaProcessor extends AbstractProcessor {
         }
     }
 
-    private TypeElement getMostImportantViewMetaElement(RoundEnvironment roundEnv, TypeElement targetElement) {
+    private TypeElement getMostImportantViewMetaElement(RoundEnvironment roundEnv, TypeElement targetElement, String packageName) {
         TypeElement viewMetaTypeElement = processingEnv.getElementUtils().getTypeElement(Constants.VIEW_META_TYPE_NAME);
         Set<? extends Element> candidates = roundEnv.getElementsAnnotatedWith(viewMetaTypeElement);
         List<TypeElement> out = new ArrayList<>();
@@ -112,7 +113,8 @@ public class ViewMetaProcessor extends AbstractProcessor {
             List<? extends AnnotationMirror> annotationMirrors = processingEnv.getElementUtils().getAllAnnotationMirrors(candidate);
             for (AnnotationMirror annotationMirror : annotationMirrors) {
                 if (Utils.isThisAnnotation(annotationMirror, Constants.VIEW_META_TYPE_NAME)) {
-                    if (Utils.isViewMetaTargetTo(processingEnv, annotationMirror, (TypeElement) candidate, targetElement)) {
+                    ViewMetaData viewMetaData = ViewMetaData.read(processingEnv, annotationMirror, (TypeElement) candidate);
+                    if (Utils.isViewMetaTargetTo(viewMetaData, targetElement, packageName)) {
                         out.add((TypeElement) candidate);
                         break;
                     }
@@ -131,7 +133,8 @@ public class ViewMetaProcessor extends AbstractProcessor {
                     Map<? extends ExecutableElement, ? extends AnnotationValue> elementValuesWithDefaults = processingEnv.getElementUtils().getElementValuesWithDefaults(annotationMirror);
                     List<AnnotationMirror> viewMetas = AnnotationUtils.getAnnotationElement(annotationMirror, elementValuesWithDefaults);
                     for (AnnotationMirror viewMeta : viewMetas) {
-                        if (Utils.isViewMetaTargetTo(processingEnv, viewMeta, (TypeElement) candidate, targetElement)) {
+                        ViewMetaData viewMetaData = ViewMetaData.read(processingEnv, viewMeta, (TypeElement) candidate);
+                        if (Utils.isViewMetaTargetTo(viewMetaData, targetElement, packageName)) {
                             out.add((TypeElement) candidate);
                             break;
                         }

@@ -14,7 +14,7 @@ import java.lang.annotation.*;
 @Repeatable(ViewMetas.class)
 public @interface ViewMeta {
     /**
-     * The simple name if the generated class . By default, (the simple name if the original Class + "Meta") is used.
+     * The simple name of the generated class . By default, (the simple name if the original Class + "Meta") is used.
      * @return the target class
      */
     String value() default "";

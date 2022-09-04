@@ -1,12 +1,11 @@
 package io.github.vipcxj.beanknife.core.models;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import io.github.vipcxj.beanknife.core.utils.AnnotationUtils;
+import io.github.vipcxj.beanknife.core.utils.ElementsCompatible;
 
 import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.AnnotationValue;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
 import java.util.Map;
 
@@ -19,7 +18,7 @@ public class ViewMetaData {
 
     ViewMetaData() { }
 
-    public ViewMetaData(String value, String packageName, TypeElement of, TypeElement config) {
+    public ViewMetaData(@NonNull String value, @NonNull String packageName, @NonNull TypeElement of, @NonNull TypeElement config) {
         this.value = value;
         this.packageName = packageName;
         this.of = of;
@@ -45,6 +44,14 @@ public class ViewMetaData {
     }
 
     public String getPackageName() {
+        if (packageName.isEmpty()) {
+            PackageElement packageElement = ElementsCompatible.getPackageOf(getOf());
+            if (packageElement == null) {
+                return "";
+            } else {
+                return packageElement.getQualifiedName().toString();
+            }
+        }
         return packageName;
     }
 

@@ -1,7 +1,11 @@
 package io.github.vipcxj.beanknife.core.utils;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
@@ -71,5 +75,17 @@ public class ElementsCompatible {
         } else {
             return new ArrayList<>(members);
         }
+    }
+
+    @CheckForNull
+    public static PackageElement getPackageOf(@NonNull Element element) {
+        if (element.getKind() == ElementKind.PACKAGE) {
+            return (PackageElement) element;
+        }
+        Element enclosingElement = element.getEnclosingElement();
+        if (enclosingElement == null) {
+            return null;
+        }
+        return getPackageOf(enclosingElement);
     }
 }

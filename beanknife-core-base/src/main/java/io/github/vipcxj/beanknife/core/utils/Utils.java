@@ -298,7 +298,7 @@ public class Utils {
         }
     }
 
-    public static Type extractGenType(Type baseClassName, String genName, String genPackage, String postfix) {
+    public static Type extractGenType(@NonNull Type baseClassName, @NonNull String genName, @NonNull String genPackage, @NonNull String postfix) {
         if (genName.isEmpty()) {
             if (genPackage.isEmpty()) {
                 return baseClassName.appendName(postfix).flatten();
@@ -366,20 +366,8 @@ public class Utils {
         return element.getKind() != ElementKind.CLASS;
     }
 
-    public static boolean isViewMetaTargetTo(ProcessingEnvironment environment, AnnotationMirror viewMeta, TypeElement sourceElement, TypeElement targetElement) {
-        Map<? extends ExecutableElement, ? extends AnnotationValue> elementValuesWithDefaults = environment.getElementUtils().getElementValuesWithDefaults(viewMeta);
-        for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : elementValuesWithDefaults.entrySet()) {
-            if (entry.getKey().getSimpleName().toString().equals("of")) {
-                TypeElement target = (TypeElement) ((DeclaredType) entry.getValue().getValue()).asElement();
-                if (target.getQualifiedName().toString().equals(Self.class.getCanonicalName())) {
-                    target = sourceElement;
-                }
-                if (target.equals(targetElement)) {
-                    return true;
-                }
-            }
-        }
-        return false;
+    public static boolean isViewMetaTargetTo(ViewMetaData viewMeta, TypeElement targetElement, String packageName) {
+        return viewMeta.getOf().equals(targetElement) && viewMeta.getPackageName().equals(packageName);
     }
 
     public static List<TypeElement> calcDependencies(TypeElement element) {
@@ -618,23 +606,20 @@ public class Utils {
         return null;
     }
 
-    private static void collectViewOfs(List<ViewOfData> results, ProcessingEnvironment processingEnv, TypeElement candidate, TypeElement targetElement, AnnotationMirror viewOf) {
+    private static void collectViewOfs(List<ViewOfData> results, ProcessingEnvironment processingEnv, TypeElement candidate, TypeElement targetElement, String packageName, AnnotationMirror viewOf) {
         Map<? extends ExecutableElement, ? extends AnnotationValue> elementValuesWithDefaults = processingEnv.getElementUtils().getElementValuesWithDefaults(viewOf);
-        Map<String, ? extends AnnotationValue> attributes = CollectionUtils.mapKey(elementValuesWithDefaults, e -> e.getSimpleName().toString());
-        TypeElement target = (TypeElement) ((DeclaredType) attributes.get("value").getValue()).asElement();
-        if (target.getQualifiedName().toString().equals(Self.class.getCanonicalName())) {
-            target = candidate;
+        DeclaredType targetType = getTypeAnnotationValue(viewOf, elementValuesWithDefaults, "value");
+        TypeElement targetTypeElement = Utils.toElement(targetType);
+        if (Utils.isThisTypeElement(targetTypeElement, Self.class)) {
+            targetTypeElement = candidate;
         }
-        if (!target.equals(targetElement)) {
+        if (!targetTypeElement.equals(targetElement)) {
             return;
         }
-        TypeElement config = (TypeElement) ((DeclaredType) attributes.get("config").getValue()).asElement();
-        if (config.getQualifiedName().toString().equals(Self.class.getCanonicalName())) {
-            config = candidate;
-        }
         ViewOfData viewOfData = ViewOfData.read(processingEnv, viewOf, candidate);
-        viewOfData.setConfigElement(config);
-        viewOfData.setTargetElement(target);
+        if (!viewOfData.getGenPackage().equals(packageName)) {
+            return;
+        }
         results.add(viewOfData);
     }
 
@@ -691,7 +676,7 @@ public class Utils {
         return out;
     }
 
-    public static List<ViewOfData> collectViewOfs(ProcessingEnvironment processingEnv, RoundEnvironment roundEnv, TypeElement targetElement) {
+    public static List<ViewOfData> collectViewOfs(ProcessingEnvironment processingEnv, RoundEnvironment roundEnv, TypeElement targetElement, String packageName) {
         Set<? extends Element> candidates = roundEnv.getElementsAnnotatedWith(ViewOf.class);
         List<ViewOfData> out = new ArrayList<>();
         for (Element candidate : candidates) {
@@ -701,7 +686,7 @@ public class Utils {
             List<? extends AnnotationMirror> annotationMirrors = candidate.getAnnotationMirrors();
             for (AnnotationMirror annotationMirror : annotationMirrors) {
                 if (Utils.isThisAnnotation(annotationMirror, ViewOf.class)) {
-                    collectViewOfs(out, processingEnv, (TypeElement) candidate, targetElement, annotationMirror);
+                    collectViewOfs(out, processingEnv, (TypeElement) candidate, targetElement, packageName, annotationMirror);
                 }
             }
         }
@@ -716,7 +701,7 @@ public class Utils {
                     Map<? extends ExecutableElement, ? extends AnnotationValue> elementValuesWithDefaults = processingEnv.getElementUtils().getElementValuesWithDefaults(annotationMirror);
                     List<AnnotationMirror> viewOfs = AnnotationUtils.getAnnotationElement(annotationMirror, elementValuesWithDefaults);
                     for (AnnotationMirror viewOf : viewOfs) {
-                        collectViewOfs(out, processingEnv, (TypeElement) candidate, targetElement, viewOf);
+                        collectViewOfs(out, processingEnv, (TypeElement) candidate, targetElement, packageName, viewOf);
                     }
                 }
             }

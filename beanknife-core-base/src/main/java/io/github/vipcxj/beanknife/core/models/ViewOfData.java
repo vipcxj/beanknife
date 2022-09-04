@@ -2,6 +2,7 @@ package io.github.vipcxj.beanknife.core.models;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.github.vipcxj.beanknife.core.utils.AnnotationUtils;
+import io.github.vipcxj.beanknife.core.utils.ElementsCompatible;
 import io.github.vipcxj.beanknife.core.utils.StringUtils;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 import io.github.vipcxj.beanknife.runtime.annotations.*;
@@ -340,6 +341,14 @@ public class ViewOfData {
     }
 
     public String getGenPackage() {
+        if (genPackage.isEmpty()) {
+            PackageElement packageElement = ElementsCompatible.getPackageOf(getTargetElement());
+            if (packageElement == null) {
+                return "";
+            } else {
+                return packageElement.getQualifiedName().toString();
+            }
+        }
         return genPackage;
     }
 
