@@ -1,12 +1,13 @@
 package io.github.vipcxj.beanknife.core.models;
 
-import io.github.vipcxj.beanknife.core.utils.Utils;
+import io.github.vipcxj.beanknife.core.utils.AnnotationUtils;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
 import java.util.Map;
 
 public class ViewMetaData {
@@ -28,9 +29,9 @@ public class ViewMetaData {
     public static ViewMetaData read(ProcessingEnvironment environment, AnnotationMirror viewMeta, TypeElement configElement) {
         Map<? extends ExecutableElement, ? extends AnnotationValue> annValues = environment.getElementUtils().getElementValuesWithDefaults(viewMeta);
         ViewMetaData data = new ViewMetaData();
-        data.value = Utils.getStringAnnotationValue(viewMeta, annValues, "value");
-        data.packageName = Utils.getStringAnnotationValue(viewMeta, annValues, "packageName");
-        TypeElement of = (TypeElement) Utils.getTypeAnnotationValue(viewMeta, annValues, "of").asElement();
+        data.value = AnnotationUtils.getStringAnnotationValue(viewMeta, annValues, "value");
+        data.packageName = AnnotationUtils.getStringAnnotationValue(viewMeta, annValues, "packageName");
+        TypeElement of = (TypeElement) AnnotationUtils.<DeclaredType>getTypeAnnotationValue(viewMeta, annValues, "of").asElement();
         if (of.getQualifiedName().toString().equals("io.github.vipcxj.beanknife.runtime.utils.Self")) {
             of = configElement;
         }

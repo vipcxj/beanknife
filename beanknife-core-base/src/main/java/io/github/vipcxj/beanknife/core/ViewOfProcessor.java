@@ -4,6 +4,7 @@ import com.sun.source.util.Trees;
 import io.github.vipcxj.beanknife.core.models.MetaContext;
 import io.github.vipcxj.beanknife.core.models.ViewMetaData;
 import io.github.vipcxj.beanknife.core.models.ViewOfData;
+import io.github.vipcxj.beanknife.core.utils.AnnotationUtils;
 import io.github.vipcxj.beanknife.core.utils.Constants;
 import io.github.vipcxj.beanknife.core.utils.JetbrainUtils;
 import io.github.vipcxj.beanknife.core.utils.Utils;
@@ -105,7 +106,7 @@ public class ViewOfProcessor extends AbstractProcessor {
             for (AnnotationMirror annotationMirror : annotationMirrors) {
                 if (Utils.isThisAnnotation(annotationMirror, Constants.VIEW_METAS_TYPE_NAME)) {
                     Map<? extends ExecutableElement, ? extends AnnotationValue> elementValuesWithDefaults = processingEnv.getElementUtils().getElementValuesWithDefaults(annotationMirror);
-                    List<AnnotationMirror> viewMetas = Utils.getAnnotationElement(annotationMirror, elementValuesWithDefaults);
+                    List<AnnotationMirror> viewMetas = AnnotationUtils.getAnnotationElement(annotationMirror, elementValuesWithDefaults);
                     for (AnnotationMirror viewMeta : viewMetas) {
                         if (Utils.isViewMetaTargetTo(processingEnv, viewMeta, (TypeElement) candidate, targetElement)) {
                             return true;

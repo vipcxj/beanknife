@@ -41,7 +41,7 @@ public class LombokUtils {
         if (annotationMirror == null) {
             return defaultAccess;
         }
-        String value = Utils.getEnumAnnotationValue(annotationMirror, "value");
+        String value = AnnotationUtils.getEnumAnnotationValue(annotationMirror, "value");
         if (value == null) {
             return Access.PUBLIC;
         }

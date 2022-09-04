@@ -6,14 +6,17 @@ import com.sun.source.util.Trees;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.github.vipcxj.beanknife.core.utils.ElementsCompatible;
+import io.github.vipcxj.beanknife.core.utils.LombokUtils;
 import io.github.vipcxj.beanknife.core.utils.TreeUtils;
 import io.github.vipcxj.beanknife.core.utils.Utils;
+import io.github.vipcxj.beanknife.runtime.annotations.Access;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.SourceVersion;
-import javax.lang.model.element.Element;
+import javax.lang.model.element.*;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
 import java.io.PrintWriter;
 import java.util.*;
 import java.util.function.Supplier;
@@ -50,6 +53,51 @@ public class Context {
         this.errors = new ArrayList<>();
         this.locked = false;
         this.subContexts = new HashMap<>();
+    }
+
+    protected void collectData(TypeElement element, ViewOfData viewOf, boolean samePackage) {
+        Elements elementUtils = getProcessingEnv().getElementUtils();
+        List<? extends Element> members = ElementsCompatible.getAllMembers(elementUtils, element);
+        Access typeGetterAccess = LombokUtils.getGetterAccess(element, null);
+        Access typeSetterAccess = LombokUtils.getSetterAccess(element, null);
+        for (Element member : members) {
+            if (member.getModifiers().contains(Modifier.STATIC)) {
+                continue;
+            }
+            Property property = null;
+            if (member.getKind() == ElementKind.FIELD) {
+                property = Utils.createPropertyFromBase(this, viewOf, (VariableElement) member, typeGetterAccess, typeSetterAccess);
+            } else if (member.getKind() == ElementKind.METHOD) {
+                property = Utils.createPropertyFromBase(this, viewOf, (ExecutableElement) member);
+            }
+            if (property != null) {
+                addProperty(property, false);
+            }
+        }
+        getProperties().removeIf(property -> Utils.canNotSeeFromOtherClass(property, samePackage));
+        getProperties().replaceAll(property -> {
+            Property base = property.getBase();
+            if (base != null) {
+                ExecutableElement setterMethod = Utils.getSetterMethod(processingEnv, base.getSetterName(), base.getTypeMirror(), members);
+                if (setterMethod != null) {
+                    boolean writeable = Utils.canSeeFromOtherClass(setterMethod, samePackage);
+                    return property.withWriteInfo(writeable, true);
+                } else {
+                    Property field = property.getField();
+                    if (field != null) {
+                        if (field.isLombokWritable(samePackage)) {
+                            return property.withWriteInfo(true, true);
+                        } else {
+                            return property.withWriteInfo(Utils.canSeeFromOtherClass(field.getElement(), samePackage), false);
+                        }
+                    } else {
+                        return property;
+                    }
+                }
+            } else {
+                return property;
+            }
+        });
     }
 
     public void enter(Type type) {

@@ -2,6 +2,7 @@ package io.github.vipcxj.beanknife.core.models;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import io.github.vipcxj.beanknife.core.utils.AnnotationUtils;
 import io.github.vipcxj.beanknife.core.utils.LombokInfo;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 import io.github.vipcxj.beanknife.runtime.annotations.Access;
@@ -12,6 +13,7 @@ import javax.lang.model.element.*;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import java.io.PrintWriter;
+import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
 import java.util.*;
 
@@ -297,6 +299,22 @@ public class Property {
         return element.getAnnotationMirrors();
     }
 
+    public AnnotationInfo getAnnotation(Elements elements, String annotationName) {
+        AnnotationMirror an = getAnnotations().stream().filter(a -> Utils.isThisAnnotation(a, annotationName)).findAny().orElse(null);
+        if (an == null) {
+            return null;
+        }
+        return new AnnotationInfo(elements, an);
+    }
+
+    public <A extends Annotation> AnnotationInfo getAnnotation(Elements elements, Class<A> annotationType) {
+        AnnotationMirror an = getAnnotations().stream().filter(a -> Utils.isThisAnnotation(a, annotationType)).findAny().orElse(null);
+        if (an == null) {
+            return null;
+        }
+        return new AnnotationInfo(elements, an);
+    }
+
     @NonNull
     public Map<String, AnnotationUsage> collectAnnotationUsages(@NonNull ViewContext context) {
         Map<String, AnnotationUsage> baseUsages = context.getViewOf().getUseAnnotations();
@@ -338,9 +356,9 @@ public class Property {
         List<AnnotationMirror> annotationComponents = Utils.getRepeatableAnnotationComponents(elements, annotationMirror);
         if (annotationComponents == null) {
             if (shouldAddAnnotation(elements, useAnnotations, annotationMirror, pos, test)) {
-                String annotationName = Utils.getAnnotationName(annotationMirror);
+                String annotationName = AnnotationUtils.getAnnotationName(annotationMirror);
                 if (!Utils.isAnnotationRepeatable(elements, annotationMirror)) {
-                    annotationMirrors.removeIf(a -> Utils.getAnnotationName(a).equals(annotationName));
+                    annotationMirrors.removeIf(a -> AnnotationUtils.getAnnotationName(a).equals(annotationName));
                 }
                 annotationMirrors.add(annotationMirror);
                 annotationNames.add(annotationName);
@@ -348,7 +366,7 @@ public class Property {
         } else {
             for (AnnotationMirror annotationComponent : annotationComponents) {
                 if (shouldAddAnnotation(elements, useAnnotations, annotationMirror, pos, test)) {
-                    String annotationName = Utils.getAnnotationName(annotationComponent);
+                    String annotationName = AnnotationUtils.getAnnotationName(annotationComponent);
                     annotationMirrors.add(annotationComponent);
                     annotationNames.add(annotationName);
                 }

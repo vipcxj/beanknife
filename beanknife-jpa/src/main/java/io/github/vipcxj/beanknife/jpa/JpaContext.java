@@ -3,6 +3,7 @@ package io.github.vipcxj.beanknife.jpa;
 import io.github.vipcxj.beanknife.core.models.Property;
 import io.github.vipcxj.beanknife.core.models.Type;
 import io.github.vipcxj.beanknife.core.models.ViewContext;
+import io.github.vipcxj.beanknife.core.utils.AnnotationUtils;
 import io.github.vipcxj.beanknife.core.utils.ParamInfo;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 import io.github.vipcxj.beanknife.core.utils.VarMapper;
@@ -63,7 +64,7 @@ public class JpaContext {
         List<AnnotationMirror> annotations = Utils.getAnnotationsOn(elementUtils, configElement, TYPE_ADD_JPA_SUPPORT, null, true, true);
         if (!annotations.isEmpty()) {
             AnnotationMirror addJpaSupport = annotations.get(annotations.size() - 1);
-            List<TypeMirror> targets = Utils.getTypeArrayAnnotationValue(addJpaSupport, "value");
+            List<TypeMirror> targets = AnnotationUtils.getTypeListAnnotationValue(addJpaSupport, "value");
             if (targets == null) {
                 if (Utils.getAnnotationDirectOn(targetElement, TYPE_ENTITY) != null) {
                     enabled = true;
@@ -74,7 +75,7 @@ public class JpaContext {
                 }
             }
             if (!enabled) {
-                List<TypeMirror> extraTargets = Utils.getTypeArrayAnnotationValue(addJpaSupport, "extraTargets");
+                List<TypeMirror> extraTargets = AnnotationUtils.getTypeListAnnotationValue(addJpaSupport, "extraTargets");
                 if (extraTargets != null && extraTargets.stream().anyMatch(target -> typeUtils.isSameType(target, targetElement.asType()))) {
                     enabled = true;
                 }

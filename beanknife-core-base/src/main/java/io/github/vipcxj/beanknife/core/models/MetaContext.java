@@ -51,25 +51,7 @@ public class MetaContext extends Context {
 
     public void collectData() {
         TypeElement element = viewMeta.getOf();
-        Elements elementUtils = getProcessingEnv().getElementUtils();
-        List<? extends Element> members = ElementsCompatible.getAllMembers(elementUtils, element);
-        Access typeGetterAccess = LombokUtils.getGetterAccess(element, null);
-        Access typeSetterAccess = LombokUtils.getSetterAccess(element, null);
-        for (Element member : members) {
-            if (member.getModifiers().contains(Modifier.STATIC)) {
-                continue;
-            }
-            Property property = null;
-            if (member.getKind() == ElementKind.FIELD) {
-                property = Utils.createPropertyFromBase(this, null, (VariableElement) member, typeGetterAccess, typeSetterAccess);
-            } else if (member.getKind() == ElementKind.METHOD) {
-                property = Utils.createPropertyFromBase(this, null, (ExecutableElement) member);
-            }
-            if (property != null) {
-                addProperty(property, false);
-            }
-        }
-        getProperties().removeIf(property -> Utils.canNotSeeFromOtherClass(property, true));
+        collectData(element, null, true);
         importAll();
     }
 

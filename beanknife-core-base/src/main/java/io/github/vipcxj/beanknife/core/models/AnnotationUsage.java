@@ -2,6 +2,7 @@ package io.github.vipcxj.beanknife.core.models;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import io.github.vipcxj.beanknife.core.utils.AnnotationUtils;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 import io.github.vipcxj.beanknife.runtime.annotations.UnUseAnnotation;
 import io.github.vipcxj.beanknife.runtime.annotations.UnUseAnnotations;
@@ -25,8 +26,8 @@ public class AnnotationUsage {
     public static AnnotationUsage from(@NonNull Elements elements, @NonNull AnnotationMirror useAnnotation) {
         Map<? extends ExecutableElement, ? extends AnnotationValue> values = elements.getElementValuesWithDefaults(useAnnotation);
         AnnotationUsage usage = new AnnotationUsage();
-        usage.from = new HashSet<>(Arrays.asList(Utils.getEnumArrayAnnotationValue(useAnnotation, values, "from", AnnotationSource.class)));
-        usage.dest = new HashSet<>(Arrays.asList(Utils.getEnumArrayAnnotationValue(useAnnotation, values, "dest", AnnotationDest.class)));
+        usage.from = new HashSet<>(AnnotationUtils.getEnumListAnnotationValue(useAnnotation, values, "from", AnnotationSource.class));
+        usage.dest = new HashSet<>(AnnotationUtils.getEnumListAnnotationValue(useAnnotation, values, "dest", AnnotationDest.class));
         return usage;
     }
 
@@ -38,7 +39,7 @@ public class AnnotationUsage {
         for (AnnotationMirror useAnnotation : useAnnotations) {
             AnnotationUsage annotationUsage = AnnotationUsage.from(elements, useAnnotation);
             Map<? extends ExecutableElement, ? extends AnnotationValue> values = elements.getElementValuesWithDefaults(useAnnotation);
-            DeclaredType[] types = Utils.getTypeArrayAnnotationValue(useAnnotation, values, "value");
+            List<DeclaredType> types = AnnotationUtils.getTypeListAnnotationValue(useAnnotation, values, "value");
             for (DeclaredType type : types) {
                 String key = Utils.toElement(type).getQualifiedName().toString();
                 results.put(key, annotationUsage);
@@ -46,7 +47,7 @@ public class AnnotationUsage {
         }
         for (AnnotationMirror unUseAnnotation : unUseAnnotations) {
             Map<? extends ExecutableElement, ? extends AnnotationValue> values = elements.getElementValuesWithDefaults(unUseAnnotation);
-            DeclaredType[] types = Utils.getTypeArrayAnnotationValue(unUseAnnotation, values, "value");
+            List<DeclaredType> types = AnnotationUtils.getTypeListAnnotationValue(unUseAnnotation, values, "value");
             for (DeclaredType type : types) {
                 String key = Utils.toElement(type).getQualifiedName().toString();
                 results.remove(key);
@@ -57,7 +58,7 @@ public class AnnotationUsage {
 
     @CheckForNull
     public static Set<AnnotationDest> getAnnotationDest(@NonNull Map<String, AnnotationUsage> useAnnotations, @NonNull AnnotationMirror annotation, AnnotationSource source) {
-        String name = Utils.getAnnotationName(annotation);
+        String name = AnnotationUtils.getAnnotationName(annotation);
         AnnotationUsage annotationUsage = useAnnotations.get(name);
         if (annotationUsage == null) {
             return null;

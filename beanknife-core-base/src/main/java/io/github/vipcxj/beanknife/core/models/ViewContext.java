@@ -5,7 +5,10 @@ import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.github.vipcxj.beanknife.core.ViewCodeGenerators;
 import io.github.vipcxj.beanknife.core.spi.ViewCodeGenerator;
-import io.github.vipcxj.beanknife.core.utils.*;
+import io.github.vipcxj.beanknife.core.utils.AnnotationUtils;
+import io.github.vipcxj.beanknife.core.utils.ParamInfo;
+import io.github.vipcxj.beanknife.core.utils.Utils;
+import io.github.vipcxj.beanknife.core.utils.VarMapper;
 import io.github.vipcxj.beanknife.runtime.BeanProviders;
 import io.github.vipcxj.beanknife.runtime.PropertyConverter;
 import io.github.vipcxj.beanknife.runtime.annotations.*;
@@ -21,7 +24,6 @@ import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import java.io.PrintWriter;
 import java.io.Serializable;
@@ -178,48 +180,7 @@ public class ViewContext extends Context {
         for (AnnotationMirror annotationMirror : viewOf.getAnnotationMirrors()) {
             Utils.importAnnotation(this, annotationMirror);
         }
-        Elements elementUtils = getProcessingEnv().getElementUtils();
-        final List<? extends Element> targetMembers = ElementsCompatible.getAllMembers(elementUtils, targetElement);
-        Access typeGetterAccess = LombokUtils.getGetterAccess(targetElement, null);
-        Access typeSetterAccess = LombokUtils.getSetterAccess(targetElement, null);
-        for (Element member : targetMembers) {
-            if (member.getModifiers().contains(Modifier.STATIC)) {
-                continue;
-            }
-            Property property = null;
-            if (member.getKind() == ElementKind.FIELD) {
-                property = Utils.createPropertyFromBase(this, viewOf, (VariableElement) member, typeGetterAccess, typeSetterAccess);
-            } else if (member.getKind() == ElementKind.METHOD) {
-                property = Utils.createPropertyFromBase(this, viewOf, (ExecutableElement) member);
-            }
-            if (property != null) {
-                addProperty(property, false);
-            }
-        }
-        getProperties().removeIf(property -> Utils.canNotSeeFromOtherClass(property, samePackage));
-        getProperties().replaceAll(property -> {
-            Property base = property.getBase();
-            if (base != null) {
-                ExecutableElement setterMethod = Utils.getSetterMethod(processingEnv, base.getSetterName(), base.getTypeMirror(), targetMembers);
-                if (setterMethod != null) {
-                    boolean writeable = Utils.canSeeFromOtherClass(setterMethod, samePackage);
-                    return property.withWriteInfo(writeable, true);
-                } else {
-                    Property field = property.getField();
-                    if (field != null) {
-                        if (field.isLombokWritable(samePackage)) {
-                            return property.withWriteInfo(true, true);
-                        } else {
-                            return property.withWriteInfo(Utils.canSeeFromOtherClass(field.getElement(), samePackage), false);
-                        }
-                    } else {
-                        return property;
-                    }
-                }
-            } else {
-                return property;
-            }
-        });
+        collectData(targetElement, viewOf, samePackage);
         this.baseProperties = new ArrayList<>(getProperties());
         List<Pattern> includePatterns = new ArrayList<>();
         for (String p : viewOf.getIncludePattern().split(",\\s*|\\s+")) {
@@ -256,7 +217,7 @@ public class ViewContext extends Context {
         );
         List<Property> baseProperties = new ArrayList<>(getProperties());
         if (!Objects.equals(configElement, targetElement)) {
-            List<? extends Element> configMembers = elementUtils.getAllMembers(configElement);
+            List<? extends Element> configMembers = getProcessingEnv().getElementUtils().getAllMembers(configElement);
             for (Element member : configMembers) {
                 NewViewProperty newViewProperty = member.getAnnotation(NewViewProperty.class);
                 OverrideViewProperty overrideViewProperty = member.getAnnotation(OverrideViewProperty.class);
@@ -558,7 +519,7 @@ public class ViewContext extends Context {
         return Utils.getAnnotationsOn(getProcessingEnv().getElementUtils(), element, UsePropertyConverter.class, UsePropertyConverters.class)
                 .stream().map(annotation -> {
                     Map<? extends ExecutableElement, ? extends AnnotationValue> attributes = getProcessingEnv().getElementUtils().getElementValuesWithDefaults(annotation);
-                    return Utils.getTypeAnnotationValue(annotation, attributes, "value");
+                    return AnnotationUtils.<DeclaredType>getTypeAnnotationValue(annotation, attributes, "value");
                 }).collect(Collectors.toList());
     }
 
@@ -732,7 +693,7 @@ public class ViewContext extends Context {
         writer.println(".class)");
         for (AnnotationMirror annotationMirror : viewOf.getAnnotationMirrors()) {
             Utils.printIndent(writer, INDENT, 0);
-            Utils.printAnnotation(writer, annotationMirror, this, INDENT, 0);
+            AnnotationUtils.printAnnotation(writer, annotationMirror, this, INDENT, 0);
             writer.println();
         }
         List<Property> properties = getProperties();
@@ -759,7 +720,7 @@ public class ViewContext extends Context {
                 }
                 for (AnnotationMirror annotationMirror : property.collectAnnotations(this, AnnotationDest.FIELD)) {
                     Utils.printIndent(writer, INDENT, 1);
-                    Utils.printAnnotation(writer, annotationMirror, this, INDENT, 1);
+                    AnnotationUtils.printAnnotation(writer, annotationMirror, this, INDENT, 1);
                     writer.println();
                 }
                 property.printField(writer, this, INDENT, 1);
@@ -806,7 +767,7 @@ public class ViewContext extends Context {
             if (property.hasGetter()) {
                 for (AnnotationMirror annotationMirror : property.collectAnnotations(this, AnnotationDest.GETTER)) {
                     Utils.printIndent(writer, INDENT, 1);
-                    Utils.printAnnotation(writer, annotationMirror, this, INDENT, 1);
+                    AnnotationUtils.printAnnotation(writer, annotationMirror, this, INDENT, 1);
                     writer.println();
                 }
                 property.printGetter(writer, this, INDENT, 1);
@@ -844,7 +805,7 @@ public class ViewContext extends Context {
             if (!property.isDynamic() && property.hasSetter()) {
                 for (AnnotationMirror annotationMirror : property.collectAnnotations(this, AnnotationDest.SETTER)) {
                     Utils.printIndent(writer, INDENT, 1);
-                    Utils.printAnnotation(writer, annotationMirror, this, INDENT, 1);
+                    AnnotationUtils.printAnnotation(writer, annotationMirror, this, INDENT, 1);
                     writer.println();
                 }
                 property.printSetter(writer, this, INDENT, 1);

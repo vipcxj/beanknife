@@ -4,6 +4,7 @@ import com.sun.source.util.Trees;
 import io.github.vipcxj.beanknife.core.models.MetaContext;
 import io.github.vipcxj.beanknife.core.models.ViewMetaData;
 import io.github.vipcxj.beanknife.core.models.ViewOfData;
+import io.github.vipcxj.beanknife.core.utils.AnnotationUtils;
 import io.github.vipcxj.beanknife.core.utils.Constants;
 import io.github.vipcxj.beanknife.core.utils.JetbrainUtils;
 import io.github.vipcxj.beanknife.core.utils.Utils;
@@ -57,6 +58,12 @@ public class ViewMetaProcessor extends AbstractProcessor {
                                                 mostImportantViewMetaElement.getQualifiedName() +
                                                 "\" has configured a similar meta class and has a higher priority.");
                                 continue;
+                            }
+                            if (mostImportantViewMetaElement == null) {
+                                Utils.logWarn(
+                                        processingEnv,
+                                        "This is impossible! We can't find the most important view meta element."
+                                );
                             }
                             List<ViewOfData> viewOfDataList = Utils.collectViewOfs(processingEnv, roundEnv, targetElement);
                             MetaContext context = new MetaContext(trees, processingEnv, viewMeta, viewOfDataList);
@@ -122,7 +129,7 @@ public class ViewMetaProcessor extends AbstractProcessor {
             for (AnnotationMirror annotationMirror : annotationMirrors) {
                 if (Utils.isThisAnnotation(annotationMirror, Constants.VIEW_METAS_TYPE_NAME)) {
                     Map<? extends ExecutableElement, ? extends AnnotationValue> elementValuesWithDefaults = processingEnv.getElementUtils().getElementValuesWithDefaults(annotationMirror);
-                    List<AnnotationMirror> viewMetas = Utils.getAnnotationElement(annotationMirror, elementValuesWithDefaults);
+                    List<AnnotationMirror> viewMetas = AnnotationUtils.getAnnotationElement(annotationMirror, elementValuesWithDefaults);
                     for (AnnotationMirror viewMeta : viewMetas) {
                         if (Utils.isViewMetaTargetTo(processingEnv, viewMeta, (TypeElement) candidate, targetElement)) {
                             out.add((TypeElement) candidate);

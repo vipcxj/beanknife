@@ -4,6 +4,7 @@ import com.sun.source.util.Trees;
 import io.github.vipcxj.beanknife.core.models.ProcessorData;
 import io.github.vipcxj.beanknife.core.models.ViewContext;
 import io.github.vipcxj.beanknife.core.models.ViewOfData;
+import io.github.vipcxj.beanknife.core.utils.AnnotationUtils;
 import io.github.vipcxj.beanknife.core.utils.Constants;
 import io.github.vipcxj.beanknife.core.utils.JetbrainUtils;
 import io.github.vipcxj.beanknife.core.utils.Utils;
@@ -47,8 +48,8 @@ public class GeneratedMetaProcessor extends AbstractProcessor {
                     for (AnnotationMirror annotationMirror : annotationMirrors) {
                         if (Utils.isThisAnnotation(annotationMirror, Constants.GENERATED_META_TYPE_NAME)) {
                             Map<? extends ExecutableElement, ? extends AnnotationValue> annotationValues = processingEnv.getElementUtils().getElementValuesWithDefaults(annotationMirror);
-                            TypeElement targetElement = (TypeElement) Utils.getTypeAnnotationValue(annotationMirror, annotationValues, "targetClass").asElement();
-                            DeclaredType[] proxies = Utils.getTypeArrayAnnotationValue(annotationMirror, annotationValues, "proxies");
+                            TypeElement targetElement = (TypeElement) AnnotationUtils.<DeclaredType>getTypeAnnotationValue(annotationMirror, annotationValues, "targetClass").asElement();
+                            List<DeclaredType> proxies = AnnotationUtils.getTypeListAnnotationValue(annotationMirror, annotationValues, "proxies");
                             for (DeclaredType proxy : proxies) {
                                 TypeElement proxyElement = (TypeElement) proxy.asElement();
                                 List<ViewOfData> viewOfs = this.processorData.getByConfigElement(proxyElement);

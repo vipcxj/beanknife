@@ -1,6 +1,7 @@
 package io.github.vipcxj.beanknife.core.models;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import io.github.vipcxj.beanknife.core.utils.AnnotationUtils;
 import io.github.vipcxj.beanknife.core.utils.StringUtils;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 import io.github.vipcxj.beanknife.runtime.annotations.*;
@@ -64,12 +65,12 @@ public class ViewOfData {
         Elements elements = environment.getElementUtils();
         Map<? extends ExecutableElement, ? extends AnnotationValue> annValues = elements.getElementValuesWithDefaults(viewOf);
         this.viewOf = viewOf;
-        DeclaredType value = Utils.getTypeAnnotationValue(viewOf, annValues, "value");
+        DeclaredType value = AnnotationUtils.getTypeAnnotationValue(viewOf, annValues, "value");
         this.targetElement = (TypeElement) value.asElement();
         if (Utils.isThisTypeElement(this.targetElement, Self.class)) {
             this.targetElement = sourceElement;
         }
-        DeclaredType config = Utils.getTypeAnnotationValue(viewOf, annValues, "config");
+        DeclaredType config = AnnotationUtils.getTypeAnnotationValue(viewOf, annValues, "config");
         this.configElement = (TypeElement) config.asElement();
         if (Utils.isThisTypeElement(this.configElement, Self.class)) {
             this.configElement = sourceElement;
@@ -100,15 +101,15 @@ public class ViewOfData {
         List<AnnotationMirror> removeViewProperties = Utils.getAnnotationsOn(elements, configElement, RemoveViewProperty.class, RemoveViewProperties.class);
         for (AnnotationMirror removeViewProperty : removeViewProperties) {
             Map<? extends ExecutableElement, ? extends AnnotationValue> values = elements.getElementValuesWithDefaults(removeViewProperty);
-            String[] exclude = Utils.getStringArrayAnnotationValue(removeViewProperty, values, "value");
-            this.extraExcludes.addAll(Arrays.asList(exclude));
+            List<String> exclude = AnnotationUtils.getStringListAnnotationValue(removeViewProperty, values, "value");
+            this.extraExcludes.addAll(exclude);
         }
         this.writeExcludes = new HashSet<>();
         List<AnnotationMirror> writeBackExcludes = Utils.getAnnotationsOn(elements, configElement, ViewWriteBackExclude.class, ViewWriteBackExcludes.class);
         for (AnnotationMirror writeBackExclude : writeBackExcludes) {
             Map<? extends ExecutableElement, ? extends AnnotationValue> values = writeBackExclude.getElementValues();
-            String[] exclude = Utils.getStringArrayAnnotationValue(writeBackExclude, values, "value");
-            this.writeExcludes.addAll(Arrays.asList(exclude));
+            List<String> exclude = AnnotationUtils.getStringListAnnotationValue(writeBackExclude, values, "value");
+            this.writeExcludes.addAll(exclude);
         }
         this.useAnnotations = AnnotationUsage.collectAnnotationUsages(elements, configElement, null);
         collectAnnotations(elements);
@@ -162,14 +163,14 @@ public class ViewOfData {
     }
 
     private String loadGenName(Elements elements) {
-        String genName = Utils.getStringAnnotationValue(viewOf, "genName");
+        String genName = AnnotationUtils.getStringAnnotationValue(viewOf, "genName");
         if (genName != null ) {
             return genName;
         }
         List<AnnotationMirror> mappers = Utils.getAnnotationsOn(elements, configElement, ViewGenNameMapper.class, null, true, false);
         if (!mappers.isEmpty()) {
             AnnotationMirror mapperAnnotation = mappers.get(mappers.size() - 1);
-            String mapper = Utils.getStringAnnotationValue(mapperAnnotation, "value");
+            String mapper = AnnotationUtils.getStringAnnotationValue(mapperAnnotation, "value");
             if (mapper != null) {
                 Map<String, String> vars = new HashMap<>();
                 vars.put("name", targetElement.getSimpleName().toString());
@@ -182,11 +183,11 @@ public class ViewOfData {
     }
 
     private <T extends Enum<T>> T loadEnum(Elements elements, String name, T defaultValue, Class<T> enumType, Class<? extends Annotation> annotationType) {
-        T access = Utils.getEnumAnnotationValue(viewOf, name, enumType);
+        T access = AnnotationUtils.getEnumAnnotationValue(viewOf, name, enumType);
         if (access == null) {
             List<AnnotationMirror> accessAnnotations = Utils.getAnnotationsOn(elements, configElement, annotationType, null, true, false);
             if (!accessAnnotations.isEmpty()) {
-                access = Utils.getEnumAnnotationValue(accessAnnotations.get(accessAnnotations.size() - 1), "value", enumType);
+                access = AnnotationUtils.getEnumAnnotationValue(accessAnnotations.get(accessAnnotations.size() - 1), "value", enumType);
             }
         }
         if (access == null) {
@@ -196,22 +197,22 @@ public class ViewOfData {
     }
 
     private boolean loadBoolean(Elements elements, String name, boolean defaultValue, Class<? extends Annotation> annotationType) {
-        Boolean objValue = Utils.getBooleanAnnotationValue(viewOf, name);
+        Boolean objValue = AnnotationUtils.getBooleanAnnotationValue(viewOf, name);
         if (objValue == null) {
             List<AnnotationMirror> annotations = Utils.getAnnotationsOn(elements, configElement, annotationType, null, true, false);
             if (!annotations.isEmpty()) {
-                objValue = Utils.getBooleanAnnotationValue(annotations.get(annotations.size() - 1), "value");
+                objValue = AnnotationUtils.getBooleanAnnotationValue(annotations.get(annotations.size() - 1), "value");
             }
         }
         return objValue != null ? objValue : defaultValue;
     }
 
     private long loadSerialVersionUID(Elements elements) {
-        Long objValue = Utils.getLongAnnotationValue(viewOf, "serialVersionUID");
+        Long objValue = AnnotationUtils.getLongAnnotationValue(viewOf, "serialVersionUID");
         if (objValue == null) {
             List<AnnotationMirror> annotations = Utils.getAnnotationsOn(elements, configElement, ViewSerialVersionUID.class, null, true, false);
             if (!annotations.isEmpty()) {
-                objValue = Utils.getLongAnnotationValue(annotations.get(annotations.size() - 1), "value");
+                objValue = AnnotationUtils.getLongAnnotationValue(annotations.get(annotations.size() - 1), "value");
             }
         }
         return objValue != null ? objValue : 0L;
@@ -221,12 +222,12 @@ public class ViewOfData {
         List<String> values = new ArrayList<>();
         List<AnnotationMirror> annotations = Utils.getAnnotationsOn(elements, configElement, annotationType, annotationsType, true, false);
         for (AnnotationMirror annotation : annotations) {
-            List<String> value = Utils.getStringArrayAnnotationValue(annotation, "value");
+            List<String> value = AnnotationUtils.getStringListAnnotationValue(annotation, "value");
             if (value != null) {
                 values.addAll(value);
             }
         }
-        List<String> curValues = Utils.getStringArrayAnnotationValue(viewOf, name);
+        List<String> curValues = AnnotationUtils.getStringListAnnotationValue(viewOf, name);
         if (curValues != null) {
             values.addAll(curValues);
         }
@@ -234,11 +235,11 @@ public class ViewOfData {
     }
 
     private String loadString(Elements elements, String name, Class<? extends Annotation> annotationType) {
-        String strValue = Utils.getStringAnnotationValue(viewOf, name);
+        String strValue = AnnotationUtils.getStringAnnotationValue(viewOf, name);
         if (strValue == null) {
             List<AnnotationMirror> annotations = Utils.getAnnotationsOn(elements, configElement, annotationType, null, true, false);
             if (!annotations.isEmpty()) {
-                strValue = Utils.getStringAnnotationValue(annotations.get(annotations.size() - 1), "value");
+                strValue = AnnotationUtils.getStringAnnotationValue(annotations.get(annotations.size() - 1), "value");
             }
         }
         return strValue != null ? strValue : "";
@@ -248,7 +249,7 @@ public class ViewOfData {
         StringBuilder sb = new StringBuilder();
         List<AnnotationMirror> annotations = Utils.getAnnotationsOn(elements, configElement, annotationType, annotationsType, true, false);
         for (AnnotationMirror annotation : annotations) {
-            String part = Utils.getStringAnnotationValue(annotation, "value");
+            String part = AnnotationUtils.getStringAnnotationValue(annotation, "value");
             if (part != null) {
                 if (sb.length() == 0) {
                     sb.append(part);
@@ -257,7 +258,7 @@ public class ViewOfData {
                 }
             }
         }
-        String part = Utils.getStringAnnotationValue(viewOf, name);
+        String part = AnnotationUtils.getStringAnnotationValue(viewOf, name);
         if (part != null) {
             if (sb.length() == 0) {
                 sb.append(part);
@@ -273,7 +274,7 @@ public class ViewOfData {
         if (annotationComponents == null) {
             Set<AnnotationDest> dest = AnnotationUsage.getAnnotationDest(useAnnotations, annotationMirror, source);
             if (dest != null && (dest.contains(AnnotationDest.SAME) || dest.contains(AnnotationDest.TYPE)) && Utils.annotationCanPutOn(elements, annotationMirror, ElementType.TYPE)) {
-                String annotationName = Utils.getAnnotationName(annotationMirror);
+                String annotationName = AnnotationUtils.getAnnotationName(annotationMirror);
                 if (Utils.isAnnotationRepeatable(elements, annotationMirror)) {
                     this.annotationMirrors.add(annotationMirror);
                     this.annotationNames.add(annotationName);
@@ -286,7 +287,7 @@ public class ViewOfData {
             for (AnnotationMirror annotationComponent : annotationComponents) {
                 Set<AnnotationDest> dest = AnnotationUsage.getAnnotationDest(useAnnotations, annotationComponent, source);
                 if (dest != null && (dest.contains(AnnotationDest.SAME) || dest.contains(AnnotationDest.TYPE)) && Utils.annotationCanPutOn(elements, annotationMirror, ElementType.TYPE)) {
-                    String annotationName = Utils.getAnnotationName(annotationComponent);
+                    String annotationName = AnnotationUtils.getAnnotationName(annotationComponent);
                     this.annotationMirrors.add(annotationComponent);
                     this.annotationNames.add(annotationName);
                 }
