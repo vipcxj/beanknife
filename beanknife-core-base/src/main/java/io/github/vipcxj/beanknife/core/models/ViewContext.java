@@ -4,11 +4,9 @@ import com.sun.source.util.Trees;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.github.vipcxj.beanknife.core.ViewCodeGenerators;
+import io.github.vipcxj.beanknife.core.spi.CodeGenerator;
 import io.github.vipcxj.beanknife.core.spi.ViewCodeGenerator;
-import io.github.vipcxj.beanknife.core.utils.AnnotationUtils;
-import io.github.vipcxj.beanknife.core.utils.ParamInfo;
-import io.github.vipcxj.beanknife.core.utils.Utils;
-import io.github.vipcxj.beanknife.core.utils.VarMapper;
+import io.github.vipcxj.beanknife.core.utils.*;
 import io.github.vipcxj.beanknife.runtime.BeanProviders;
 import io.github.vipcxj.beanknife.runtime.PropertyConverter;
 import io.github.vipcxj.beanknife.runtime.annotations.*;
@@ -24,15 +22,16 @@ import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import java.io.PrintWriter;
 import java.io.Serializable;
-import java.io.StringWriter;
 import java.lang.annotation.Annotation;
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ViewContext extends Context {
 
@@ -52,6 +51,8 @@ public class ViewContext extends Context {
     private final Map<String, ParamInfo> extraParams;
     private boolean useConfigureBeanVarInRead;
     private boolean useCachedConfigureBeanField;
+    private final List<Type> implTypes;
+    private final List<String> implTypeNames;
 
     public ViewContext(@NonNull Trees trees, @NonNull ProcessingEnvironment processingEnv, @NonNull ProcessorData processorData, @NonNull ViewOfData viewOf) {
         super(trees, processingEnv, processorData);
@@ -72,6 +73,8 @@ public class ViewContext extends Context {
         this.containers.push(Type.fromPackage(this, this.packageName));
         this.useCachedConfigureBeanField = false;
         this.useConfigureBeanVarInRead = false;
+        this.implTypes = new ArrayList<>();
+        this.implTypeNames = new ArrayList<>(Arrays.asList(this.viewOf.getImplementsTypes()));
     }
 
     public ViewOfData getViewOf() {
@@ -208,13 +211,12 @@ public class ViewContext extends Context {
                 );
             }
         }
-        getProperties().removeIf(
-                property -> (includePatterns.stream().noneMatch(pattern -> pattern.matcher(property.getName()).matches())
-                        && Arrays.stream(viewOf.getIncludes()).noneMatch(include -> include.equals(property.getName())))
-                        || excludePatterns.stream().anyMatch(pattern -> pattern.matcher(property.getName()).matches())
-                        || Arrays.stream(viewOf.getExcludes()).anyMatch(exclude -> exclude.equals(property.getName()))
-                        || viewOf.getExtraExcludes().contains(property.getName())
-        );
+        getProperties().removeIf(property -> Utils.filterPropertiesNeedRemoved(
+                property,
+                includePatterns, viewOf.getIncludes(),
+                excludePatterns, viewOf.getExcludes(),
+                viewOf.getExtraExcludes()
+        ));
         List<Property> baseProperties = new ArrayList<>(getProperties());
         if (!Objects.equals(configElement, targetElement)) {
             List<? extends Element> configMembers = getProcessingEnv().getElementUtils().getAllMembers(configElement);
@@ -266,9 +268,6 @@ public class ViewContext extends Context {
                             if (p.getName().equals(mappedName)) {
                                 Access getterAccess = overrideViewProperty != null ? overrideViewProperty.getter() : mapViewProperty.getter();
                                 Access setterAccess = overrideViewProperty != null ? overrideViewProperty.setter() : mapViewProperty.setter();
-                                Property newProperty = p.extend(member, name)
-                                        .withGetterAccess(Utils.resolveGetterAccess(viewOf, getterAccess))
-                                        .withSetterAccess(Utils.resolveSetterAccess(viewOf, setterAccess));
                                 TypeElement converter = selectConverter(member, converters, member.asType(), p.getTypeMirror());
                                 Type converterType = null;
                                 if (converter != null) {
@@ -302,7 +301,12 @@ public class ViewContext extends Context {
                                         }
                                     }
                                 }
-                                newProperty = newProperty.withType(newType, isView);
+                                Property newProperty = p.extend(
+                                        member, name, newType,
+                                        Utils.resolveGetterAccess(viewOf, getterAccess),
+                                        Utils.resolveSetterAccess(viewOf, setterAccess),
+                                        isView
+                                );
                                 return converterType != null ? newProperty.withConverter(converterType) : newProperty;
                             } else {
                                 return p;
@@ -351,10 +355,13 @@ public class ViewContext extends Context {
                             if (p.getName().equals(mappedName)) {
                                 Access getterAccess = overrideViewProperty != null ? overrideViewProperty.getter() : mapViewProperty.getter();
                                 Access setterAccess = overrideViewProperty != null ? overrideViewProperty.setter() : mapViewProperty.setter();
-                                return p.extend(member, name)
-                                        .withGetterAccess(Utils.resolveGetterAccess(viewOf, getterAccess))
-                                        .withSetterAccess(Utils.resolveSetterAccess(viewOf, setterAccess))
-                                        .withExtractor(extractor);
+                                return p.extend(
+                                        member, name,
+                                        extractor.getReturnType(),
+                                        Utils.resolveGetterAccess(viewOf, getterAccess),
+                                        Utils.resolveSetterAccess(viewOf, setterAccess),
+                                        false
+                                ).withExtractor(extractor);
                             } else {
                                 return p;
                             }
@@ -675,6 +682,46 @@ public class ViewContext extends Context {
         }
     }
 
+    public List<Property> flatten(Property property) {
+        Elements elements = getProcessingEnv().getElementUtils();
+        AnnotationInfo flatten = property.getAnnotation(elements, Flatten.class);
+        if (flatten == null) {
+            return null;
+        }
+        TypeMirror typeMirror = property.getTypeMirror();
+        if (typeMirror instanceof DeclaredType) {
+            Context context;
+            ViewOfData viewOfData = processorData.getByGenName(property.getType().getQualifiedName());
+            if (viewOfData != null) {
+                context = processorData.getViewContext(viewOfData);
+            } else {
+                TypeElement typeElement = Utils.toElement((DeclaredType) typeMirror);
+                context = processorData.getTypeContext(typeElement, packageName);
+            }
+            String nameMapper = flatten.getString("nameMapper");
+            String includePattern = flatten.getString("includePattern");
+            List<Pattern> includePatterns = includePattern.isEmpty() ? Collections.emptyList() : Collections.singletonList(Pattern.compile(includePattern));
+            String excludePattern = flatten.getString("excludePattern");
+            List<Pattern> excludePatterns = excludePattern.isEmpty() ? Collections.emptyList() : Collections.singletonList(Pattern.compile(excludePattern));
+            String[] includes = flatten.getStringList("includes").toArray(new String[0]);
+            String[] excludes = flatten.getStringList("excludes").toArray(new String[0]);
+            boolean samePackage = Objects.equals(context.getPackageName(), getPackageName());
+            return context.getProperties()
+                    .stream()
+                    .filter(p -> !Utils.filterPropertiesNeedRemoved(p, includePatterns, includes, excludePatterns, excludes, Collections.emptySet()))
+                    .filter(p -> !Utils.canNotSeeFromOtherClass(p, samePackage))
+                    .map(p -> {
+                        if (nameMapper.isEmpty()) {
+                            return p.flattenOf(property, null);
+                        } else {
+                            String newName = NameMapperHelper.parameterSubstitution(nameMapper, Collections.singletonMap("name", p.getName()));
+                            return p.flattenOf(property, newName);
+                        }
+                    }).collect(Collectors.toList());
+        }
+        return null;
+    }
+
     @Override
     public boolean print(@NonNull PrintWriter writer) {
         Modifier modifier = viewOf.getAccess();
@@ -699,11 +746,10 @@ public class ViewContext extends Context {
         List<Property> properties = getProperties();
         boolean empty = true;
         enter(genType);
-        List<Type> implTypes = new ArrayList<>();
         if (viewOf.isSerializable()) {
             implTypes.add(Type.extract(this, Serializable.class));
         }
-        genType.openClass(writer, modifier, this, viewOf.getExtendsType(), implTypes, viewOf.getImplementsTypes(), INDENT, 0);
+        genType.openClass(writer, modifier, this, viewOf.getExtendsType(), implTypes, implTypeNames, INDENT, 0);
         if (viewOf.isSerializable()) {
             empty = false;
             Utils.printIndent(writer, INDENT, 1);
@@ -712,17 +758,17 @@ public class ViewContext extends Context {
             writer.println("L;");
             writer.println();
         }
-        for (Property property : properties) {
-            if (!property.isDynamic()) {
+        List<Property> flattenProperties = properties.stream().flatMap(p -> {
+            List<Property> props = flatten(p);
+            return props != null ? props.stream() : Stream.of(p);
+        }).collect(Collectors.toList());
+        for (Property property : flattenProperties) {
+            if (!property.isDynamic() || (property.getFlattenParent() != null && !property.getFlattenParent().isDynamic())) {
                 if (empty) {
                     empty = false;
                     writer.println();
                 }
-                for (AnnotationMirror annotationMirror : property.collectAnnotations(this, AnnotationDest.FIELD)) {
-                    Utils.printIndent(writer, INDENT, 1);
-                    AnnotationUtils.printAnnotation(writer, annotationMirror, this, INDENT, 1);
-                    writer.println();
-                }
+                property.printAnnotations(writer, this, INDENT, 1);
                 property.printField(writer, this, INDENT, 1);
                 writer.println();
             }
@@ -750,20 +796,20 @@ public class ViewContext extends Context {
         genType.emptyConstructor(writer, modifier, INDENT, 1);
         writer.println();
         modifier = viewOf.getFieldsConstructor();
-        if (modifier != null && !properties.isEmpty()) {
-            genType.fieldsConstructor(writer, this, modifier, properties, INDENT, 1);
+        if (modifier != null && !flattenProperties.isEmpty()) {
+            genType.fieldsConstructor(writer, this, modifier, flattenProperties, INDENT, 1);
             writer.println();
         }
         modifier = viewOf.getCopyConstructor();
         if (modifier != null) {
-            genType.copyConstructor(writer, this, modifier, properties, INDENT, 1);
+            genType.copyConstructor(writer, this, modifier, flattenProperties, INDENT, 1);
             writer.println();
         }
-        printReadConstructor(writer);
-        printReader(writer);
+        printReadConstructor(writer, flattenProperties);
+        printReader(writer, flattenProperties);
         printWriteBack(writer, false);
         printWriteBack(writer, true);
-        for (Property property : properties) {
+        for (Property property : flattenProperties) {
             if (property.hasGetter()) {
                 for (AnnotationMirror annotationMirror : property.collectAnnotations(this, AnnotationDest.GETTER)) {
                     Utils.printIndent(writer, INDENT, 1);
@@ -801,8 +847,8 @@ public class ViewContext extends Context {
             writer.println("}");
             writer.println();
         }
-        for (Property property : properties) {
-            if (!property.isDynamic() && property.hasSetter()) {
+        for (Property property : flattenProperties) {
+            if (property.hasSetter() && (!property.isDynamic() || (property.getFlattenParent() != null && !property.getFlattenParent().isDynamic()))) {
                 for (AnnotationMirror annotationMirror : property.collectAnnotations(this, AnnotationDest.SETTER)) {
                     Utils.printIndent(writer, INDENT, 1);
                     AnnotationUtils.printAnnotation(writer, annotationMirror, this, INDENT, 1);
@@ -814,16 +860,7 @@ public class ViewContext extends Context {
         }
 
         for (ViewCodeGenerator generator : ViewCodeGenerators.INSTANCE.getGenerators()) {
-            if (!generator.standalone()) {
-                StringWriter sw = new StringWriter();
-                PrintWriter pw = new PrintWriter(sw);
-                generator.print(pw, this, INDENT, 1);
-                pw.flush();
-                String generated = sw.toString();
-                if (!generated.isEmpty()) {
-                    writer.print(generated);
-                }
-            }
+            CodeGenerator.print(generator, writer, this, INDENT);
         }
 
         printErrors(writer);
@@ -988,20 +1025,24 @@ public class ViewContext extends Context {
         writer.println();
     }
 
-    private void prepareReadProperty(@NonNull PrintWriter writer, Property property, Map<String, String> varMap) {
+    private void prepareReadProperty(@NonNull PrintWriter writer, Property property, Map<String, String> varMap, VarMapper varMapper) {
         Type converter = property.getConverter();
         Property baseProperty = property.getBase();
         if (!property.isCustomMethod() && baseProperty != null && converter == null && property.isView()) {
             String var = "p" + varMap.size();
-            prepareView(writer, property.getType(), var, baseProperty.getType(), property.getValueString("source"), 2, 0);
+            prepareView(writer, property.getType(), var, baseProperty.getType(), property.getOriginalValueString("source"), 2, 0);
+            varMap.put(property.getName(), var);
+        } else if (!property.isDynamic() && property.getAnnotation(getProcessingEnv().getElementUtils(), Flatten.class) != null) {
+            String var = "p" + varMap.size();
+            printAssignField(writer, property, varMap, varMapper, var);
             varMap.put(property.getName(), var);
         }
     }
 
-    private Map<String, String> prepareRead(@NonNull PrintWriter writer) {
+    private Map<String, String> prepareRead(@NonNull PrintWriter writer, VarMapper varMapper) {
         Map<String, String> varMap = new HashMap<>();
         for (Property property : getProperties()) {
-            prepareReadProperty(writer, property, varMap);
+            prepareReadProperty(writer, property, varMap, varMapper);
         }
         if (useConfigureBeanVarInRead) {
             Utils.printIndent(writer, INDENT, 2);
@@ -1148,40 +1189,51 @@ public class ViewContext extends Context {
         }
     }
 
-    private void printAssignFields(@NonNull PrintWriter writer, @NonNull Map<String, String> varMap, @NonNull VarMapper varMapper, @NonNull String target) {
-        for (Property property : getProperties()) {
-            if (!property.isDynamic()) {
-                Type converter = property.getConverter();
-                Utils.printIndent(writer, INDENT, 2);
-                writer.print(target);
+    private void printAssignField(@NonNull PrintWriter writer, @NonNull Property property, @NonNull Map<String, String> varMap, @NonNull VarMapper varMapper, @NonNull String leftExpr) {
+        if (!property.isDynamic()) {
+            Type converter = property.getConverter();
+            Property flattenParent = property.getFlattenParent();
+            Utils.printIndent(writer, INDENT, 2);
+            writer.print(leftExpr);
+            writer.print(" = ");
+            if (flattenParent != null) {
+                String var = varMap.get(flattenParent.getName());
+                Property flattenOf = property.getFlattenOf();
+                assert flattenOf != null;
+                writer.print(var);
                 writer.print(".");
-                writer.print(this.getMappedFieldName(property));
-                writer.print(" = ");
-                if (property.isCustomMethod() && property.getExtractor() != null) {
-                    ((StaticMethodExtractor) property.getExtractor()).print(writer, varMapper, true, INDENT, 2);
-                    writer.println(";");
-                } else {
-                    Property baseProperty = property.getBase();
-                    if (baseProperty != null) {
-                        if (converter != null) {
-                            writer.print("new ");
-                            converter.printType(writer, this, false, false);
-                            writer.print("().convert(");
-                            writer.print(baseProperty.getValueString("source"));
-                            writer.println(");");
-                        } else if (property.isView()) {
-                            writer.print(varMap.get(property.getName()));
-                            writer.println(";");
-                        } else {
-                            writer.print(baseProperty.getValueString("source"));
-                            writer.println(";");
-                        }
+                writer.print(flattenOf.getGetterName());
+                writer.println("();");
+            } else if (varMap.containsKey(property.getName())) {
+                writer.print(varMap.get(property.getName()));
+                writer.println(";");
+            } else if (property.isCustomMethod() && property.getExtractor() != null) {
+                ((StaticMethodExtractor) property.getExtractor()).print(writer, varMapper, true, INDENT, 2);
+                writer.println(";");
+            } else {
+                Property baseProperty = property.getBase();
+                if (baseProperty != null) {
+                    if (converter != null) {
+                        writer.print("new ");
+                        converter.printType(writer, this, false, false);
+                        writer.print("().convert(");
+                        writer.print(baseProperty.getOriginalValueString("source"));
+                        writer.println(");");
                     } else {
-                        writer.print(varMapper.getVar(property, property.getName()));
+                        writer.print(baseProperty.getOriginalValueString("source"));
                         writer.println(";");
                     }
+                } else {
+                    writer.print(varMapper.getVar(property, property.getName()));
+                    writer.println(";");
                 }
             }
+        }
+    }
+
+    private void printAssignFields(@NonNull PrintWriter writer, List<Property> properties, @NonNull Map<String, String> varMap, @NonNull VarMapper varMapper, @NonNull String target) {
+        for (Property property : properties) {
+            printAssignField(writer, property, varMap, varMapper, target + "." + this.getMappedFieldName(property));
         }
     }
 
@@ -1263,7 +1315,7 @@ public class ViewContext extends Context {
         }
     }
 
-    private void printReader(@NonNull PrintWriter writer) {
+    private void printReader(@NonNull PrintWriter writer, List<Property> flattenProperties) {
         Utils.printIndent(writer, INDENT, 1);
         Utils.printModifier(writer, Modifier.PUBLIC);
         writer.print("static ");
@@ -1287,7 +1339,7 @@ public class ViewContext extends Context {
             printUseReadArguments(writer, varMapper);
             writer.println(");");
         } else {
-            Map<String, String> varMap = prepareRead(writer);
+            Map<String, String> varMap = prepareRead(writer, varMapper);
             Utils.printIndent(writer, INDENT, 2);
             genType.printType(writer, this, true, false);
             writer.print(" out = new ");
@@ -1296,7 +1348,7 @@ public class ViewContext extends Context {
                 writer.print("<>");
             }
             writer.println("();");
-            printAssignFields(writer, varMap, varMapper, "out");
+            printAssignFields(writer, flattenProperties, varMap, varMapper, "out");
             Utils.printIndent(writer, INDENT, 2);
             writer.println("return out;");
         }
@@ -1312,7 +1364,7 @@ public class ViewContext extends Context {
         }
     }
 
-    private void printReadConstructor(@NonNull PrintWriter writer) {
+    private void printReadConstructor(@NonNull PrintWriter writer, List<Property> flattenProperties) {
         if (viewOf.getReadConstructor() == null) {
             return;
         }
@@ -1324,8 +1376,8 @@ public class ViewContext extends Context {
         writer.println(") {");
         String npeMessage = "The input source argument of the read constructor of class " + genType.getQualifiedName() + " should not be null.";
         printThrowNPEWhenInputNull(writer, "source", npeMessage);
-        Map<String, String> varMap = prepareRead(writer);
-        printAssignFields(writer, varMap, varMapper, "this");
+        Map<String, String> varMap = prepareRead(writer, varMapper);
+        printAssignFields(writer, flattenProperties, varMap, varMapper, "this");
         Utils.printIndent(writer, INDENT, 1);
         writer.println("}");
         writer.println();

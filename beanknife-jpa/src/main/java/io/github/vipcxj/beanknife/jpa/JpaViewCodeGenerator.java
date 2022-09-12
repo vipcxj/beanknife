@@ -55,7 +55,7 @@ public class JpaViewCodeGenerator implements ViewCodeGenerator {
 
     private void printValueString(PrintWriter writer, JpaContext jpaContext, Context context, VarMapper varMapper, Property property) {
         if (jpaContext.isProvideSource()) {
-            writer.print(property.getValueString("source"));
+            writer.print(property.getOriginalValueString("source"));
         } else {
             writer.print(varMapper.getVar(property, property.getName()));
         }

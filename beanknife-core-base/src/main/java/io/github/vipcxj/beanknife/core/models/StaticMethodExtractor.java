@@ -182,7 +182,7 @@ public class StaticMethodExtractor implements Extractor {
         } else if (paramInfo.isPropertyParam()) {
             Property injectedProperty = paramInfo.getInjectedProperty();
             if (useSource) {
-                writer.print(injectedProperty.getValueString("source"));
+                writer.print(injectedProperty.getOriginalValueString("source"));
             } else {
                 writer.print(varMapper.getVar(injectedProperty, injectedProperty.getName()));
             }

@@ -2,8 +2,11 @@ package io.github.vipcxj.beanknife.core.utils;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import io.github.vipcxj.beanknife.core.MetaCodeGenerators;
 import io.github.vipcxj.beanknife.core.ViewCodeGenerators;
 import io.github.vipcxj.beanknife.core.models.*;
+import io.github.vipcxj.beanknife.core.spi.CodeGenerator;
+import io.github.vipcxj.beanknife.core.spi.MetaCodeGenerator;
 import io.github.vipcxj.beanknife.core.spi.ViewCodeGenerator;
 import io.github.vipcxj.beanknife.runtime.annotations.Access;
 import io.github.vipcxj.beanknife.runtime.annotations.ViewOf;
@@ -26,6 +29,7 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import javax.tools.FileObject;
+import javax.tools.JavaFileObject;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -35,6 +39,7 @@ import java.lang.annotation.Repeatable;
 import java.lang.annotation.Target;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 import static io.github.vipcxj.beanknife.core.utils.AnnotationUtils.*;
 
@@ -413,31 +418,27 @@ public class Utils {
             context.print(writer);
         }
         for (ViewCodeGenerator generator : ViewCodeGenerators.INSTANCE.getGenerators()) {
-            String moduleAndPkg = generator.moduleAndPkg();
-            moduleAndPkg = moduleAndPkg != null ? moduleAndPkg : "";
-            String relativeName = generator.relativeName();
-            if (generator.standalone() && generator.fileType() != null && relativeName != null && !relativeName.isEmpty()) {
-                String name = !moduleAndPkg.isEmpty() ? moduleAndPkg + "." + relativeName : relativeName;
-                fileObject = null;
-                switch (generator.fileType()) {
-                    case SOURCE:
-                        fileObject = filer.createSourceFile(name, dependencies);
-                        break;
-                    case CLASS:
-                        fileObject = filer.createClassFile(name, dependencies);
-                        break;
-                    case RESOURCE:
-                        if (generator.location() != null) {
-                            fileObject = filer.createResource(generator.location(), moduleAndPkg, relativeName, dependencies);
-                        }
-                        break;
-                }
-                if (fileObject != null) {
-                    try (PrintWriter writer = new PrintWriter(fileObject.openWriter())) {
-                        generator.print(writer, context, Context.INDENT, 0);
-                    }
-                }
-            }
+            CodeGenerator.printOutside(generator, context, filer, dependencies);
+        }
+    }
+
+    private static Element[] calcDependencies(MetaContext context) {
+        ViewMetaData viewMetaData = context.getViewMeta();
+        Set<TypeElement> dependencies = new HashSet<>();
+        dependencies.addAll(calcDependencies(viewMetaData.getOf()));
+        dependencies.addAll(calcDependencies(viewMetaData.getConfig()));
+        return dependencies.toArray(new Element[0]);
+    }
+
+    public static void writeMetaFile(MetaContext context) throws IOException {
+        Element[] dependencies = calcDependencies(context);
+        JavaFileObject sourceFile = context.getProcessingEnv().getFiler().createSourceFile(context.getGenType().getQualifiedName(), dependencies);
+        try (PrintWriter writer = new PrintWriter(sourceFile.openWriter())) {
+            context.collectData();
+            context.print(writer);
+        }
+        for (MetaCodeGenerator generator : MetaCodeGenerators.INSTANCE.getGenerators()) {
+            CodeGenerator.printOutside(generator, context, context.getProcessingEnv().getFiler(), dependencies);
         }
     }
 
@@ -927,5 +928,13 @@ public class Utils {
         }
         varWriter.accept(writer);
         return false;
+    }
+
+    public static boolean filterPropertiesNeedRemoved(Property property, List<Pattern> includePatterns, String[] includes, List<Pattern> excludePatterns, String[] excludes, Set<String> extraExcludes) {
+        return (includePatterns.stream().noneMatch(pattern -> pattern.matcher(property.getName()).matches())
+                && Arrays.stream(includes).noneMatch(include -> include.equals(property.getName())))
+                || excludePatterns.stream().anyMatch(pattern -> pattern.matcher(property.getName()).matches())
+                || Arrays.stream(excludes).anyMatch(exclude -> exclude.equals(property.getName()))
+                || extraExcludes.contains(property.getName());
     }
 }

@@ -2,16 +2,16 @@ package io.github.vipcxj.beanknife.core.models;
 
 import com.sun.source.util.Trees;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import io.github.vipcxj.beanknife.core.utils.ElementsCompatible;
-import io.github.vipcxj.beanknife.core.utils.LombokUtils;
+import io.github.vipcxj.beanknife.core.MetaCodeGenerators;
+import io.github.vipcxj.beanknife.core.spi.CodeGenerator;
+import io.github.vipcxj.beanknife.core.spi.MetaCodeGenerator;
 import io.github.vipcxj.beanknife.core.utils.Utils;
-import io.github.vipcxj.beanknife.runtime.annotations.Access;
 import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedMeta;
 import org.apache.commons.text.StringEscapeUtils;
 
 import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.element.*;
-import javax.lang.model.util.Elements;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.TypeElement;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -24,6 +24,7 @@ public class MetaContext extends Context {
     private final List<ViewOfData> viewOfDataList;
     private final Type genType;
     private final Type generatedType;
+    private final boolean samePackage;
 
     public MetaContext(@NonNull Trees trees, @NonNull ProcessingEnvironment processingEnv, @NonNull ViewMetaData viewMeta, @NonNull List<ViewOfData> viewOfDataList) {
         super(trees, processingEnv, null);
@@ -37,6 +38,7 @@ public class MetaContext extends Context {
                 "Meta"
         ).withoutParameters();
         this.packageName = this.genType.getPackageName();
+        this.samePackage = viewMeta.getPackageName().equals(this.packageName);
         this.containers.push(Type.fromPackage(this, this.packageName));
         this.generatedType = Type.extract(this, GeneratedMeta.class);
     }
@@ -51,8 +53,14 @@ public class MetaContext extends Context {
 
     public void collectData() {
         TypeElement element = viewMeta.getOf();
-        collectData(element, null, true);
+        collectData(element, null, samePackage);
         importAll();
+        System.out.println("ready meta code generators...");
+        for (MetaCodeGenerator generator : MetaCodeGenerators.INSTANCE.getGenerators()) {
+            System.out.println("Find meta code generator " + generator.getClass().getName() + ".");
+            generator.ready(this);
+        }
+        System.out.println("All meta code generators have been ready.");
     }
 
     private void importAll() {
@@ -157,6 +165,9 @@ public class MetaContext extends Context {
                     });
             Utils.printIndent(writer, INDENT, 1);
             writer.println("}");
+        }
+        for (MetaCodeGenerator generator : MetaCodeGenerators.INSTANCE.getGenerators()) {
+            CodeGenerator.print(generator, writer, this, INDENT);
         }
         genType.closeClass(writer, INDENT, 0);
         return true;

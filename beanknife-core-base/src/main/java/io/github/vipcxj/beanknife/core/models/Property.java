@@ -26,8 +26,8 @@ public class Property {
     private Access setter;
     private Type type;
     private final boolean method;
-    private final String getterName;
-    private final String setterName;
+    private String getterName;
+    private String setterName;
     private boolean writeable;
     private boolean writeMethod;
     private Element element;
@@ -39,6 +39,10 @@ public class Property {
     private boolean view;
     @CheckForNull
     private Property override;
+    @CheckForNull
+    private Property flattenOf;
+    @CheckForNull
+    private Property flattenParent;
 
     public Property(
             @NonNull String name,
@@ -91,12 +95,35 @@ public class Property {
     }
 
     @NonNull
-    public Property extend(@NonNull Element element, @NonNull String newName) {
+    public Property extend(
+            @CheckForNull Element element,
+            @NonNull String newName,
+            @CheckForNull Type newType,
+            @CheckForNull Access getter,
+            @CheckForNull Access setter,
+            boolean isView
+    ) {
         Property property = new Property(this, null);
-        property.name = newName;
+        property.view = isView;
         property.base = false;
-        property.element = element;
         property.override = this;
+        if (newType != null) {
+            property.type = newType;
+        }
+        if (getter != null) {
+            property.getter = getter;
+        }
+        if (setter != null) {
+            property.setter = setter;
+        }
+        if (element != null) {
+            property.element = element;
+        }
+        if (!Objects.equals(property.name, newName)) {
+            property.name = newName;
+            property.getterName = Utils.createGetterName(newName, property.type.isBoolean());
+            property.setterName = Utils.createSetterName(newName, property.type.isBoolean());
+        }
         return property;
     }
 
@@ -129,29 +156,10 @@ public class Property {
         return property;
     }
 
-    public Property withGetterAccess(Access access) {
-        Property property = new Property(this, null);
-        property.getter = access;
-        return property;
-    }
-
-    public Property withSetterAccess(Access access) {
-        Property property = new Property(this, null);
-        property.setter = access;
-        return property;
-    }
-
     public Property withExtractor(Extractor extractor) {
         Property property = new Property(this, null);
         property.extractor = extractor;
         property.type = extractor.getReturnType();
-        return property;
-    }
-
-    public Property withType(@NonNull Type type, boolean view) {
-        Property property = new Property(this, null);
-        property.type = type;
-        property.view = view;
         return property;
     }
 
@@ -165,6 +173,28 @@ public class Property {
         Property out = new Property(property, this.comment);
         out.override = this;
         return out;
+    }
+
+    public Property flattenOf(@NonNull Property parent, @CheckForNull String newName) {
+        Property out = new Property(this, this.comment);
+        if (newName != null) {
+            out.name = newName;
+            out.getterName = Utils.createGetterName(newName, type.isBoolean());
+            out.setterName = Utils.createSetterName(newName, type.isBoolean());
+        }
+        out.flattenOf = this;
+        out.flattenParent = parent;
+        return out;
+    }
+
+    @CheckForNull
+    public Property getFlattenOf() {
+        return flattenOf;
+    }
+
+    @CheckForNull
+    public Property getFlattenParent() {
+        return flattenParent;
     }
 
     public TypeMirror getTypeMirror() {
@@ -410,7 +440,15 @@ public class Property {
         return annotationMirrors;
     }
 
-    public String getValueString(@NonNull String sourceVar) {
+    public void printAnnotations(@NonNull PrintWriter writer, @NonNull ViewContext context, String indent, int identNum) {
+        for (AnnotationMirror annotationMirror : collectAnnotations(context, AnnotationDest.FIELD)) {
+            Utils.printIndent(writer, indent, identNum);
+            AnnotationUtils.printAnnotation(writer, annotationMirror, context, indent, identNum);
+            writer.println();
+        }
+    }
+
+    public String getOriginalValueString(@NonNull String sourceVar) {
         Property base = getBase();
         if (base == null) {
             throw new IllegalArgumentException("This is impossible!");
@@ -446,7 +484,10 @@ public class Property {
         writer.println("() {");
         Utils.printIndent(writer, indent, indentNum + 1);
         writer.print("return ");
-        if (isDynamic()) {
+        Property flattenParent = getFlattenParent();
+        if (flattenParent != null && flattenParent.isDynamic()) {
+            throw new UnsupportedOperationException("Not support use flatten properties of dynamic property.");
+        } else if (flattenParent == null && isDynamic()) {
             ((DynamicMethodExtractor) extractor).print(writer);
         } else {
             writer.print("this.");

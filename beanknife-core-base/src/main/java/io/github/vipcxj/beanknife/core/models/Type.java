@@ -967,7 +967,7 @@ public class Type {
         openClass(writer, modifier, context, null, Collections.emptyList(), null, indent, indentNum);
     }
 
-    public void openClass(@NonNull PrintWriter writer, @NonNull Modifier modifier, @NonNull Context context, @CheckForNull String extendsTypeString, @NonNull List<Type> implTypes, @CheckForNull String[] implTypeStrings, String indent, int indentNum) {
+    public void openClass(@NonNull PrintWriter writer, @NonNull Modifier modifier, @NonNull Context context, @CheckForNull String extendsTypeString, @NonNull List<Type> implTypes, @CheckForNull List<String> implTypeStrings, String indent, int indentNum) {
         Utils.printIndent(writer, indent, indentNum);
         writer.print(modifier);
         writer.print(" ");
@@ -1021,7 +1021,9 @@ public class Type {
         }
         openConstructor(writer, modifier, indent, indentNum);
         writer.println();
-        properties = properties.stream().filter(property -> !property.isDynamic()).collect(Collectors.toList());
+        properties = properties.stream()
+                .filter(property -> !property.isDynamic() || (property.getFlattenParent() != null && !property.getFlattenParent().isDynamic()))
+                .collect(Collectors.toList());
         int size = properties.size();
         int i = 0;
         for (Property property : properties) {
@@ -1057,7 +1059,7 @@ public class Type {
         writer.print(" ");
         writer.println("source) {");
         for (Property property : properties) {
-            if (!property.isDynamic()) {
+            if (!property.isDynamic() || (property.getFlattenParent() != null && !property.getFlattenParent().isDynamic())) {
                 Utils.printIndent(writer, indent, indentNum + 1);
                 writer.print("this.");
                 writer.print(context.getMappedFieldName(property));

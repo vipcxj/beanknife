@@ -8,4 +8,5 @@ import java.lang.annotation.*;
 @Inherited
 public @interface ViewPropertiesIncludePattern {
     String value();
+    boolean override() default false;
 }

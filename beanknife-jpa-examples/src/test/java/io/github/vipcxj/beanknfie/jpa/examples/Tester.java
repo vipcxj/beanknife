@@ -27,7 +27,7 @@ public class Tester {
     @Autowired
     private EntityManager em;
 
-    private Random random = new Random();
+    private final Random random = new Random();
 
     private long random() {
         long unit = 3000 * 24 * 3600;
@@ -41,7 +41,6 @@ public class Tester {
     @Test
     @Transactional
     public void test() {
-        Random random = new Random();
         CriteriaBuilder cb = em.getCriteriaBuilder();
         Company company = new Company("001", "google", 10000.0, new Address("Shanhai", "SanQuan Road", "888"), new ArrayList<>(), new ArrayList<>());
         em.persist(company);
@@ -93,14 +92,14 @@ public class Tester {
             System.out.print(detail.getSex());
             System.out.print(", nation: ");
             System.out.print(detail.getNation());
-            System.out.print(", companyCode:");;
-            System.out.print(detail.getCompany().getCode());
-            System.out.print(", companyName:");;
-            System.out.print(detail.getCompany().getName());
-            System.out.print(", companyMoney:");;
-            System.out.print(detail.getCompany().getMoney());
+            System.out.print(", companyCode:");
+            System.out.print(detail.getCompanyInfo().getCode());
+            System.out.print(", companyName:");
+            System.out.print(detail.getCompanyInfo().getName());
+            System.out.print(", companyMoney:");
+            System.out.print(detail.getCompanyInfo().getMoney());
             System.out.print(", companyAddress:");
-            System.out.print(detail.getCompany().getAddress().toString());
+            System.out.print(detail.getCompanyInfo().getAddress().toString());
             System.out.println("}");
         }
 

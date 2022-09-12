@@ -19,6 +19,7 @@ public class ProcessorData {
     private final Map<String, List<ViewOfData>> viewOfDataByTargetTypeName;
     private final Map<String, List<ViewOfData>> viewOfDataByConfigTypeName;
     private final Map<String, ViewContext> viewContextMap;
+    private final Map<TypeContextKey, TypeContext> typeContextMap;
     private final Map<String, Object> subContexts;
 
     public ProcessorData(@NonNull Trees trees, @NonNull ProcessingEnvironment processingEnv) {
@@ -29,6 +30,7 @@ public class ProcessorData {
         this.viewOfDataByTargetTypeName = new HashMap<>();
         this.viewOfDataByConfigTypeName = new HashMap<>();
         this.viewContextMap = new HashMap<>();
+        this.typeContextMap = new HashMap<>();
         this.subContexts = new HashMap<>();
     }
 
@@ -186,5 +188,47 @@ public class ProcessorData {
             viewContext.collectData();
         }
         return viewContext;
+    }
+
+    public TypeContext getTypeContext(@NonNull TypeElement typeElement, @NonNull String packageName) {
+        TypeContextKey key = new TypeContextKey(typeElement.getQualifiedName().toString(), packageName);
+        TypeContext typeContext = typeContextMap.get(key);
+        if (typeContext == null) {
+            typeContext = new TypeContext(trees, processingEnv, this, typeElement, packageName);
+            typeContextMap.put(key, typeContext);
+            typeContext.collectData();
+        }
+        return typeContext;
+    }
+
+    public static class TypeContextKey {
+        private final String typeName;
+        private final String packageName;
+
+        public TypeContextKey(String typeName, String packageName) {
+            this.typeName = typeName;
+            this.packageName = packageName;
+        }
+
+        public String getTypeName() {
+            return typeName;
+        }
+
+        public String getPackageName() {
+            return packageName;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            TypeContextKey that = (TypeContextKey) o;
+            return Objects.equals(typeName, that.typeName) && Objects.equals(packageName, that.packageName);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(typeName, packageName);
+        }
     }
 }

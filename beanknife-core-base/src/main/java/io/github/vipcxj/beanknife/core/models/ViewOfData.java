@@ -3,7 +3,6 @@ package io.github.vipcxj.beanknife.core.models;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import io.github.vipcxj.beanknife.core.utils.AnnotationUtils;
 import io.github.vipcxj.beanknife.core.utils.ElementsCompatible;
-import io.github.vipcxj.beanknife.core.utils.StringUtils;
 import io.github.vipcxj.beanknife.core.utils.Utils;
 import io.github.vipcxj.beanknife.runtime.annotations.*;
 import io.github.vipcxj.beanknife.runtime.utils.AnnotationDest;
@@ -20,9 +19,9 @@ import java.io.PrintWriter;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import static io.github.vipcxj.beanknife.core.utils.NameMapperHelper.parameterSubstitution;
 
 public class ViewOfData {
     private AnnotationMirror viewOf;
@@ -116,53 +115,6 @@ public class ViewOfData {
         collectAnnotations(elements);
     }
 
-    private static final Pattern PT_VARIABLE = Pattern.compile("\\$\\{(?<var>[A-Za-z0-9-_]+)((%%(?<longBackToRemove>.+))|(%(?<shortBackToRemove>.+))|(##(?<longFrontToRemove>.+))|(#(?<shortFrontToRemove>.+)))?}");
-
-    private static String parameterSubstitution(String input, Map<String, String> vars) {
-        Matcher matcher = PT_VARIABLE.matcher(input);
-        //noinspection StringBufferMayBeStringBuilder
-        StringBuffer sb = new StringBuffer();
-        while (matcher.find()) {
-            String var = matcher.group("var");
-            String varValue = vars.get(var);
-            if (varValue == null) {
-                return input + "__NoSuchVar_" + var;
-            }
-            String shortBackToRemove = matcher.group("shortBackToRemove");
-            String longBackToRemove = matcher.group("longBackToRemove");
-            String shortFrontToRemove = matcher.group("shortFrontToRemove");
-            String longFrontToRemove = matcher.group("longFrontToRemove");
-            if (shortBackToRemove != null) {
-                String pt = StringUtils.convertGlobToRegex(shortBackToRemove, false) + "$";
-                Matcher m = Pattern.compile(pt).matcher(varValue);
-                int offset = 0;
-                int find = -1;
-                while (m.find(offset)) {
-                    find = m.start();
-                    offset = find + 1;
-                    if (offset >= varValue.length()) {
-                        break;
-                    }
-                }
-                if (find >= 0) {
-                    varValue = varValue.substring(0, find);
-                }
-            } else if (longBackToRemove != null) {
-                String pt = StringUtils.convertGlobToRegex(longBackToRemove, true) + "$";
-                varValue = varValue.replaceFirst(pt, "");
-            } else if (shortFrontToRemove != null) {
-                String pt = "^" + StringUtils.convertGlobToRegex(shortFrontToRemove, false);
-                varValue = varValue.replaceFirst(pt, "");
-            } else if (longFrontToRemove != null) {
-                String pt = "^" + StringUtils.convertGlobToRegex(longFrontToRemove, true);
-                varValue = varValue.replaceFirst(pt, "");
-            }
-            matcher.appendReplacement(sb, varValue);
-        }
-        matcher.appendTail(sb);
-        return sb.toString();
-    }
-
     private String loadGenName(Elements elements) {
         String genName = AnnotationUtils.getStringAnnotationValue(viewOf, "genName");
         if (genName != null ) {
@@ -224,7 +176,11 @@ public class ViewOfData {
         List<AnnotationMirror> annotations = Utils.getAnnotationsOn(elements, configElement, annotationType, annotationsType, true, false);
         for (AnnotationMirror annotation : annotations) {
             List<String> value = AnnotationUtils.getStringListAnnotationValue(annotation, "value");
+            boolean override = Boolean.TRUE.equals(AnnotationUtils.getBooleanAnnotationValue(annotation, "override"));
             if (value != null) {
+                if (override) {
+                    values.clear();
+                }
                 values.addAll(value);
             }
         }
@@ -251,11 +207,16 @@ public class ViewOfData {
         List<AnnotationMirror> annotations = Utils.getAnnotationsOn(elements, configElement, annotationType, annotationsType, true, false);
         for (AnnotationMirror annotation : annotations) {
             String part = AnnotationUtils.getStringAnnotationValue(annotation, "value");
+            boolean override = Boolean.TRUE.equals(AnnotationUtils.getBooleanAnnotationValue(annotation, "override"));
             if (part != null) {
-                if (sb.length() == 0) {
-                    sb.append(part);
+                if (override) {
+                    sb = new StringBuilder(part);
                 } else {
-                    sb.append(" ").append(part);
+                    if (sb.length() == 0) {
+                        sb.append(part);
+                    } else {
+                        sb.append(" ").append(part);
+                    }
                 }
             }
         }
@@ -342,12 +303,8 @@ public class ViewOfData {
 
     public String getGenPackage() {
         if (genPackage.isEmpty()) {
-            PackageElement packageElement = ElementsCompatible.getPackageOf(getTargetElement());
-            if (packageElement == null) {
-                return "";
-            } else {
-                return packageElement.getQualifiedName().toString();
-            }
+            String thePackageName = ElementsCompatible.getPackageNameOf(getTargetElement());
+            return thePackageName != null ? thePackageName : "";
         }
         return genPackage;
     }

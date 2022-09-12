@@ -88,4 +88,10 @@ public class ElementsCompatible {
         }
         return getPackageOf(enclosingElement);
     }
+
+    @CheckForNull
+    public static String getPackageNameOf(@NonNull Element element) {
+        PackageElement packageElement = getPackageOf(element);
+        return packageElement != null ? packageElement.getQualifiedName().toString() : null;
+    }
 }

@@ -173,7 +173,6 @@ public class Context {
     }
 
     public void importVariable(Type name) {
-        boolean imported = false;
         if (!name.isTypeVar() && !name.isWildcard()) {
             Type topmostEnclosingType = name.getTopmostEnclosingType();
             String symbol = topmostEnclosingType.getSimpleName();

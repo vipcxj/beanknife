@@ -43,14 +43,11 @@ public class ViewMetaData {
         return value;
     }
 
+    @NonNull
     public String getPackageName() {
         if (packageName.isEmpty()) {
-            PackageElement packageElement = ElementsCompatible.getPackageOf(getOf());
-            if (packageElement == null) {
-                return "";
-            } else {
-                return packageElement.getQualifiedName().toString();
-            }
+            String thePackageName = ElementsCompatible.getPackageNameOf(getOf());
+            return thePackageName != null ? thePackageName : "";
         }
         return packageName;
     }

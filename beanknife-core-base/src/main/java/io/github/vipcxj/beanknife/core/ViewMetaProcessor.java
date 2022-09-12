@@ -13,9 +13,7 @@ import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 import javax.tools.Diagnostic;
-import javax.tools.JavaFileObject;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.*;
 
 @SupportedAnnotationTypes({"io.github.vipcxj.beanknife.runtime.annotations.ViewMeta", "io.github.vipcxj.beanknife.runtime.annotations.ViewMetas"})
@@ -72,7 +70,7 @@ public class ViewMetaProcessor extends AbstractProcessor {
                             if (!targetClassNames.contains(genQualifiedName)) {
                                 targetClassNames.add(genQualifiedName);
                                 try {
-                                    writeBuilderFile(context);
+                                    Utils.writeMetaFile(context);
                                 } catch (IOException e) {
                                     processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, e.getMessage());
                                 }
@@ -89,16 +87,6 @@ public class ViewMetaProcessor extends AbstractProcessor {
         } catch (Throwable throwable) {
             Utils.logError(processingEnv, throwable);
             return false;
-        }
-    }
-
-    private void writeBuilderFile(MetaContext context) throws IOException {
-        String metaClassName = context.getGenType().getQualifiedName();
-        TypeElement[] dependencies = Utils.calcDependencies(context.getViewMeta().getOf()).toArray(new TypeElement[0]);
-        JavaFileObject sourceFile = processingEnv.getFiler().createSourceFile(metaClassName, dependencies);
-        try (PrintWriter writer = new PrintWriter(sourceFile.openWriter())) {
-            context.collectData();
-            context.print(writer);
         }
     }
 

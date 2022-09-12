@@ -13,9 +13,7 @@ import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 import javax.tools.Diagnostic;
-import javax.tools.JavaFileObject;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.*;
 
 @SupportedAnnotationTypes({"io.github.vipcxj.beanknife.runtime.annotations.ViewOf", "io.github.vipcxj.beanknife.runtime.annotations.ViewOfs"})
@@ -56,13 +54,7 @@ public class ViewOfProcessor extends AbstractProcessor {
                                 if (!metaClassNames.contains(metaClassName)) {
                                     metaClassNames.add(metaClassName);
                                     try {
-                                        List<TypeElement> dependencies = Utils.calcDependencies(viewOf.getTargetElement());
-                                        dependencies.add(typeElement);
-                                        JavaFileObject sourceFile = processingEnv.getFiler().createSourceFile(metaClassName, dependencies.toArray(new Element[0]));
-                                        try (PrintWriter writer = new PrintWriter(sourceFile.openWriter())) {
-                                            metaContext.collectData();
-                                            metaContext.print(writer);
-                                        }
+                                        Utils.writeMetaFile(metaContext);
                                     } catch (IOException e) {
                                         processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, e.getMessage());
                                     }
