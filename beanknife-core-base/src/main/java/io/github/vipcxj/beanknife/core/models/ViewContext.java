@@ -763,7 +763,7 @@ public class ViewContext extends Context {
             return props != null ? props.stream() : Stream.of(p);
         }).collect(Collectors.toList());
         for (Property property : flattenProperties) {
-            if (!property.isDynamic() || (property.getFlattenParent() != null && !property.getFlattenParent().isDynamic())) {
+            if (!property.isDynamic() && (property.getFlattenParent() == null || !property.getFlattenParent().isDynamic())) {
                 if (empty) {
                     empty = false;
                     writer.println();
@@ -848,7 +848,7 @@ public class ViewContext extends Context {
             writer.println();
         }
         for (Property property : flattenProperties) {
-            if (property.hasSetter() && (!property.isDynamic() || (property.getFlattenParent() != null && !property.getFlattenParent().isDynamic()))) {
+            if (property.hasSetter() && !property.isDynamic() && (property.getFlattenParent() == null || !property.getFlattenParent().isDynamic())) {
                 for (AnnotationMirror annotationMirror : property.collectAnnotations(this, AnnotationDest.SETTER)) {
                     Utils.printIndent(writer, INDENT, 1);
                     AnnotationUtils.printAnnotation(writer, annotationMirror, this, INDENT, 1);
@@ -1190,7 +1190,7 @@ public class ViewContext extends Context {
     }
 
     private void printAssignField(@NonNull PrintWriter writer, @NonNull Property property, @NonNull Map<String, String> varMap, @NonNull VarMapper varMapper, @NonNull String leftExpr) {
-        if (!property.isDynamic()) {
+        if (!property.isDynamic() && (property.getFlattenParent() == null || !property.getFlattenParent().isDynamic())) {
             Type converter = property.getConverter();
             Property flattenParent = property.getFlattenParent();
             Utils.printIndent(writer, INDENT, 2);

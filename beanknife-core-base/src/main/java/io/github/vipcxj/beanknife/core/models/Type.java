@@ -1022,7 +1022,7 @@ public class Type {
         openConstructor(writer, modifier, indent, indentNum);
         writer.println();
         properties = properties.stream()
-                .filter(property -> !property.isDynamic() || (property.getFlattenParent() != null && !property.getFlattenParent().isDynamic()))
+                .filter(property -> !property.isDynamic() && (property.getFlattenParent() == null || !property.getFlattenParent().isDynamic()))
                 .collect(Collectors.toList());
         int size = properties.size();
         int i = 0;
@@ -1059,7 +1059,7 @@ public class Type {
         writer.print(" ");
         writer.println("source) {");
         for (Property property : properties) {
-            if (!property.isDynamic() || (property.getFlattenParent() != null && !property.getFlattenParent().isDynamic())) {
+            if (!property.isDynamic() && (property.getFlattenParent() == null || !property.getFlattenParent().isDynamic())) {
                 Utils.printIndent(writer, indent, indentNum + 1);
                 writer.print("this.");
                 writer.print(context.getMappedFieldName(property));

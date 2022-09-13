@@ -475,6 +475,16 @@ public class Property {
 
     public void printGetter(@NonNull PrintWriter writer, @NonNull Context context, String indent, int indentNum) {
         if (!hasGetter()) return;
+        Property flattenParent = getFlattenParent();
+        if (flattenParent != null && flattenParent.isDynamic() && !context.hasExtraField(flattenParent.getName())) {
+            Utils.printIndent(writer, indent, indentNum);
+            writer.print("private transient ");
+            flattenParent.printType(writer, context, true, false);
+            writer.print(" ");
+            writer.print(context.calcExtraField(flattenParent.getName()));
+            writer.println(";");
+            writer.println();
+        }
         Utils.printComment(writer, comment, true, indent, indentNum);
         Utils.printIndent(writer, indent, indentNum);
         Utils.printAccess(writer, getter);
@@ -482,11 +492,32 @@ public class Property {
         writer.print(" ");
         writer.print(getGetterName());
         writer.println("() {");
+        if (flattenParent != null && flattenParent.isDynamic()) {
+            String cachedFieldName = context.calcExtraField(flattenParent.getName());
+            Utils.printIndent(writer, indent, indentNum + 1);
+            writer.print("if (this.");
+            writer.print(cachedFieldName);
+            writer.println(" == null) {");
+            Utils.printIndent(writer, indent, indentNum + 1);
+            writer.print("this.");
+            writer.print(cachedFieldName);
+            writer.print(" = ");
+            assert flattenParent.getExtractor() != null;
+            ((DynamicMethodExtractor) flattenParent.getExtractor()).print(writer);
+            writer.println(";");
+            Utils.printIndent(writer, indent, indentNum + 1);
+            writer.println("}");
+        }
         Utils.printIndent(writer, indent, indentNum + 1);
         writer.print("return ");
-        Property flattenParent = getFlattenParent();
         if (flattenParent != null && flattenParent.isDynamic()) {
-            throw new UnsupportedOperationException("Not support use flatten properties of dynamic property.");
+            Property flattenOf = getFlattenOf();
+            assert flattenOf != null;
+            writer.print("this.");
+            writer.print(context.calcExtraField(flattenParent.getName()));
+            writer.print(".");
+            writer.print(flattenOf.getGetterName());
+            writer.print("()");
         } else if (flattenParent == null && isDynamic()) {
             ((DynamicMethodExtractor) extractor).print(writer);
         } else {

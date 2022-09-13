@@ -29,6 +29,7 @@ public class Context {
     private final List<String> imports;
     private final Set<String> symbols;
     private final Map<Property, String> fields;
+    private final Map<String, String> otherFields;
     protected final Trees trees;
     protected final ProcessingEnvironment processingEnv;
     protected final ProcessorData processorData;
@@ -45,6 +46,7 @@ public class Context {
         this.imports = new ArrayList<>();
         this.symbols = new HashSet<>();
         this.fields = new IdentityHashMap<>();
+        this.otherFields = new HashMap<>();
         this.trees = trees;
         this.processingEnv = processingEnv;
         this.processorData = processorData;
@@ -254,25 +256,38 @@ public class Context {
         if (locked) {
             throw new IllegalStateException("Already locked!");
         }
-        configureBeanFieldVar = calcNewVar("cachedConfigureBean");
+        configureBeanFieldVar = calcExtraField("cachedConfigureBean");
         // should not be serialized, so should not named start with get.
         configureBeanGetterVar = calcNewMethod("gottenCachedConfigureBean");
         locked = true;
     }
 
-    private String calcNewVar(String varName, String... otherVars) {
+    public String calcExtraField(String wantedFieldName) {
+        return calcExtraField(wantedFieldName, wantedFieldName);
+    }
+
+    public boolean hasExtraField(String wantedFieldName) {
+        return otherFields.containsKey(wantedFieldName);
+    }
+
+    private String calcExtraField(String wantedFieldName, String realFieldName) {
+        String theFieldName = otherFields.get(wantedFieldName);
+        if (theFieldName != null) {
+            return theFieldName;
+        }
         for (Property property : properties) {
             String fieldName = getMappedFieldName(property);
-            if (Objects.equals(fieldName, varName)) {
-                return calcNewVar(varName + "_", otherVars);
+            if (Objects.equals(fieldName, realFieldName)) {
+                return calcExtraField(wantedFieldName, realFieldName + "_");
             }
         }
-        for (String otherVar : otherVars) {
-            if (Objects.equals(otherVar, varName)) {
-                return calcNewVar(varName + "_", otherVars);
+        for (String name : otherFields.values()) {
+            if (Objects.equals(name, realFieldName)) {
+                return calcExtraField(wantedFieldName, realFieldName + "_");
             }
         }
-        return varName;
+        otherFields.put(wantedFieldName, realFieldName);
+        return realFieldName;
     }
 
     private String calcNewMethod(String methodName, String... otherMethods) {

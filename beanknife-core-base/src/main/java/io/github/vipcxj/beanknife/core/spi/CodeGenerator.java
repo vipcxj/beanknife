@@ -53,7 +53,7 @@ public interface CodeGenerator<C extends Context> {
         return null;
     }
 
-    default JavaFileManager.Location location() {
+    default JavaFileManager.Location[] location() {
         return null;
     }
 
@@ -76,23 +76,30 @@ public interface CodeGenerator<C extends Context> {
         String relativeName = generator.relativeName();
         if (generator.standalone() && generator.fileType() != null && relativeName != null && !relativeName.isEmpty()) {
             String name = !moduleAndPkg.isEmpty() ? moduleAndPkg + "." + relativeName : relativeName;
-            FileObject fileObject = null;
+            FileObject[] fileObjects = null;
             switch (generator.fileType()) {
                 case SOURCE:
-                    fileObject = filer.createSourceFile(name, dependencies);
+                    fileObjects = new FileObject[] { filer.createSourceFile(name, dependencies) };
                     break;
                 case CLASS:
-                    fileObject = filer.createClassFile(name, dependencies);
+                    fileObjects = new FileObject[] { filer.createClassFile(name, dependencies) };
                     break;
                 case RESOURCE:
-                    if (generator.location() != null) {
-                        fileObject = filer.createResource(generator.location(), moduleAndPkg, relativeName, dependencies);
+                    JavaFileManager.Location[] locations = generator.location();
+                    if (locations != null && locations.length != 0) {
+                        fileObjects = new FileObject[locations.length];
+                        for (int i = 0; i < locations.length; ++i) {
+                            JavaFileManager.Location location = locations[i];
+                            fileObjects[i] = filer.createResource(location, moduleAndPkg, relativeName, dependencies);
+                        }
                     }
                     break;
             }
-            if (fileObject != null) {
-                try (PrintWriter writer = new PrintWriter(fileObject.openWriter())) {
-                    generator.print(writer, context, Context.INDENT, 0);
+            if (fileObjects != null) {
+                for (FileObject fileObject : fileObjects) {
+                    try (PrintWriter writer = new PrintWriter(fileObject.openWriter())) {
+                        generator.print(writer, context, Context.INDENT, 0);
+                    }
                 }
             }
         }
