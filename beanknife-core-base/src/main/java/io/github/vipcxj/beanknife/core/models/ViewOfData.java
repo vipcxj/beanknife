@@ -29,6 +29,8 @@ public class ViewOfData {
     private TypeElement configElement;
     private String genPackage;
     private String genName;
+    private String metaPackage;
+    private String metaName;
     private Modifier access;
     private String[] includes;
     private String[] excludes;
@@ -76,7 +78,9 @@ public class ViewOfData {
             this.configElement = sourceElement;
         }
         this.genPackage = loadString(elements, "genPackage", ViewGenPackage.class);
-        this.genName = loadGenName(elements);
+        this.genName = loadName(elements, "genName", ViewGenNameMapper.class);
+        this.metaPackage = loadString(elements, "metaPackage", ViewMetaPackage.class);
+        this.metaName = loadName(elements, "metaName", ViewMetaNameMapper.class);
         this.access = getModifier(loadEnum(elements, "access", Access.PUBLIC, Access.class, ViewAccess.class));
         this.includes = loadStringArray(elements, "includes", ViewPropertiesInclude.class, ViewPropertiesIncludes.class);
         this.excludes = loadStringArray(elements, "excludes", ViewPropertiesExclude.class, ViewPropertiesExcludes.class);
@@ -115,12 +119,12 @@ public class ViewOfData {
         collectAnnotations(elements);
     }
 
-    private String loadGenName(Elements elements) {
-        String genName = AnnotationUtils.getStringAnnotationValue(viewOf, "genName");
-        if (genName != null ) {
-            return genName;
+    private String loadName(Elements elements, String attributeName, Class<? extends Annotation> annotationType) {
+        String name = AnnotationUtils.getStringAnnotationValue(viewOf, attributeName);
+        if (name != null ) {
+            return name;
         }
-        List<AnnotationMirror> mappers = Utils.getAnnotationsOn(elements, configElement, ViewGenNameMapper.class, null, true, false);
+        List<AnnotationMirror> mappers = Utils.getAnnotationsOn(elements, configElement, annotationType, null, true, false);
         if (!mappers.isEmpty()) {
             AnnotationMirror mapperAnnotation = mappers.get(mappers.size() - 1);
             String mapper = AnnotationUtils.getStringAnnotationValue(mapperAnnotation, "value");
@@ -311,6 +315,17 @@ public class ViewOfData {
 
     public String getGenName() {
         return genName;
+    }
+
+    public String getMetaPackage() {
+        if (metaPackage.isEmpty()) {
+            return getGenPackage();
+        }
+        return metaPackage;
+    }
+
+    public String getMetaName() {
+        return metaName;
     }
 
     public Modifier getAccess() {

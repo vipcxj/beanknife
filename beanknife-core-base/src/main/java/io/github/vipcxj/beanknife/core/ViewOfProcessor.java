@@ -41,14 +41,14 @@ public class ViewOfProcessor extends AbstractProcessor {
                         TypeElement typeElement = (TypeElement) element;
                         Set<String> metaClassNames = new HashSet<>();
                         for (AnnotationMirror annotationMirror : annotationMirrors) {
-                            ViewOfData viewOf = ViewOfData.read(processingEnv, annotationMirror, typeElement);
+                             ViewOfData viewOf = ViewOfData.read(processingEnv, annotationMirror, typeElement);
                             if (hasMeta(roundEnv, viewOf)) {
                                 continue;
                             }
-                            List<ViewOfData> viewOfDataList = Utils.collectViewOfs(processingEnv, roundEnv, viewOf.getTargetElement(), viewOf.getGenPackage());
+                            List<ViewOfData> viewOfDataList = Utils.collectViewOfs(processingEnv, roundEnv, viewOf.getTargetElement(), viewOf.getMetaPackage());
                             TypeElement mostImportantViewConfigElement = getMostImportantViewConfigElement(viewOfDataList);
                             if (Objects.equals(typeElement, mostImportantViewConfigElement)) {
-                                ViewMetaData viewMetaData = new ViewMetaData("", viewOf.getGenPackage(), viewOf.getTargetElement(), viewOf.getTargetElement());
+                                ViewMetaData viewMetaData = new ViewMetaData(viewOf.getMetaName(), viewOf.getMetaPackage(), viewOf.getTargetElement(), viewOf.getConfigElement());
                                 MetaContext metaContext = new MetaContext(trees, processingEnv, viewMetaData, viewOfDataList);
                                 String metaClassName = metaContext.getGenType().getQualifiedName();
                                 if (!metaClassNames.contains(metaClassName)) {
@@ -69,12 +69,12 @@ public class ViewOfProcessor extends AbstractProcessor {
         } catch (Throwable t) {
             Utils.logError(processingEnv, t);
         }
-        return false;
+        return true;
     }
 
     private boolean hasMeta(RoundEnvironment roundEnv, ViewOfData viewOfData) {
         TypeElement targetElement = viewOfData.getTargetElement();
-        String genPackage = viewOfData.getGenPackage();
+        String metaPackage = viewOfData.getMetaPackage();
         TypeElement viewMetaTypeElement = processingEnv.getElementUtils().getTypeElement(Constants.VIEW_META_TYPE_NAME);
         Set<? extends Element> candidates = roundEnv.getElementsAnnotatedWith(viewMetaTypeElement);
         for (Element candidate : candidates) {
@@ -85,7 +85,7 @@ public class ViewOfProcessor extends AbstractProcessor {
             for (AnnotationMirror annotationMirror : annotationMirrors) {
                 if (Utils.isThisAnnotation(annotationMirror, Constants.VIEW_META_TYPE_NAME)) {
                     ViewMetaData viewMetaData = ViewMetaData.read(processingEnv, annotationMirror, (TypeElement) candidate);
-                    if (Utils.isViewMetaTargetTo(viewMetaData, targetElement, genPackage)) {
+                    if (Utils.isViewMetaTargetTo(viewMetaData, targetElement, metaPackage)) {
                         return true;
                     }
                 }
@@ -104,7 +104,7 @@ public class ViewOfProcessor extends AbstractProcessor {
                     List<AnnotationMirror> viewMetas = AnnotationUtils.getAnnotationElement(annotationMirror, elementValuesWithDefaults);
                     for (AnnotationMirror viewMeta : viewMetas) {
                         ViewMetaData viewMetaData = ViewMetaData.read(processingEnv, viewMeta, (TypeElement) candidate);
-                        if (Utils.isViewMetaTargetTo(viewMetaData, targetElement, genPackage)) {
+                        if (Utils.isViewMetaTargetTo(viewMetaData, targetElement, metaPackage)) {
                             return true;
                         }
                     }

@@ -618,7 +618,7 @@ public class Utils {
             return;
         }
         ViewOfData viewOfData = ViewOfData.read(processingEnv, viewOf, candidate);
-        if (!viewOfData.getGenPackage().equals(packageName)) {
+        if (!viewOfData.getMetaPackage().equals(packageName)) {
             return;
         }
         results.add(viewOfData);
