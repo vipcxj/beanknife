@@ -12,11 +12,16 @@ public enum BeanProviders {
 
     INSTANCE;
 
-    private final ServiceLoader<BeanProvider> loader;
+    private final List<BeanProvider> providers;
     private final Map<String, WeakReference<?>> cacheMap;
 
     BeanProviders() {
-        loader = ServiceLoader.load(BeanProvider.class);
+        providers = new ArrayList<>();
+        ServiceLoader<BeanProvider> loader = ServiceLoader.load(BeanProvider.class);
+        for (BeanProvider provider : loader) {
+            providers.add(provider);
+        }
+        providers.sort(Comparator.comparing(BeanProvider::getPriority).reversed());
         cacheMap = new ConcurrentHashMap<>();
     }
 
@@ -34,27 +39,21 @@ public enum BeanProviders {
                 // Don't remove invalid reference here. it will be replaced next step. Remove it here may cause concurrent error.
             }
         }
-        int priority = Integer.MIN_VALUE;
         T instance = null;
         List<Throwable> suppressed = new ArrayList<>();
         Throwable throwable = null;
-        for (BeanProvider provider : loader) {
+        for (BeanProvider provider : providers) {
             if (support(provider, type, usage, useDefaultBeanProvider)) {
-                T inst;
                 try {
-                    inst = provider.get(type, usage, requester);
+                    instance = provider.get(type, usage, requester);
                 } catch (Throwable t) {
-                    inst = null;
                     if (throwable != null) {
                         suppressed.add(throwable);
                     }
                     throwable = t;
                 }
-                if (inst != null) {
-                    if (provider.getPriority() > priority) {
-                        priority = provider.getPriority();
-                        instance = inst;
-                    }
+                if (instance != null) {
+                    break;
                 }
             }
         }

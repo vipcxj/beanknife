@@ -461,6 +461,29 @@ public class Type {
         }
     }
 
+    private static String getSimpleNameOrPrimitiveType(TypeMirror type) {
+        switch (type.getKind()) {
+            case INT:
+                return "int";
+            case BOOLEAN:
+                return "boolean";
+            case LONG:
+                return "long";
+            case FLOAT:
+                return "float";
+            case DOUBLE:
+                return "double";
+            case BYTE:
+                return "byte";
+            case CHAR:
+                return "char";
+            case SHORT:
+                return "short";
+            default:
+                throw new IllegalArgumentException("Type " + type + " is not a primitive type.");
+        }
+    }
+
     @CheckForNull
     public static Type extract(@NonNull Context context, @Nullable TypeMirror type, @CheckForNull CompilationUnitTree cu, @CheckForNull Tree tree) {
         if (type == null || type.getKind() == TypeKind.ERROR) {
@@ -470,7 +493,7 @@ public class Type {
                     context,
                     Collections.emptySet(),
                     "",
-                    type.toString(),
+                    getSimpleNameOrPrimitiveType(type),
                     0,
                     false,
                     false,

@@ -64,7 +64,14 @@ public class Tester {
         checkView(ConverterBeanView.class);
         checkView(DynamicMethodPropertyBeanView.class);
         checkView(FieldBeanView.class);
+        checkView(FlattenBeanBView.class);
         checkView(GenericBeanView.class);
+        checkView(InheritedBeanView.class);
+        checkView(Leaf21BeanDto.class);
+        checkView(LombokBean2View.class);
+        checkView(LombokBean3View.class);
+        checkView(LombokBeanView.class);
+        checkView(MapPropertiesView.class);
         checkView(MetaAndViewOfBothOnBeanView.class);
         checkView(MetaAndViewOfOnDiffBean1View.class);
         checkView(MetaAndViewOfOnDiffBean2View.class);

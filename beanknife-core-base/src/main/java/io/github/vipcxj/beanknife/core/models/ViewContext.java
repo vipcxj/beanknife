@@ -1061,6 +1061,16 @@ public class ViewContext extends Context {
         targetType.printType(writer, this, true, true);
         writer.print(" ");
         writer.print(targetVarName);
+        if (!isViewType(targetType)) {
+            writer.println(";");
+            Utils.printIndent(writer, INDENT, indentNum);
+            writer.print("if (");
+            writer.print(sourceVarName);
+            writer.println(" != null) {");
+            ++indentNum;
+            Utils.printIndent(writer, INDENT, indentNum);
+            writer.print(targetVarName);
+        }
         writer.print(" = ");
         if (isViewType(targetType)) {
             targetType.printType(writer, this, true, true);
@@ -1184,6 +1194,14 @@ public class ViewContext extends Context {
                 writer.print(newTargetVar);
                 writer.println(";");
             }
+            Utils.printIndent(writer, INDENT, indentNum);
+            writer.println("}");
+            --indentNum;
+            Utils.printIndent(writer, INDENT, indentNum);
+            writer.println("} else {");
+            Utils.printIndent(writer, INDENT, indentNum + 1);
+            writer.print(targetVarName);
+            writer.println(" = null;");
             Utils.printIndent(writer, INDENT, indentNum);
             writer.println("}");
         }

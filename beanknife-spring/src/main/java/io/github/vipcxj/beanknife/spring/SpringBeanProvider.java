@@ -10,7 +10,7 @@ public class SpringBeanProvider implements BeanProvider {
     }
 
     public boolean support(Class<?> type, BeanUsage usage) {
-        return true;
+        return usage == BeanUsage.CONFIGURE;
     }
 
     public <T> T get(Class<T> type, BeanUsage usage, Object requester) {
