@@ -3,7 +3,7 @@
     <parent>
         <groupId>io.github.vipcxj</groupId>
         <artifactId>beanknife-parent</artifactId>
-        <version>1.6.2</version>
+        <version>1.6.3-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>beanknife-examples</artifactId>
@@ -22,7 +22,7 @@
     <scm>
         <url>https://github.com/vipcxj/beanknife</url>
         <connection>scm:git:git://github.com/vipcxj/beanknife.git</connection>
-      <tag>v1.6.2</tag>
+      <tag>HEAD</tag>
     <developerConnection>scm:git:https://github.com/vipcxj/beanknife.git</developerConnection>
   </scm>
     <developers>
