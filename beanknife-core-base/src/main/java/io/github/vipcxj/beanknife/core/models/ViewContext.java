@@ -483,7 +483,7 @@ public class ViewContext extends Context {
 
     @CheckForNull
     public ViewContext getViewContext(@NonNull Type type) {
-        if (isViewType(type)) {
+        if (isDirectViewType(type)) {
             return processorData.getViewContext(getViewData(type));
         }
         if ((type.isType(List.class))
@@ -500,7 +500,7 @@ public class ViewContext extends Context {
     }
 
     private boolean matchViewType(Type sourceType, Type targetType) {
-        if (isViewType(targetType)) {
+        if (isDirectViewType(targetType)) {
             ViewOfData viewData = getViewData(targetType);
             Type type = Type.extract(this, viewData.getTargetElement());
             if (type == null) {
@@ -1025,12 +1025,18 @@ public class ViewContext extends Context {
         writer.println();
     }
 
-    private void prepareReadProperty(@NonNull PrintWriter writer, Property property, Map<String, String> varMap, VarMapper varMapper) {
+    public boolean isSupportAutoViewTransform(Property property) {
         Type converter = property.getConverter();
         Property baseProperty = property.getBase();
-        if (!property.isCustomMethod() && baseProperty != null && converter == null && property.isView()) {
+        return !property.isCustomMethod() && baseProperty != null && converter == null && property.isView();
+    }
+
+    private void prepareReadProperty(@NonNull PrintWriter writer, Property property, Map<String, String> varMap, VarMapper varMapper) {
+        Property baseProperty = property.getBase();
+        if (isSupportAutoViewTransform(property)) {
             String var = "p" + varMap.size();
-            prepareView(writer, property.getType(), var, baseProperty.getType(), property.getOriginalValueString("source"), 2, 0);
+            assert baseProperty != null;
+            prepareView(writer, property.getType(), var, baseProperty.getType(), property.getOriginalValueString("source"), false, 2, 0);
             varMap.put(property.getName(), var);
         } else if (!property.isDynamic() && property.getAnnotation(getProcessingEnv().getElementUtils(), Flatten.class) != null) {
             String var = "p" + varMap.size();
@@ -1056,12 +1062,13 @@ public class ViewContext extends Context {
         return varMap;
     }
 
-    private void prepareView(@NonNull PrintWriter writer, Type targetType, String targetVarName, Type sourceType, String sourceVarName, int indentNum, int level) {
+    private void prepareView(@NonNull PrintWriter writer, Type targetType, String targetVarName, Type sourceType, String sourceVarName, boolean writeBack, int indentNum, int level) {
+        Type viewType = writeBack ? sourceType : targetType;
         Utils.printIndent(writer, INDENT, indentNum);
         targetType.printType(writer, this, true, true);
         writer.print(" ");
         writer.print(targetVarName);
-        if (!isViewType(targetType)) {
+        if (!isDirectViewType(viewType)) {
             writer.println(";");
             Utils.printIndent(writer, INDENT, indentNum);
             writer.print("if (");
@@ -1072,11 +1079,16 @@ public class ViewContext extends Context {
             writer.print(targetVarName);
         }
         writer.print(" = ");
-        if (isViewType(targetType)) {
-            targetType.printType(writer, this, true, true);
-            writer.print(".read(");
-            writer.print(sourceVarName);
-            writer.println(");");
+        if (isDirectViewType(viewType)) {
+            if (writeBack) {
+                writer.print(sourceVarName);
+                writer.println(".createAndWriteBack();");
+            } else {
+                targetType.printType(writer, this, true, true);
+                writer.print(".read(");
+                writer.print(sourceVarName);
+                writer.println(");");
+            }
         } else {
             String collectionImpl;
             if (targetType.isType(List.class)) {
@@ -1107,7 +1119,7 @@ public class ViewContext extends Context {
                 writer.println("<>();");
             }
         }
-        if (!isViewType(targetType)) {
+        if (!isDirectViewType(viewType)) {
             Utils.printIndent(writer, INDENT, indentNum);
             Type targetComponentType;
             Type sourceComponentType;
@@ -1170,6 +1182,7 @@ public class ViewContext extends Context {
                     newTargetVar,
                     sourceComponentType,
                     targetType.isType(Map.class) ? elVar + ".getValue()" : elVar,
+                    writeBack,
                     indentNum + 1,
                     level + 1
             );
@@ -1401,8 +1414,47 @@ public class ViewContext extends Context {
         writer.println();
     }
 
-    private void printWriteBackField(@NonNull PrintWriter writer, @NonNull Property property) {
-        if (property.getConverter() != null) {
+    public boolean canWriteBack(Property property) {
+        if (!property.isWriteable() && !property.isLombokWritable(samePackage)) {
+            return false;
+        }
+        if (viewOf.getWriteExcludes().contains(property.getName())) {
+            return false;
+        }
+        if (isSupportAutoViewTransform(property) && !isViewTypeSupportCreateAndWriteBack(property.getType())) {
+            return false;
+        }
+        if (property.getAnnotation(getProcessingEnv().getElementUtils(), Flatten.class) != null) {
+            return false;
+        }
+        return !property.isDynamic() && !property.isCustomMethod();
+    }
+
+    private void prepareWriteProperty(@NonNull PrintWriter writer, Property property, Map<String, String> varMap) {
+        if (!canWriteBack(property)) {
+            return;
+        }
+        if (isSupportAutoViewTransform(property) && isViewTypeSupportCreateAndWriteBack(property.getType())) {
+            String var = "p" + varMap.size();
+            Property baseProperty = property.getBase();
+            assert baseProperty != null;
+            prepareView(writer, baseProperty.getType(), var, property.getType(), "this." + getMappedFieldName(property), true, 2, 0);
+            varMap.put(property.getName(), var);
+        }
+    }
+
+    private Map<String, String> prepareWrite(@NonNull PrintWriter writer) {
+        Map<String, String> varMap = new HashMap<>();
+        for (Property property : getProperties()) {
+            prepareWriteProperty(writer, property, varMap);
+        }
+        return varMap;
+    }
+
+    private void printWriteBackField(@NonNull PrintWriter writer, @NonNull Property property, Map<String, String> varMap) {
+        if (varMap.containsKey(property.getName())) {
+            writer.print(varMap.get(property.getName()));
+        } else if (property.getConverter() != null) {
             writer.print("new ");
             property.getConverter().printType(writer, this, false, false);
             writer.print("().convertBack(");
@@ -1434,9 +1486,9 @@ public class ViewContext extends Context {
             getTargetType().printType(writer, this, true, false);
             writer.print(" target");
         }
-        writer.print(") {");
+        writer.println(") {");
+        Map<String, String> varMap = prepareWrite(writer);
         if (create) {
-            writer.println();
             Utils.printIndent(writer, INDENT, 2);
             getTargetType().printType(writer, this, true, false);
             writer.print(" target = ");
@@ -1444,23 +1496,21 @@ public class ViewContext extends Context {
             writer.print(";");
         }
         for (Property property : getProperties()) {
-            if (property.isWriteable() || property.isLombokWritable(samePackage)) {
-                if (!viewOf.getWriteExcludes().contains(property.getName())) {
-                    writer.println();
-                    Utils.printIndent(writer, INDENT, 2);
-                    if (property.isWriteMethod()) {
-                        writer.print("target.");
-                        writer.print(property.getSetterName());
-                        writer.print("(");
-                        printWriteBackField(writer, property);
-                        writer.print(");");
-                    } else {
-                        writer.print("target.");
-                        writer.print(Objects.requireNonNull(property.getField()).getName());
-                        writer.print(" = ");
-                        printWriteBackField(writer, property);
-                        writer.print(";");
-                    }
+            if (canWriteBack(property)) {
+                writer.println();
+                Utils.printIndent(writer, INDENT, 2);
+                if (property.isWriteMethod()) {
+                    writer.print("target.");
+                    writer.print(property.getSetterName());
+                    writer.print("(");
+                    printWriteBackField(writer, property, varMap);
+                    writer.print(");");
+                } else {
+                    writer.print("target.");
+                    writer.print(Objects.requireNonNull(property.getField()).getName());
+                    writer.print(" = ");
+                    printWriteBackField(writer, property, varMap);
+                    writer.print(";");
                 }
             }
         }

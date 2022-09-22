@@ -34,8 +34,16 @@ public class ViewPropertyContainerBean {
         return view;
     }
 
+    public void setView(ViewPropertyBean view) {
+        this.view = view;
+    }
+
     public List<ViewPropertyBean> getViewList() {
         return viewList;
+    }
+
+    public void setViewList(List<ViewPropertyBean> viewList) {
+        this.viewList = viewList;
     }
 
     public ViewPropertyBean[] getViewArray() {

@@ -1,6 +1,8 @@
 package io.github.vipcxj.beanknife.cases.beans;
 
+import io.github.vipcxj.beanknife.runtime.BeanProviders;
 import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedView;
+import io.github.vipcxj.beanknife.runtime.utils.BeanUsage;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -99,6 +101,15 @@ public class ViewPropertyBeanWithoutParent {
             results.put(source.getKey(), read(source.getValue()));
         }
         return results;
+    }
+
+    public void writeBack(ViewPropertyBean target) {
+
+    }
+
+    public ViewPropertyBean createAndWriteBack() {
+        ViewPropertyBean target = BeanProviders.INSTANCE.get(ViewPropertyBean.class, BeanUsage.CONVERT_BACK, this, false, false);
+        return target;
     }
 
     public int getA() {

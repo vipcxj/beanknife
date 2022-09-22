@@ -1,6 +1,8 @@
 package io.github.vipcxj.beanknife.cases.beans;
 
+import io.github.vipcxj.beanknife.runtime.BeanProviders;
 import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedView;
+import io.github.vipcxj.beanknife.runtime.utils.BeanUsage;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -34,6 +36,10 @@ public class ViewPropertyContainerBeanView {
 
     private Map<String, List<Map<Integer, Stack<ViewPropertyBeanWithoutParent>>>>[][][] viewStackMapListMapArrayArrayArray;
 
+    private int newIntFieldProperty;
+
+    private int newIntMethodProperty;
+
     public ViewPropertyContainerBeanView() { }
 
     public ViewPropertyContainerBeanView(
@@ -47,7 +53,9 @@ public class ViewPropertyContainerBeanView {
         List<Map<String, ViewPropertyBeanWithoutParent>> viewMapList,
         Map<String, List<ViewPropertyBeanWithoutParent>> viewListMap,
         Map<String, List<Map<Integer, Stack<ViewPropertyBeanWithoutParent>>>> viewStackMapListMap,
-        Map<String, List<Map<Integer, Stack<ViewPropertyBeanWithoutParent>>>>[][][] viewStackMapListMapArrayArrayArray
+        Map<String, List<Map<Integer, Stack<ViewPropertyBeanWithoutParent>>>>[][][] viewStackMapListMapArrayArrayArray,
+        int newIntFieldProperty,
+        int newIntMethodProperty
     ) {
         this.a = a;
         this.b = b;
@@ -60,6 +68,8 @@ public class ViewPropertyContainerBeanView {
         this.viewListMap = viewListMap;
         this.viewStackMapListMap = viewStackMapListMap;
         this.viewStackMapListMapArrayArrayArray = viewStackMapListMapArrayArrayArray;
+        this.newIntFieldProperty = newIntFieldProperty;
+        this.newIntMethodProperty = newIntMethodProperty;
     }
 
     public ViewPropertyContainerBeanView(ViewPropertyContainerBeanView source) {
@@ -74,9 +84,11 @@ public class ViewPropertyContainerBeanView {
         this.viewListMap = source.viewListMap;
         this.viewStackMapListMap = source.viewStackMapListMap;
         this.viewStackMapListMapArrayArrayArray = source.viewStackMapListMapArrayArrayArray;
+        this.newIntFieldProperty = source.newIntFieldProperty;
+        this.newIntMethodProperty = source.newIntMethodProperty;
     }
 
-    public ViewPropertyContainerBeanView(ViewPropertyContainerBean source) {
+    public ViewPropertyContainerBeanView(ViewPropertyContainerBean source, int newIntFieldProperty) {
         if (source == null) {
             throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.ViewPropertyContainerBeanView should not be null.");
         }
@@ -264,6 +276,7 @@ public class ViewPropertyContainerBeanView {
         } else {
             p8 = null;
         }
+        ViewPropertyContainerBeanViewConfig configureBean = BeanProviders.INSTANCE.get(ViewPropertyContainerBeanViewConfig.class, BeanUsage.CONFIGURE, source, false, false);
         this.a = source.getA();
         this.b = source.getB();
         this.view = p0;
@@ -275,68 +288,50 @@ public class ViewPropertyContainerBeanView {
         this.viewListMap = p6;
         this.viewStackMapListMap = p7;
         this.viewStackMapListMapArrayArrayArray = p8;
+        this.newIntFieldProperty = newIntFieldProperty;
+        this.newIntMethodProperty = configureBean.newIntMethodProperty();
     }
 
-    public static ViewPropertyContainerBeanView read(ViewPropertyContainerBean source) {
+    public static ViewPropertyContainerBeanView read(ViewPropertyContainerBean source, int newIntFieldProperty) {
         if (source == null) {
             return null;
         }
-        return new ViewPropertyContainerBeanView(source);
+        return new ViewPropertyContainerBeanView(source, newIntFieldProperty);
     }
 
-    public static ViewPropertyContainerBeanView[] read(ViewPropertyContainerBean[] sources) {
-        if (sources == null) {
-            return null;
+    public void writeBack(ViewPropertyContainerBean target) {
+        ViewPropertyBean p0 = this.view.createAndWriteBack();
+        List<ViewPropertyBean> p1;
+        if (this.viewList != null) {
+            p1 = new ArrayList<>();
+            for (ViewPropertyBeanWithoutParent el0 : this.viewList) {
+                ViewPropertyBean result0 = el0.createAndWriteBack();
+                p1.add(result0);
+            }
+        } else {
+            p1 = null;
         }
-        ViewPropertyContainerBeanView[] results = new ViewPropertyContainerBeanView[sources.length];
-        for (int i = 0; i < sources.length; ++i) {
-            results[i] = read(sources[i]);
-        }
-        return results;
+
+        target.setView(p0);
+        target.setViewList(p1);
     }
 
-    public static List<ViewPropertyContainerBeanView> read(List<ViewPropertyContainerBean> sources) {
-        if (sources == null) {
-            return null;
+    public ViewPropertyContainerBean createAndWriteBack() {
+        ViewPropertyBean p0 = this.view.createAndWriteBack();
+        List<ViewPropertyBean> p1;
+        if (this.viewList != null) {
+            p1 = new ArrayList<>();
+            for (ViewPropertyBeanWithoutParent el0 : this.viewList) {
+                ViewPropertyBean result0 = el0.createAndWriteBack();
+                p1.add(result0);
+            }
+        } else {
+            p1 = null;
         }
-        List<ViewPropertyContainerBeanView> results = new ArrayList<>();
-        for (ViewPropertyContainerBean source : sources) {
-            results.add(read(source));
-        }
-        return results;
-    }
-
-    public static Set<ViewPropertyContainerBeanView> read(Set<ViewPropertyContainerBean> sources) {
-        if (sources == null) {
-            return null;
-        }
-        Set<ViewPropertyContainerBeanView> results = new HashSet<>();
-        for (ViewPropertyContainerBean source : sources) {
-            results.add(read(source));
-        }
-        return results;
-    }
-
-    public static Stack<ViewPropertyContainerBeanView> read(Stack<ViewPropertyContainerBean> sources) {
-        if (sources == null) {
-            return null;
-        }
-        Stack<ViewPropertyContainerBeanView> results = new Stack<>();
-        for (ViewPropertyContainerBean source : sources) {
-            results.add(read(source));
-        }
-        return results;
-    }
-
-    public static <K> Map<K, ViewPropertyContainerBeanView> read(Map<K, ViewPropertyContainerBean> sources) {
-        if (sources == null) {
-            return null;
-        }
-        Map<K, ViewPropertyContainerBeanView> results = new HashMap<>();
-        for (Map.Entry<K, ViewPropertyContainerBean> source : sources.entrySet()) {
-            results.put(source.getKey(), read(source.getValue()));
-        }
-        return results;
+        ViewPropertyContainerBean target = BeanProviders.INSTANCE.get(ViewPropertyContainerBean.class, BeanUsage.CONVERT_BACK, this, false, false);
+        target.setView(p0);
+        target.setViewList(p1);
+        return target;
     }
 
     public long getA() {
@@ -381,6 +376,14 @@ public class ViewPropertyContainerBeanView {
 
     public Map<String, List<Map<Integer, Stack<ViewPropertyBeanWithoutParent>>>>[][][] getViewStackMapListMapArrayArrayArray() {
         return this.viewStackMapListMapArrayArrayArray;
+    }
+
+    public int getNewIntFieldProperty() {
+        return this.newIntFieldProperty;
+    }
+
+    public int getNewIntMethodProperty() {
+        return this.newIntMethodProperty;
     }
 
 }

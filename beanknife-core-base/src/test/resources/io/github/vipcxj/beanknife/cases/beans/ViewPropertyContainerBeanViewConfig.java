@@ -1,8 +1,6 @@
 package io.github.vipcxj.beanknife.cases.beans;
 
-import io.github.vipcxj.beanknife.runtime.annotations.OverrideViewProperty;
-import io.github.vipcxj.beanknife.runtime.annotations.ViewOf;
-import io.github.vipcxj.beanknife.runtime.annotations.ViewPropertiesIncludePattern;
+import io.github.vipcxj.beanknife.runtime.annotations.*;
 
 import java.util.List;
 import java.util.Map;
@@ -11,6 +9,8 @@ import java.util.Stack;
 
 @ViewOf(value = ViewPropertyContainerBean.class, includePattern = ".*")
 @ViewPropertiesIncludePattern(".*")
+@ViewWriteBackMethod(Access.PUBLIC)
+@ViewCreateAndWriteBackMethod(Access.PUBLIC)
 public class ViewPropertyContainerBeanViewConfig {
 
     @OverrideViewProperty(ViewPropertyContainerBeanMeta.view)
@@ -32,4 +32,11 @@ public class ViewPropertyContainerBeanViewConfig {
     @OverrideViewProperty(ViewPropertyContainerBeanMeta.viewStackMapListMapArrayArrayArray)
     private Map<String, List<Map<Integer, Stack<ViewPropertyBeanWithoutParent>>>>[][][] viewStackMapListMapArrayArrayArray;
 
+    @NewViewProperty("newIntFieldProperty")
+    private int newIntFieldProperty;
+
+    @NewViewProperty("newIntMethodProperty")
+    public int newIntMethodProperty() {
+        return 0;
+    }
 }

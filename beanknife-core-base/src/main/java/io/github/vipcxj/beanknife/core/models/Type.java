@@ -918,7 +918,7 @@ public class Type {
     }
 
     public boolean isView() {
-        return context.isViewType(this);
+        return context.isDirectViewType(this);
     }
 
     public boolean sameType(@NonNull Type type) {

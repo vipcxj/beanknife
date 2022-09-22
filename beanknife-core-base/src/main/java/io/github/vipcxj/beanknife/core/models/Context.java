@@ -486,8 +486,33 @@ public class Context {
         Utils.logWarn(getProcessingEnv(), message);
     }
 
-    public boolean isViewType(Type type) {
+    public boolean isDirectViewType(Type type) {
         return !type.isArray() && getViewData(type) != null;
+    }
+
+    public boolean isViewTypeSupportCreateAndWriteBack(Type type) {
+        if (type.isArray()) {
+            return isViewTypeSupportCreateAndWriteBack(Objects.requireNonNull(type.getComponentType()));
+        } else if (type.isType(List.class) || type.isType(Set.class) || type.isType(Stack.class)) {
+            List<Type> parameters = type.getParameters();
+            return parameters != null && !parameters.isEmpty() && isViewTypeSupportCreateAndWriteBack(parameters.get(0));
+        } else if (type.isType(Map.class)) {
+            List<Type> parameters = type.getParameters();
+            return parameters != null && parameters.size() == 2 && isViewTypeSupportCreateAndWriteBack(parameters.get(1));
+        } else {
+            ViewOfData viewData = getViewData(type);
+            if (viewData != null) {
+                boolean samePackage = Objects.equals(viewData.getGenPackage(), getPackageName());
+                Access access = viewData.getCreateAndWriteBackMethod();
+                if (samePackage) {
+                    return access != Access.NONE && access != Access.PRIVATE && access != Access.UNKNOWN;
+                } else {
+                    return access == Access.PUBLIC;
+                }
+            } else {
+                return false;
+            }
+        }
     }
 
     public ViewOfData getViewData(Type type) {

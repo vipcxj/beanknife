@@ -212,6 +212,9 @@ public class Property {
 
     public boolean isLombokWritable(boolean samePackage) {
         Property field = getField();
+        if (field == null) {
+            return false;
+        }
         boolean isFinal = Objects.requireNonNull(field).getElement().getModifiers().contains(Modifier.FINAL);
         return !isFinal && field.lombokInfo != null && field.lombokInfo.isWritable(samePackage);
     }
