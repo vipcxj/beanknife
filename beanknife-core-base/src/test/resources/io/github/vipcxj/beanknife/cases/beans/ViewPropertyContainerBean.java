@@ -30,6 +30,10 @@ public class ViewPropertyContainerBean {
         return b;
     }
 
+    public void setB(String b) {
+        this.b = b;
+    }
+
     public ViewPropertyBean getView() {
         return view;
     }
@@ -72,5 +76,9 @@ public class ViewPropertyContainerBean {
 
     public Map<String, List<Map<Integer, Stack<ViewPropertyBean>>>>[][][] getViewStackMapListMapArrayArrayArray() {
         return viewStackMapListMapArrayArrayArray;
+    }
+
+    public void setViewStackMapListMapArrayArrayArray(Map<String, List<Map<Integer, Stack<ViewPropertyBean>>>>[][][] viewStackMapListMapArrayArrayArray) {
+        this.viewStackMapListMapArrayArrayArray = viewStackMapListMapArrayArrayArray;
     }
 }

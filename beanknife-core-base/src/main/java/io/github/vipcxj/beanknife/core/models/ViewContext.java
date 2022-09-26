@@ -1460,7 +1460,7 @@ public class ViewContext extends Context {
             writer.print("().convertBack(");
             writer.print("this.");
             writer.print(getMappedFieldName(property));
-            writer.println(");");
+            writer.print(")");
         } else {
             writer.print("this.");
             writer.print(getMappedFieldName(property));

@@ -1,5 +1,6 @@
 package io.github.vipcxj.beanknife.cases.beans;
 
+import io.github.vipcxj.beanknife.cases.converters.StringToLongConverter;
 import io.github.vipcxj.beanknife.runtime.BeanProviders;
 import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedView;
 import io.github.vipcxj.beanknife.runtime.utils.BeanUsage;
@@ -16,7 +17,7 @@ public class ViewPropertyContainerBeanView {
 
     private long a;
 
-    private String b;
+    private long b;
 
     private ViewPropertyBeanWithoutParent view;
 
@@ -44,7 +45,7 @@ public class ViewPropertyContainerBeanView {
 
     public ViewPropertyContainerBeanView(
         long a,
-        String b,
+        long b,
         ViewPropertyBeanWithoutParent view,
         ViewPropertyBeanWithoutParent[] viewArray,
         List<ViewPropertyBeanWithoutParent> viewList,
@@ -278,7 +279,7 @@ public class ViewPropertyContainerBeanView {
         }
         ViewPropertyContainerBeanViewConfig configureBean = BeanProviders.INSTANCE.get(ViewPropertyContainerBeanViewConfig.class, BeanUsage.CONFIGURE, source, false, false);
         this.a = source.getA();
-        this.b = source.getB();
+        this.b = new StringToLongConverter().convert(source.getB());
         this.view = p0;
         this.viewArray = p1;
         this.viewList = p2;
@@ -311,9 +312,78 @@ public class ViewPropertyContainerBeanView {
         } else {
             p1 = null;
         }
+        Map<String, List<Map<Integer, Stack<ViewPropertyBean>>>>[][][] p2;
+        if (this.viewStackMapListMapArrayArrayArray != null) {
+            p2 = new Map[this.viewStackMapListMapArrayArrayArray.length][][];
+            for (int i0 = 0; i0 < this.viewStackMapListMapArrayArrayArray.length; ++i0) {
+                Map<String, List<Map<Integer, Stack<ViewPropertyBeanWithoutParent>>>>[][] el0 = this.viewStackMapListMapArrayArrayArray[i0];
+                Map<String, List<Map<Integer, Stack<ViewPropertyBean>>>>[][] result0;
+                if (el0 != null) {
+                    result0 = new Map[el0.length][];
+                    for (int i1 = 0; i1 < el0.length; ++i1) {
+                        Map<String, List<Map<Integer, Stack<ViewPropertyBeanWithoutParent>>>>[] el1 = el0[i1];
+                        Map<String, List<Map<Integer, Stack<ViewPropertyBean>>>>[] result1;
+                        if (el1 != null) {
+                            result1 = new Map[el1.length];
+                            for (int i2 = 0; i2 < el1.length; ++i2) {
+                                Map<String, List<Map<Integer, Stack<ViewPropertyBeanWithoutParent>>>> el2 = el1[i2];
+                                Map<String, List<Map<Integer, Stack<ViewPropertyBean>>>> result2;
+                                if (el2 != null) {
+                                    result2 = new HashMap<>();
+                                    for (Map.Entry<String, List<Map<Integer, Stack<ViewPropertyBeanWithoutParent>>>> el3 : el2.entrySet()) {
+                                        List<Map<Integer, Stack<ViewPropertyBean>>> result3;
+                                        if (el3.getValue() != null) {
+                                            result3 = new ArrayList<>();
+                                            for (Map<Integer, Stack<ViewPropertyBeanWithoutParent>> el4 : el3.getValue()) {
+                                                Map<Integer, Stack<ViewPropertyBean>> result4;
+                                                if (el4 != null) {
+                                                    result4 = new HashMap<>();
+                                                    for (Map.Entry<Integer, Stack<ViewPropertyBeanWithoutParent>> el5 : el4.entrySet()) {
+                                                        Stack<ViewPropertyBean> result5;
+                                                        if (el5.getValue() != null) {
+                                                            result5 = new Stack<>();
+                                                            for (ViewPropertyBeanWithoutParent el6 : el5.getValue()) {
+                                                                ViewPropertyBean result6 = el6.createAndWriteBack();
+                                                                result5.add(result6);
+                                                            }
+                                                        } else {
+                                                            result5 = null;
+                                                        }
+                                                        result4.put(el5.getKey(), result5);
+                                                    }
+                                                } else {
+                                                    result4 = null;
+                                                }
+                                                result3.add(result4);
+                                            }
+                                        } else {
+                                            result3 = null;
+                                        }
+                                        result2.put(el3.getKey(), result3);
+                                    }
+                                } else {
+                                    result2 = null;
+                                }
+                                result1[i2] = result2;
+                            }
+                        } else {
+                            result1 = null;
+                        }
+                        result0[i1] = result1;
+                    }
+                } else {
+                    result0 = null;
+                }
+                p2[i0] = result0;
+            }
+        } else {
+            p2 = null;
+        }
 
+        target.setB(new StringToLongConverter().convertBack(this.b));
         target.setView(p0);
         target.setViewList(p1);
+        target.setViewStackMapListMapArrayArrayArray(p2);
     }
 
     public ViewPropertyContainerBean createAndWriteBack() {
@@ -328,9 +398,78 @@ public class ViewPropertyContainerBeanView {
         } else {
             p1 = null;
         }
+        Map<String, List<Map<Integer, Stack<ViewPropertyBean>>>>[][][] p2;
+        if (this.viewStackMapListMapArrayArrayArray != null) {
+            p2 = new Map[this.viewStackMapListMapArrayArrayArray.length][][];
+            for (int i0 = 0; i0 < this.viewStackMapListMapArrayArrayArray.length; ++i0) {
+                Map<String, List<Map<Integer, Stack<ViewPropertyBeanWithoutParent>>>>[][] el0 = this.viewStackMapListMapArrayArrayArray[i0];
+                Map<String, List<Map<Integer, Stack<ViewPropertyBean>>>>[][] result0;
+                if (el0 != null) {
+                    result0 = new Map[el0.length][];
+                    for (int i1 = 0; i1 < el0.length; ++i1) {
+                        Map<String, List<Map<Integer, Stack<ViewPropertyBeanWithoutParent>>>>[] el1 = el0[i1];
+                        Map<String, List<Map<Integer, Stack<ViewPropertyBean>>>>[] result1;
+                        if (el1 != null) {
+                            result1 = new Map[el1.length];
+                            for (int i2 = 0; i2 < el1.length; ++i2) {
+                                Map<String, List<Map<Integer, Stack<ViewPropertyBeanWithoutParent>>>> el2 = el1[i2];
+                                Map<String, List<Map<Integer, Stack<ViewPropertyBean>>>> result2;
+                                if (el2 != null) {
+                                    result2 = new HashMap<>();
+                                    for (Map.Entry<String, List<Map<Integer, Stack<ViewPropertyBeanWithoutParent>>>> el3 : el2.entrySet()) {
+                                        List<Map<Integer, Stack<ViewPropertyBean>>> result3;
+                                        if (el3.getValue() != null) {
+                                            result3 = new ArrayList<>();
+                                            for (Map<Integer, Stack<ViewPropertyBeanWithoutParent>> el4 : el3.getValue()) {
+                                                Map<Integer, Stack<ViewPropertyBean>> result4;
+                                                if (el4 != null) {
+                                                    result4 = new HashMap<>();
+                                                    for (Map.Entry<Integer, Stack<ViewPropertyBeanWithoutParent>> el5 : el4.entrySet()) {
+                                                        Stack<ViewPropertyBean> result5;
+                                                        if (el5.getValue() != null) {
+                                                            result5 = new Stack<>();
+                                                            for (ViewPropertyBeanWithoutParent el6 : el5.getValue()) {
+                                                                ViewPropertyBean result6 = el6.createAndWriteBack();
+                                                                result5.add(result6);
+                                                            }
+                                                        } else {
+                                                            result5 = null;
+                                                        }
+                                                        result4.put(el5.getKey(), result5);
+                                                    }
+                                                } else {
+                                                    result4 = null;
+                                                }
+                                                result3.add(result4);
+                                            }
+                                        } else {
+                                            result3 = null;
+                                        }
+                                        result2.put(el3.getKey(), result3);
+                                    }
+                                } else {
+                                    result2 = null;
+                                }
+                                result1[i2] = result2;
+                            }
+                        } else {
+                            result1 = null;
+                        }
+                        result0[i1] = result1;
+                    }
+                } else {
+                    result0 = null;
+                }
+                p2[i0] = result0;
+            }
+        } else {
+            p2 = null;
+        }
         ViewPropertyContainerBean target = BeanProviders.INSTANCE.get(ViewPropertyContainerBean.class, BeanUsage.CONVERT_BACK, this, false, false);
+        target.setB(new StringToLongConverter().convertBack(this.b));
         target.setView(p0);
         target.setViewList(p1);
+        target.setViewStackMapListMapArrayArrayArray(p2);
         return target;
     }
 
@@ -338,7 +477,7 @@ public class ViewPropertyContainerBeanView {
         return this.a;
     }
 
-    public String getB() {
+    public long getB() {
         return this.b;
     }
 

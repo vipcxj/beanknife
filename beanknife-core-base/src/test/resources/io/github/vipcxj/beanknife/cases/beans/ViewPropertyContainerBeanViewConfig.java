@@ -1,5 +1,6 @@
 package io.github.vipcxj.beanknife.cases.beans;
 
+import io.github.vipcxj.beanknife.cases.converters.StringToLongConverter;
 import io.github.vipcxj.beanknife.runtime.annotations.*;
 
 import java.util.List;
@@ -13,6 +14,9 @@ import java.util.Stack;
 @ViewCreateAndWriteBackMethod(Access.PUBLIC)
 public class ViewPropertyContainerBeanViewConfig {
 
+    @OverrideViewProperty("b")
+    @UsePropertyConverter(StringToLongConverter.class)
+    private long b;
     @OverrideViewProperty(ViewPropertyContainerBeanMeta.view)
     private ViewPropertyBeanWithoutParent view;
     @OverrideViewProperty(ViewPropertyContainerBeanMeta.viewArray)
