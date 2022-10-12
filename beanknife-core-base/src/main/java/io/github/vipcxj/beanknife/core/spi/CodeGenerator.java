@@ -3,7 +3,9 @@ package io.github.vipcxj.beanknife.core.spi;
 import io.github.vipcxj.beanknife.core.models.Context;
 
 import javax.annotation.processing.Filer;
+import javax.annotation.processing.FilerException;
 import javax.lang.model.element.Element;
+import javax.tools.Diagnostic;
 import javax.tools.FileObject;
 import javax.tools.JavaFileManager;
 import java.io.IOException;
@@ -76,31 +78,35 @@ public interface CodeGenerator<C extends Context> {
         String relativeName = generator.relativeName();
         if (generator.standalone() && generator.fileType() != null && relativeName != null && !relativeName.isEmpty()) {
             String name = !moduleAndPkg.isEmpty() ? moduleAndPkg + "." + relativeName : relativeName;
-            FileObject[] fileObjects = null;
-            switch (generator.fileType()) {
-                case SOURCE:
-                    fileObjects = new FileObject[] { filer.createSourceFile(name, dependencies) };
-                    break;
-                case CLASS:
-                    fileObjects = new FileObject[] { filer.createClassFile(name, dependencies) };
-                    break;
-                case RESOURCE:
-                    JavaFileManager.Location[] locations = generator.location();
-                    if (locations != null && locations.length != 0) {
-                        fileObjects = new FileObject[locations.length];
-                        for (int i = 0; i < locations.length; ++i) {
-                            JavaFileManager.Location location = locations[i];
-                            fileObjects[i] = filer.createResource(location, moduleAndPkg, relativeName, dependencies);
+            try {
+                FileObject[] fileObjects = null;
+                switch (generator.fileType()) {
+                    case SOURCE:
+                        fileObjects = new FileObject[] { filer.createSourceFile(name, dependencies) };
+                        break;
+                    case CLASS:
+                        fileObjects = new FileObject[] { filer.createClassFile(name, dependencies) };
+                        break;
+                    case RESOURCE:
+                        JavaFileManager.Location[] locations = generator.location();
+                        if (locations != null && locations.length != 0) {
+                            fileObjects = new FileObject[locations.length];
+                            for (int i = 0; i < locations.length; ++i) {
+                                JavaFileManager.Location location = locations[i];
+                                fileObjects[i] = filer.createResource(location, moduleAndPkg, relativeName, dependencies);
+                            }
+                        }
+                        break;
+                }
+                if (fileObjects != null) {
+                    for (FileObject fileObject : fileObjects) {
+                        try (PrintWriter writer = new PrintWriter(fileObject.openWriter())) {
+                            generator.print(writer, context, Context.INDENT, 0);
                         }
                     }
-                    break;
-            }
-            if (fileObjects != null) {
-                for (FileObject fileObject : fileObjects) {
-                    try (PrintWriter writer = new PrintWriter(fileObject.openWriter())) {
-                        generator.print(writer, context, Context.INDENT, 0);
-                    }
                 }
+            } catch (FilerException e) {
+                context.getProcessingEnv().getMessager().printMessage(Diagnostic.Kind.WARNING, e.getMessage());
             }
         }
     }

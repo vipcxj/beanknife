@@ -2,6 +2,7 @@ package io.github.vipcxj.beanknife.cases.beans;
 
 import io.github.vipcxj.beanknife.runtime.BeanProviders;
 import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedView;
+import io.github.vipcxj.beanknife.runtime.converters.NullStringAsEmptyConverter;
 import io.github.vipcxj.beanknife.runtime.utils.BeanUsage;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -14,7 +15,7 @@ import java.util.Stack;
 @GeneratedView(targetClass = WriteableBean.class, configClass = WriteableBeanViewConfigure.class)
 public class WriteableBeanView<T> {
 
-    private String a;
+    private String mappedA;
 
     private boolean b;
 
@@ -29,14 +30,14 @@ public class WriteableBeanView<T> {
     public WriteableBeanView() { }
 
     public WriteableBeanView(
-        String a,
+        String mappedA,
         boolean b,
         List<? extends Set<? extends T>> c,
         List<SimpleBean> d,
         Integer e,
         long f
     ) {
-        this.a = a;
+        this.mappedA = mappedA;
         this.b = b;
         this.c = c;
         this.d = d;
@@ -45,7 +46,7 @@ public class WriteableBeanView<T> {
     }
 
     public WriteableBeanView(WriteableBeanView<T> source) {
-        this.a = source.a;
+        this.mappedA = source.mappedA;
         this.b = source.b;
         this.c = source.c;
         this.d = source.d;
@@ -57,7 +58,7 @@ public class WriteableBeanView<T> {
         if (source == null) {
             throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.WriteableBeanView should not be null.");
         }
-        this.a = source.getA();
+        this.mappedA = new NullStringAsEmptyConverter().convert(source.getA());
         this.b = source.isB();
         this.c = source.getC();
         this.d = source.getD();
@@ -128,7 +129,8 @@ public class WriteableBeanView<T> {
     }
 
     public void writeBack(WriteableBean<T> target) {
-        target.setA(this.a);
+
+        target.setA(new NullStringAsEmptyConverter().convertBack(this.mappedA));
         target.setB(this.b);
         target.setC(this.c);
         target.setD(this.d);
@@ -137,7 +139,7 @@ public class WriteableBeanView<T> {
 
     protected WriteableBean<T> createAndWriteBack() {
         WriteableBean<T> target = BeanProviders.INSTANCE.get(WriteableBean.class, BeanUsage.CONVERT_BACK, this, false, false);
-        target.setA(this.a);
+        target.setA(new NullStringAsEmptyConverter().convertBack(this.mappedA));
         target.setB(this.b);
         target.setC(this.c);
         target.setD(this.d);
@@ -145,8 +147,8 @@ public class WriteableBeanView<T> {
         return target;
     }
 
-    public String getA() {
-        return this.a;
+    public String getMappedA() {
+        return this.mappedA;
     }
 
     public boolean isB() {

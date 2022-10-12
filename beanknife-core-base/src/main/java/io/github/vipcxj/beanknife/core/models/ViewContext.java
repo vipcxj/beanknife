@@ -53,6 +53,7 @@ public class ViewContext extends Context {
     private boolean useCachedConfigureBeanField;
     private final List<Type> implTypes;
     private final List<String> implTypeNames;
+    private final Map<String, Property> replacedPropertyMap;
 
     public ViewContext(@NonNull Trees trees, @NonNull ProcessingEnvironment processingEnv, @NonNull ProcessorData processorData, @NonNull ViewOfData viewOf) {
         super(trees, processingEnv, processorData);
@@ -75,6 +76,7 @@ public class ViewContext extends Context {
         this.useConfigureBeanVarInRead = false;
         this.implTypes = new ArrayList<>();
         this.implTypeNames = new ArrayList<>(Arrays.asList(this.viewOf.getImplementsTypes()));
+        this.replacedPropertyMap = new HashMap<>();
     }
 
     public ViewOfData getViewOf() {
@@ -307,6 +309,9 @@ public class ViewContext extends Context {
                                         Utils.resolveSetterAccess(viewOf, setterAccess),
                                         isView
                                 );
+                                if (!Objects.equals(name, mappedName)) {
+                                    replacedPropertyMap.put(name, p);
+                                }
                                 return converterType != null ? newProperty.withConverter(converterType) : newProperty;
                             } else {
                                 return p;
@@ -355,6 +360,9 @@ public class ViewContext extends Context {
                             if (p.getName().equals(mappedName)) {
                                 Access getterAccess = overrideViewProperty != null ? overrideViewProperty.getter() : mapViewProperty.getter();
                                 Access setterAccess = overrideViewProperty != null ? overrideViewProperty.setter() : mapViewProperty.setter();
+                                if (!Objects.equals(name, mappedName)) {
+                                    replacedPropertyMap.put(name, p);
+                                }
                                 return p.extend(
                                         member, name,
                                         extractor.getReturnType(),
@@ -1414,11 +1422,18 @@ public class ViewContext extends Context {
         writer.println();
     }
 
+    private Property getMappedProperty(Property property) {
+        String name = property.getName();
+        Property replacedProperty = replacedPropertyMap.get(name);
+        return replacedProperty != null ? replacedProperty : property;
+    }
+
     public boolean canWriteBack(Property property) {
         if (!property.isWriteable() && !property.isLombokWritable(samePackage)) {
             return false;
         }
-        if (viewOf.getWriteExcludes().contains(property.getName())) {
+        String mappedName = getMappedProperty(property).getName();
+        if (viewOf.getWriteExcludes().contains(mappedName)) {
             return false;
         }
         if (isSupportAutoViewTransform(property) && !isViewTypeSupportCreateAndWriteBack(property.getType())) {
@@ -1499,15 +1514,16 @@ public class ViewContext extends Context {
             if (canWriteBack(property)) {
                 writer.println();
                 Utils.printIndent(writer, INDENT, 2);
+                Property mappedProperty = getMappedProperty(property);
                 if (property.isWriteMethod()) {
                     writer.print("target.");
-                    writer.print(property.getSetterName());
+                    writer.print(mappedProperty.getSetterName());
                     writer.print("(");
                     printWriteBackField(writer, property, varMap);
                     writer.print(");");
                 } else {
                     writer.print("target.");
-                    writer.print(Objects.requireNonNull(property.getField()).getName());
+                    writer.print(Objects.requireNonNull(mappedProperty.getField()).getName());
                     writer.print(" = ");
                     printWriteBackField(writer, property, varMap);
                     writer.print(";");

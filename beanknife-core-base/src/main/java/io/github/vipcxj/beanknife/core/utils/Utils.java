@@ -17,6 +17,7 @@ import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedView;
 import io.github.vipcxj.beanknife.runtime.utils.Self;
 
 import javax.annotation.processing.Filer;
+import javax.annotation.processing.FilerException;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
@@ -413,12 +414,16 @@ public class Utils {
         }
         Element[] dependencies = calcDependencies(context);
         Filer filer = context.getProcessingEnv().getFiler();
-        FileObject fileObject = filer.createSourceFile(context.getGenType().getQualifiedName(), dependencies);
-        try (PrintWriter writer = new PrintWriter(fileObject.openWriter())) {
-            context.print(writer);
-        }
-        for (ViewCodeGenerator generator : ViewCodeGenerators.INSTANCE.getGenerators()) {
-            CodeGenerator.printOutside(generator, context, filer, dependencies);
+        try {
+            FileObject fileObject = filer.createSourceFile(context.getGenType().getQualifiedName(), dependencies);
+            try (PrintWriter writer = new PrintWriter(fileObject.openWriter())) {
+                context.print(writer);
+            }
+            for (ViewCodeGenerator generator : ViewCodeGenerators.INSTANCE.getGenerators()) {
+                CodeGenerator.printOutside(generator, context, filer, dependencies);
+            }
+        } catch (FilerException e) {
+            context.getProcessingEnv().getMessager().printMessage(Diagnostic.Kind.WARNING, e.getMessage());
         }
     }
 
@@ -432,13 +437,17 @@ public class Utils {
 
     public static void writeMetaFile(MetaContext context) throws IOException {
         Element[] dependencies = calcDependencies(context);
-        JavaFileObject sourceFile = context.getProcessingEnv().getFiler().createSourceFile(context.getGenType().getQualifiedName(), dependencies);
-        try (PrintWriter writer = new PrintWriter(sourceFile.openWriter())) {
-            context.collectData();
-            context.print(writer);
-        }
-        for (MetaCodeGenerator generator : MetaCodeGenerators.INSTANCE.getGenerators()) {
-            CodeGenerator.printOutside(generator, context, context.getProcessingEnv().getFiler(), dependencies);
+        try {
+            JavaFileObject sourceFile = context.getProcessingEnv().getFiler().createSourceFile(context.getGenType().getQualifiedName(), dependencies);
+            try (PrintWriter writer = new PrintWriter(sourceFile.openWriter())) {
+                context.collectData();
+                context.print(writer);
+            }
+            for (MetaCodeGenerator generator : MetaCodeGenerators.INSTANCE.getGenerators()) {
+                CodeGenerator.printOutside(generator, context, context.getProcessingEnv().getFiler(), dependencies);
+            }
+        } catch (FilerException e) {
+            context.getProcessingEnv().getMessager().printMessage(Diagnostic.Kind.WARNING, e.getMessage());
         }
     }
 
