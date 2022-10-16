@@ -1,6 +1,19 @@
 package io.github.vipcxj.beanknife.core.utils;
 
+import java.util.Locale;
+
 public class StringUtils {
+
+    public static String capitalize(String input) {
+        if (input == null || input.isEmpty()) {
+            return input;
+        }
+        if (input.length() == 1) {
+            return input.toUpperCase(Locale.ENGLISH);
+        } else {
+            return input.substring(0, 1).toUpperCase(Locale.ENGLISH) + input.substring(1);
+        }
+    }
 
     /**
      * Converts a standard POSIX Shell globbing pattern into a regular expression

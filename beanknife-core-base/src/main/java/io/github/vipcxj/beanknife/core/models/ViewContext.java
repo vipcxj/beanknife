@@ -54,6 +54,7 @@ public class ViewContext extends Context {
     private final List<Type> implTypes;
     private final List<String> implTypeNames;
     private final Map<String, Property> replacedPropertyMap;
+    private final Map<String, List<Property>> flattenMap;
 
     public ViewContext(@NonNull Trees trees, @NonNull ProcessingEnvironment processingEnv, @NonNull ProcessorData processorData, @NonNull ViewOfData viewOf) {
         super(trees, processingEnv, processorData);
@@ -77,6 +78,7 @@ public class ViewContext extends Context {
         this.implTypes = new ArrayList<>();
         this.implTypeNames = new ArrayList<>(Arrays.asList(this.viewOf.getImplementsTypes()));
         this.replacedPropertyMap = new HashMap<>();
+        this.flattenMap = new HashMap<>();
     }
 
     public ViewOfData getViewOf() {
@@ -722,7 +724,10 @@ public class ViewContext extends Context {
                         if (nameMapper.isEmpty()) {
                             return p.flattenOf(property, null);
                         } else {
-                            String newName = NameMapperHelper.parameterSubstitution(nameMapper, Collections.singletonMap("name", p.getName()));
+                            Map<String, String> vars = new HashMap<>();
+                            vars.put("name", p.getName());
+                            vars.put("Name", StringUtils.capitalize(p.getName()));
+                            String newName = NameMapperHelper.parameterSubstitution(nameMapper, vars);
                             return p.flattenOf(property, newName);
                         }
                     }).collect(Collectors.toList());
@@ -768,6 +773,9 @@ public class ViewContext extends Context {
         }
         List<Property> flattenProperties = properties.stream().flatMap(p -> {
             List<Property> props = flatten(p);
+            if (props != null) {
+                flattenMap.put(p.getName(), props);
+            }
             return props != null ? props.stream() : Stream.of(p);
         }).collect(Collectors.toList());
         for (Property property : flattenProperties) {
@@ -1046,18 +1054,18 @@ public class ViewContext extends Context {
             assert baseProperty != null;
             prepareView(writer, property.getType(), var, baseProperty.getType(), property.getOriginalValueString("source"), false, 2, 0);
             varMap.put(property.getName(), var);
-        } else if (!property.isDynamic() && property.getAnnotation(getProcessingEnv().getElementUtils(), Flatten.class) != null) {
+        } else if (!property.isDynamic() && flattenMap.get(property.getName()) != null && !flattenMap.get(property.getName()).isEmpty()) {
+            Utils.printIndent(writer, INDENT, 2);
+            property.printType(writer, this, true, true);
+            writer.print(" ");
             String var = "p" + varMap.size();
-            printAssignField(writer, property, varMap, varMapper, var);
+            printAssignField(writer, property, varMap, varMapper, var, 0);
             varMap.put(property.getName(), var);
         }
     }
 
     private Map<String, String> prepareRead(@NonNull PrintWriter writer, VarMapper varMapper) {
         Map<String, String> varMap = new HashMap<>();
-        for (Property property : getProperties()) {
-            prepareReadProperty(writer, property, varMap, varMapper);
-        }
         if (useConfigureBeanVarInRead) {
             Utils.printIndent(writer, INDENT, 2);
             configType.printType(writer, this, true, false);
@@ -1066,6 +1074,9 @@ public class ViewContext extends Context {
             writer.print(" = ");
             printInitConfigureBean(writer, "source", false);
             writer.println(";");
+        }
+        for (Property property : getProperties()) {
+            prepareReadProperty(writer, property, varMap, varMapper);
         }
         return varMap;
     }
@@ -1228,11 +1239,33 @@ public class ViewContext extends Context {
         }
     }
 
-    private void printAssignField(@NonNull PrintWriter writer, @NonNull Property property, @NonNull Map<String, String> varMap, @NonNull VarMapper varMapper, @NonNull String leftExpr) {
+    private String getDefaultValue(Property property) {
+        Type type = property.getType();
+        if (!type.isPrimate()) {
+            return "null";
+        }
+        if (type.isInt() || type.isShort() || type.isByte()) {
+            return "0";
+        } else if (type.isLong()) {
+            return "0L";
+        } else if (type.isFloat()) {
+            return "0.0f";
+        } else if (type.isDouble()) {
+            return "0.0";
+        } else if (type.isChar()) {
+            return "'\\u0000'";
+        } else if (type.isBoolean()) {
+            return "false";
+        } else {
+            throw new UnsupportedOperationException("Unable to decide the default value of type " + type + ".");
+        }
+    }
+
+    private void printAssignField(@NonNull PrintWriter writer, @NonNull Property property, @NonNull Map<String, String> varMap, @NonNull VarMapper varMapper, @NonNull String leftExpr, int indentNum) {
         if (!property.isDynamic() && (property.getFlattenParent() == null || !property.getFlattenParent().isDynamic())) {
             Type converter = property.getConverter();
             Property flattenParent = property.getFlattenParent();
-            Utils.printIndent(writer, INDENT, 2);
+            Utils.printIndent(writer, INDENT, indentNum);
             writer.print(leftExpr);
             writer.print(" = ");
             if (flattenParent != null) {
@@ -1240,9 +1273,18 @@ public class ViewContext extends Context {
                 Property flattenOf = property.getFlattenOf();
                 assert flattenOf != null;
                 writer.print(var);
-                writer.print(".");
-                writer.print(flattenOf.getGetterName());
-                writer.println("();");
+                writer.print(" != null ? ");
+                if (isDirectViewType(flattenParent.getType())) {
+                    writer.print(var);
+                    writer.print(".");
+                    writer.print(flattenOf.getGetterName());
+                    writer.print("()");
+                } else {
+                    writer.print(flattenOf.getOriginalValueString(var));
+                }
+                writer.print(" : ");
+                writer.print(getDefaultValue(flattenParent));
+                writer.println(";");
             } else if (varMap.containsKey(property.getName())) {
                 writer.print(varMap.get(property.getName()));
                 writer.println(";");
@@ -1272,7 +1314,7 @@ public class ViewContext extends Context {
 
     private void printAssignFields(@NonNull PrintWriter writer, List<Property> properties, @NonNull Map<String, String> varMap, @NonNull VarMapper varMapper, @NonNull String target) {
         for (Property property : properties) {
-            printAssignField(writer, property, varMap, varMapper, target + "." + this.getMappedFieldName(property));
+            printAssignField(writer, property, varMap, varMapper, target + "." + this.getMappedFieldName(property), 2);
         }
     }
 
