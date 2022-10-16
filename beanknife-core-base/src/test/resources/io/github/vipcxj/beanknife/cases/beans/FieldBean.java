@@ -11,4 +11,5 @@ public class FieldBean {
     long b;
     protected Date c;
     public Number[] d;
+    static public long e;
 }

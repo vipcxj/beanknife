@@ -17,6 +17,8 @@ public class BeanBViewWithInheritedConfig {
 
     private BeanA beanA;
 
+    private BeanA anotherBeanA;
+
     private String type;
 
     private Date timestamp;
@@ -26,11 +28,13 @@ public class BeanBViewWithInheritedConfig {
     public BeanBViewWithInheritedConfig(
         String a,
         BeanA beanA,
+        BeanA anotherBeanA,
         String type,
         Date timestamp
     ) {
         this.a = a;
         this.beanA = beanA;
+        this.anotherBeanA = anotherBeanA;
         this.type = type;
         this.timestamp = timestamp;
     }
@@ -38,6 +42,7 @@ public class BeanBViewWithInheritedConfig {
     public BeanBViewWithInheritedConfig(BeanBViewWithInheritedConfig source) {
         this.a = source.a;
         this.beanA = source.beanA;
+        this.anotherBeanA = source.anotherBeanA;
         this.type = source.type;
         this.timestamp = source.timestamp;
     }
@@ -48,6 +53,7 @@ public class BeanBViewWithInheritedConfig {
         }
         this.a = source.getA();
         this.beanA = source.getBeanA();
+        this.anotherBeanA = source.getAnotherBeanA();
         this.type = InheritedConfigBeanBViewConfig.type(source);
         this.timestamp = InheritedConfigBeanBViewConfig.timestamp();
     }
@@ -120,6 +126,10 @@ public class BeanBViewWithInheritedConfig {
 
     public BeanA getBeanA() {
         return this.beanA;
+    }
+
+    public BeanA getAnotherBeanA() {
+        return this.anotherBeanA;
     }
 
     public String getType() {

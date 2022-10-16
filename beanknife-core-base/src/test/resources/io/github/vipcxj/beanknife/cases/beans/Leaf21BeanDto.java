@@ -16,16 +16,21 @@ public class Leaf21BeanDto implements Serializable {
 
     private List<? extends String> c;
 
+    private String e;
+
     public Leaf21BeanDto() { }
 
     public Leaf21BeanDto(
-        List<? extends String> c
+        List<? extends String> c,
+        String e
     ) {
         this.c = c;
+        this.e = e;
     }
 
     public Leaf21BeanDto(Leaf21BeanDto source) {
         this.c = source.c;
+        this.e = source.e;
     }
 
     public static Leaf21BeanDto read(Leaf21Bean source) {
@@ -34,6 +39,7 @@ public class Leaf21BeanDto implements Serializable {
         }
         Leaf21BeanDto out = new Leaf21BeanDto();
         out.c = source.getC();
+        out.e = source.getE();
         return out;
     }
 
@@ -94,6 +100,10 @@ public class Leaf21BeanDto implements Serializable {
 
     public List<? extends String> getC() {
         return this.c;
+    }
+
+    public String getE() {
+        return this.e;
     }
 
 }

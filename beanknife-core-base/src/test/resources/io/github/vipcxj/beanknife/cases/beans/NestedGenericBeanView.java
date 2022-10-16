@@ -10,7 +10,7 @@ import java.util.Set;
 import java.util.Stack;
 
 @GeneratedView(targetClass = NestedGenericBean.class, configClass = NestedGenericBean.class)
-public class NestedGenericBeanView<T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> {
+public class NestedGenericBeanView<T1 extends Exception & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> {
 
     private T1 a;
 
@@ -39,14 +39,14 @@ public class NestedGenericBeanView<T1 extends CharSequence & Set<? extends Chara
         this.b = source.getB();
     }
 
-    public static <T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> NestedGenericBeanView<T1, T2> read(NestedGenericBean<T1, T2> source) {
+    public static <T1 extends Exception & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> NestedGenericBeanView<T1, T2> read(NestedGenericBean<T1, T2> source) {
         if (source == null) {
             return null;
         }
         return new NestedGenericBeanView<>(source);
     }
 
-    public static <T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> NestedGenericBeanView<T1, T2>[] read(NestedGenericBean<T1, T2>[] sources) {
+    public static <T1 extends Exception & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> NestedGenericBeanView<T1, T2>[] read(NestedGenericBean<T1, T2>[] sources) {
         if (sources == null) {
             return null;
         }
@@ -57,7 +57,7 @@ public class NestedGenericBeanView<T1 extends CharSequence & Set<? extends Chara
         return results;
     }
 
-    public static <T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> List<NestedGenericBeanView<T1, T2>> read(List<NestedGenericBean<T1, T2>> sources) {
+    public static <T1 extends Exception & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> List<NestedGenericBeanView<T1, T2>> read(List<NestedGenericBean<T1, T2>> sources) {
         if (sources == null) {
             return null;
         }
@@ -68,7 +68,7 @@ public class NestedGenericBeanView<T1 extends CharSequence & Set<? extends Chara
         return results;
     }
 
-    public static <T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> Set<NestedGenericBeanView<T1, T2>> read(Set<NestedGenericBean<T1, T2>> sources) {
+    public static <T1 extends Exception & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> Set<NestedGenericBeanView<T1, T2>> read(Set<NestedGenericBean<T1, T2>> sources) {
         if (sources == null) {
             return null;
         }
@@ -79,7 +79,7 @@ public class NestedGenericBeanView<T1 extends CharSequence & Set<? extends Chara
         return results;
     }
 
-    public static <T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> Stack<NestedGenericBeanView<T1, T2>> read(Stack<NestedGenericBean<T1, T2>> sources) {
+    public static <T1 extends Exception & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> Stack<NestedGenericBeanView<T1, T2>> read(Stack<NestedGenericBean<T1, T2>> sources) {
         if (sources == null) {
             return null;
         }
@@ -90,7 +90,7 @@ public class NestedGenericBeanView<T1 extends CharSequence & Set<? extends Chara
         return results;
     }
 
-    public static <K, T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> Map<K, NestedGenericBeanView<T1, T2>> read(Map<K, NestedGenericBean<T1, T2>> sources) {
+    public static <K, T1 extends Exception & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> Map<K, NestedGenericBeanView<T1, T2>> read(Map<K, NestedGenericBean<T1, T2>> sources) {
         if (sources == null) {
             return null;
         }

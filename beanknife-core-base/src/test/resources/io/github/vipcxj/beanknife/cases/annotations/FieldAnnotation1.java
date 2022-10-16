@@ -4,7 +4,7 @@ import io.github.vipcxj.beanknife.cases.models.AEnum;
 
 import java.lang.annotation.*;
 
-@Target(ElementType.FIELD)
+@Target({ElementType.FIELD, ElementType.TYPE_USE})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface FieldAnnotation1 {
     boolean booleanValue() default true;

@@ -16,11 +16,11 @@ public class InheritedBeanMeta {
     public static final String d = "d";
     public static final String f = "f";
     public static final String me = "me";
-    public static final String if_ = "if";
     public static final String while_ = "while";
     public static final String objectIsProperty = "objectIsProperty";
     public static final String TV = "TV";
     public static final String iI = "iI";
     public static final String _boolean = "_boolean";
     public static final String newProperty = "newProperty";
+    public static final String if_ = "if";
 }

@@ -10,7 +10,7 @@ import java.util.Set;
 import java.util.Stack;
 
 @GeneratedView(targetClass = GenericBean.class, configClass = GenericBean.class)
-public class GenericBeanView<T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> {
+public class GenericBeanView<T1 extends Exception & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> {
 
     private T1 a;
 
@@ -57,14 +57,14 @@ public class GenericBeanView<T1 extends CharSequence & Set<? extends Character>,
         this.e = source.getE();
     }
 
-    public static <T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> GenericBeanView<T1, T2> read(GenericBean<T1, T2> source) {
+    public static <T1 extends Exception & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> GenericBeanView<T1, T2> read(GenericBean<T1, T2> source) {
         if (source == null) {
             return null;
         }
         return new GenericBeanView<>(source);
     }
 
-    public static <T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> GenericBeanView<T1, T2>[] read(GenericBean<T1, T2>[] sources) {
+    public static <T1 extends Exception & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> GenericBeanView<T1, T2>[] read(GenericBean<T1, T2>[] sources) {
         if (sources == null) {
             return null;
         }
@@ -75,7 +75,7 @@ public class GenericBeanView<T1 extends CharSequence & Set<? extends Character>,
         return results;
     }
 
-    public static <T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> List<GenericBeanView<T1, T2>> read(List<GenericBean<T1, T2>> sources) {
+    public static <T1 extends Exception & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> List<GenericBeanView<T1, T2>> read(List<GenericBean<T1, T2>> sources) {
         if (sources == null) {
             return null;
         }
@@ -86,7 +86,7 @@ public class GenericBeanView<T1 extends CharSequence & Set<? extends Character>,
         return results;
     }
 
-    public static <T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> Set<GenericBeanView<T1, T2>> read(Set<GenericBean<T1, T2>> sources) {
+    public static <T1 extends Exception & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> Set<GenericBeanView<T1, T2>> read(Set<GenericBean<T1, T2>> sources) {
         if (sources == null) {
             return null;
         }
@@ -97,7 +97,7 @@ public class GenericBeanView<T1 extends CharSequence & Set<? extends Character>,
         return results;
     }
 
-    public static <T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> Stack<GenericBeanView<T1, T2>> read(Stack<GenericBean<T1, T2>> sources) {
+    public static <T1 extends Exception & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> Stack<GenericBeanView<T1, T2>> read(Stack<GenericBean<T1, T2>> sources) {
         if (sources == null) {
             return null;
         }
@@ -108,7 +108,7 @@ public class GenericBeanView<T1 extends CharSequence & Set<? extends Character>,
         return results;
     }
 
-    public static <K, T1 extends CharSequence & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> Map<K, GenericBeanView<T1, T2>> read(Map<K, GenericBean<T1, T2>> sources) {
+    public static <K, T1 extends Exception & Set<? extends Character>, T2 extends List<? extends Set<? super String>>> Map<K, GenericBeanView<T1, T2>> read(Map<K, GenericBean<T1, T2>> sources) {
         if (sources == null) {
             return null;
         }

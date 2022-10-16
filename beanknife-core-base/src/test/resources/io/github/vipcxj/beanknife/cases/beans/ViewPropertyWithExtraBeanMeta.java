@@ -4,7 +4,7 @@ import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedMeta;
 
 @GeneratedMeta(
     targetClass = ViewPropertyWithExtraBean.class,
-    configClass = ViewPropertyWithExtraBean.class,
+    configClass = ViewPropertyWithExtraContainerBeanViewConfig.class,
     proxies = {
         ViewPropertyWithExtraContainerBeanViewConfig.class
     }

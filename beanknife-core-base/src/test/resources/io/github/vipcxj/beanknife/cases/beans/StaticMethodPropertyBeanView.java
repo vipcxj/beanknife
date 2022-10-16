@@ -3,6 +3,7 @@ package io.github.vipcxj.beanknife.cases.beans;
 import io.github.vipcxj.beanknife.runtime.BeanProviders;
 import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedView;
 import io.github.vipcxj.beanknife.runtime.utils.BeanUsage;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -14,13 +15,13 @@ import java.util.Stack;
 @GeneratedView(targetClass = SimpleBean.class, configClass = StaticMethodPropertyBeanViewConfig.class)
 public class StaticMethodPropertyBeanView {
 
-    private String a;
+    private String newA;
 
     private Object b;
 
-    private int one;
+    private BigInteger newC;
 
-    private Integer c;
+    private int one;
 
     private Integer d;
 
@@ -29,26 +30,26 @@ public class StaticMethodPropertyBeanView {
     public StaticMethodPropertyBeanView() { }
 
     public StaticMethodPropertyBeanView(
-        String a,
+        String newA,
         Object b,
+        BigInteger newC,
         int one,
-        Integer c,
         Integer d,
         String e
     ) {
-        this.a = a;
+        this.newA = newA;
         this.b = b;
+        this.newC = newC;
         this.one = one;
-        this.c = c;
         this.d = d;
         this.e = e;
     }
 
     public StaticMethodPropertyBeanView(StaticMethodPropertyBeanView source) {
-        this.a = source.a;
+        this.newA = source.newA;
         this.b = source.b;
+        this.newC = source.newC;
         this.one = source.one;
-        this.c = source.c;
         this.d = source.d;
         this.e = source.e;
     }
@@ -58,10 +59,10 @@ public class StaticMethodPropertyBeanView {
             throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.StaticMethodPropertyBeanView should not be null.");
         }
         StaticMethodPropertyBeanViewConfig configureBean = BeanProviders.INSTANCE.get(StaticMethodPropertyBeanViewConfig.class, BeanUsage.CONFIGURE, source, false, false);
-        this.a = source.getA();
+        this.newA = StaticMethodPropertyBeanViewConfig.newA(source.getA());
         this.b = StaticMethodPropertyBeanViewConfig.getB();
+        this.newC = configureBean.newC(source.getB(), source.getC());
         this.one = StaticMethodPropertyBeanViewConfig.getOne();
-        this.c = StaticMethodPropertyBeanViewConfig.getC(source);
         this.d = StaticMethodPropertyBeanViewConfig.getD(source);
         this.e = configureBean.getABC(source);
     }
@@ -128,20 +129,20 @@ public class StaticMethodPropertyBeanView {
         return results;
     }
 
-    public String getA() {
-        return this.a;
+    public String getNewA() {
+        return this.newA;
     }
 
     public Object getB() {
         return this.b;
     }
 
-    public int getOne() {
-        return this.one;
+    public BigInteger getNewC() {
+        return this.newC;
     }
 
-    public Integer getC() {
-        return this.c;
+    public int getOne() {
+        return this.one;
     }
 
     public Integer getD() {

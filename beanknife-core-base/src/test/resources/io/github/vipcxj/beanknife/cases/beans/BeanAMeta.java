@@ -4,7 +4,7 @@ import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedMeta;
 
 @GeneratedMeta(
     targetClass = BeanA.class,
-    configClass = BeanA.class,
+    configClass = InheritedConfigBeanAViewConfig.class,
     proxies = {
         ConfigBeanA.class,
         InheritedConfigBeanAViewConfig.class

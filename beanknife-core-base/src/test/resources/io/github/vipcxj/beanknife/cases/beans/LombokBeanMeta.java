@@ -4,7 +4,7 @@ import io.github.vipcxj.beanknife.runtime.annotations.internal.GeneratedMeta;
 
 @GeneratedMeta(
     targetClass = LombokBean.class,
-    configClass = LombokBean.class,
+    configClass = LombokBeanViewConfigure.class,
     proxies = {
         LombokBeanViewConfigure.class
     }

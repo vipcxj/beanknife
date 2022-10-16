@@ -109,15 +109,15 @@ public class MapPropertiesView {
         return results;
     }
 
-    public String getA() {
+    public String getaMap() {
         return this.aMap;
     }
 
-    public int getB() {
+    public int getbMapWithConverter() {
         return this.bMapWithConverter;
     }
 
-    public Date getC() {
+    public Date getcMapUseMethod() {
         return this.cMapUseMethod;
     }
 

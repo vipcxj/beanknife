@@ -110,6 +110,13 @@ public class LombokBeanView {
         return results;
     }
 
+    public void writeBack(LombokBean target) {
+
+        target.setA(this.a);
+        target.setB(this.b);
+        target.setC(this.c);
+    }
+
     @PropertyAnnotation1
     public String getA() {
         return this.a;

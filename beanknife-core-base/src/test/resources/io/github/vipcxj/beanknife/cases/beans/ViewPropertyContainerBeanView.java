@@ -93,6 +93,7 @@ public class ViewPropertyContainerBeanView {
         if (source == null) {
             throw new NullPointerException("The input source argument of the read constructor of class io.github.vipcxj.beanknife.cases.beans.ViewPropertyContainerBeanView should not be null.");
         }
+        ViewPropertyContainerBeanViewConfig configureBean = BeanProviders.INSTANCE.get(ViewPropertyContainerBeanViewConfig.class, BeanUsage.CONFIGURE, source, false, false);
         ViewPropertyBeanWithoutParent p0 = ViewPropertyBeanWithoutParent.read(source.getView());
         ViewPropertyBeanWithoutParent[] p1;
         if (source.getViewArray() != null) {
@@ -277,7 +278,6 @@ public class ViewPropertyContainerBeanView {
         } else {
             p8 = null;
         }
-        ViewPropertyContainerBeanViewConfig configureBean = BeanProviders.INSTANCE.get(ViewPropertyContainerBeanViewConfig.class, BeanUsage.CONFIGURE, source, false, false);
         this.a = source.getA();
         this.b = new StringToLongConverter().convert(source.getB());
         this.view = p0;
